@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Airplane Game</title>
+    <link rel="stylesheet" href="css/main-style.css" />
+    <style>
+      body {
+        margin: 0;
+        height: 100vh;
+        overflow: hidden;
+        background-color: #87ceeb; /* Sky blue */
+        position: relative; /* Add this */
+      }
+
+      .airplane {
+        position: absolute;
+        cursor: move;
+        touch-action: none;
+        user-select: none;
+        z-index: 20; /* Higher than clouds */
+      }
+
+      .cloud {
+        position: absolute;
+        pointer-events: none;
+        user-select: none;
+        z-index: 10; /* Lower than airplane */
+        background-size: contain;
+        background-repeat: no-repeat;
+        background-position: center;
+        will-change: transform;
+      }
+
+      .bullet {
+        rotate: -90deg;
+        position: absolute;
+        pointer-events: none;
+        z-index: 15; /* Between airplane and clouds */
+        transform: translate(-50%, -50%);
+        width: 30px;
+        height: auto;
+      }
+    </style>
+  </head>
+  <body>
+    <script type="module" src="./js/script.js"></script>
+  </body>
+</html>
