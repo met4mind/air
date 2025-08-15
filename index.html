@@ -9,9 +9,35 @@
       body {
         margin: 0;
         height: 100vh;
+        width: 100vw;
         overflow: hidden;
-        background-color: #87ceeb; /* Sky blue */
-        position: relative; /* Add this */
+        touch-action: none;
+        position: fixed;
+        background-color: #87ceeb;
+      }
+
+      .road {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background-size: 100% auto;
+
+        background-position: center top;
+        z-index: 5;
+      }
+
+      .cloud-cover {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(255, 255, 255, 0);
+        z-index: 30;
+        pointer-events: none;
+        transition: background 1s ease-in-out;
       }
 
       .airplane {

@@ -1,11 +1,11 @@
 import { Airplane } from "./airplane.js";
 import { Cloud } from "./clouds.js";
+import { RoadManager } from "./road.js";
 
-// Configuration
 const CONFIG = {
   assets: {
     airplane: "./assets/images/airplanes/airplane1.png",
-    bullet: "./assets/images/bullets/bullet1.png",
+    bullet: "./assets/images/bullets/bullet1/lvl1.png",
     sound: "./assets/sounds/bullets/bullet2.wav",
     clouds: [
       "./assets/images/clouds/cloud3.png",
@@ -20,10 +20,10 @@ const CONFIG = {
     startY: window.innerHeight - 150,
   },
   bullets: {
-    angles: [0, -17.5, -35, 17.5, 35],
+    angles: [0],
     size: 25,
-    speed: 10,
-    interval: 200,
+    speed: 5,
+    interval: 900,
   },
   clouds: {
     count: 80,
@@ -32,10 +32,25 @@ const CONFIG = {
     minSpeed: 0.5,
     maxSpeed: 2.5,
   },
+  roads: {
+    images: ["assets/images/roads/road1.png", "assets/images/roads/road2.png"],
+    speed: 2,
+    transitionDuration: 2000,
+    width: 3840,
+    height: 2160,
+  },
 };
 
 // Game initialization
 document.addEventListener("DOMContentLoaded", () => {
+  const roadManager = new RoadManager(CONFIG);
+  roadManager.init();
+
+  function gameLoop() {
+    roadManager.update();
+    requestAnimationFrame(gameLoop);
+  }
+  gameLoop();
   // Create airplane
   const airplane = new Airplane(
     CONFIG.assets.airplane,
@@ -62,25 +77,28 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 function createClouds() {
+  // Initial cloud creation
   for (let i = 0; i < CONFIG.clouds.count; i++) {
     setTimeout(() => {
       new Cloud({
         backwardSpeed:
           CONFIG.clouds.minSpeed +
           Math.random() * (CONFIG.clouds.maxSpeed - CONFIG.clouds.minSpeed),
-        horizontalSpeed: (Math.random() - 0.5) * 0.8, // Increased horizontal movement
+        horizontalSpeed: (Math.random() - 0.5) * 0.8,
         size:
           CONFIG.clouds.minSize +
           Math.random() * (CONFIG.clouds.maxSize - CONFIG.clouds.minSize),
         imageUrl: CONFIG.assets.clouds[i % CONFIG.assets.clouds.length],
         startX: Math.random() * window.innerWidth,
-        rotation: (Math.random() - 0.5) * 45, // More rotation (-22.5° to 22.5°)
+        rotation: (Math.random() - 0.5) * 45,
       });
-    }, i * 1500); // More spaced out creation
+    }, i * 1500);
   }
 
-  // Continuous cloud generation
   setInterval(() => {
+    const randomCloudIndex = Math.floor(
+      Math.random() * CONFIG.assets.clouds.length
+    );
     new Cloud({
       backwardSpeed:
         CONFIG.clouds.minSpeed +
@@ -89,13 +107,12 @@ function createClouds() {
       size:
         CONFIG.clouds.minSize +
         Math.random() * (CONFIG.clouds.maxSize - CONFIG.clouds.minSize),
-      imageUrl: CONFIG.assets.clouds[i % CONFIG.assets.clouds.length],
+      imageUrl: CONFIG.assets.clouds[randomCloudIndex],
       startX: Math.random() * window.innerWidth,
       rotation: Math.random() * 360,
     });
   }, 5000);
 }
-
 function playSound(url) {
   try {
     const audio = new Audio(url);
