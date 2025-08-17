@@ -23,7 +23,6 @@
         width: 100vw;
         height: 100vh;
         background-size: 100% auto;
-
         background-position: center top;
         z-index: 5;
       }
@@ -45,14 +44,20 @@
         cursor: move;
         touch-action: none;
         user-select: none;
-        z-index: 20; /* Higher than clouds */
+        z-index: 20;
+      }
+
+      .wingman {
+        position: absolute;
+        z-index: 19;
+        will-change: transform;
       }
 
       .cloud {
         position: absolute;
         pointer-events: none;
         user-select: none;
-        z-index: 10; /* Lower than airplane */
+        z-index: 10;
         background-size: contain;
         background-repeat: no-repeat;
         background-position: center;
@@ -63,7 +68,7 @@
         rotate: -90deg;
         position: absolute;
         pointer-events: none;
-        z-index: 15; /* Between airplane and clouds */
+        z-index: 15;
         transform: translate(-50%, -50%);
         width: 30px;
         height: auto;
