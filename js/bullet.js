@@ -1,10 +1,19 @@
 export class Bullet {
-  constructor(imageUrl, x, y, size = 20, speed = 5, rotationDeg = 0) {
+  constructor(
+    imageUrl,
+    x,
+    y,
+    size = 20,
+    speed = 5,
+    rotationDeg = 0,
+    isOpponent = false
+  ) {
     this.size = size;
     this.speed = speed;
     this.rotationDeg = rotationDeg;
     this.active = true;
-    this.radians = (rotationDeg * Math.PI) / 180; // Convert to radians once
+    this.isOpponent = isOpponent;
+    this.radians = (rotationDeg * Math.PI) / 180;
 
     // Create bullet element
     this.element = document.createElement("div");
@@ -14,6 +23,11 @@ export class Bullet {
     this.element.style.position = "absolute";
     this.element.style.transformOrigin = "center center";
 
+    // اضافه کردن کلاس برای تشخیص گلوله حریف
+    if (isOpponent) {
+      this.element.classList.add("opponent-bullet");
+    }
+
     // Set image with rotation
     if (imageUrl) {
       this.element.style.backgroundImage = `url('${imageUrl}')`;
@@ -22,7 +36,7 @@ export class Bullet {
       this.element.style.backgroundPosition = "center";
       this.element.style.transform = `rotate(${rotationDeg}deg)`;
     } else {
-      this.element.style.backgroundColor = "yellow";
+      this.element.style.backgroundColor = isOpponent ? "red" : "yellow";
     }
 
     // Set initial position (centered)
@@ -45,19 +59,19 @@ export class Bullet {
   animate() {
     if (!this.active) return;
 
-    // Calculate movement based on rotation angle
-    this.x += Math.sin(this.radians) * this.speed;
-    this.y -= Math.cos(this.radians) * this.speed;
+    // حرکت گلوله بر اساس زاویه
+    if (this.isOpponent) {
+      // گلوله حریف به سمت پایین حرکت می‌کند
+      this.y += Math.abs(Math.cos(this.radians)) * this.speed;
+    } else {
+      // گلوله کاربر به سمت بالا حرکت می‌کند
+      this.y -= Math.abs(Math.cos(this.radians)) * this.speed;
+    }
 
     this.setPosition(this.x, this.y);
 
-    // Remove if off screen (all sides)
-    if (
-      this.y < -this.size ||
-      this.y > window.innerHeight ||
-      this.x < -this.size ||
-      this.x > window.innerWidth
-    ) {
+    // Remove if off screen
+    if (this.y < -this.size || this.y > window.innerHeight) {
       this.remove();
       return;
     }
@@ -70,5 +84,15 @@ export class Bullet {
     if (this.element.parentNode) {
       this.element.remove();
     }
+  }
+
+  getPosition() {
+    const rect = this.element.getBoundingClientRect();
+    return {
+      x: rect.left,
+      y: rect.top,
+      width: rect.width,
+      height: rect.height,
+    };
   }
 }

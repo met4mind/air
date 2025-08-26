@@ -14,8 +14,24 @@
         touch-action: none;
         position: fixed;
         background-color: #87ceeb;
+        font-family: Arial, sans-serif;
+      }
+      /* استایل هواپیمای حریف */
+      .opponent-airplane {
+        z-index: 20;
+        transform: rotate(180deg); /* چرخش به سمت پایین */
       }
 
+      /* استایل گلوله حریف */
+      .opponent-bullet {
+        filter: hue-rotate(180deg);
+        transform: rotate(180deg); /* چرخش به سمت پایین */
+      }
+
+      /* استایل گلوله کاربر */
+      .bullet {
+        transform: rotate(0deg); /* چرخش به سمت بالا */
+      }
       .road {
         position: fixed;
         top: 0;
@@ -73,9 +89,152 @@
         width: 30px;
         height: auto;
       }
+
+      /* استایل‌های صفحه لاگین */
+      #login-screen {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.8);
+        z-index: 100;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+      }
+
+      .login-container {
+        background: white;
+        padding: 20px;
+        border-radius: 10px;
+        width: 300px;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+      }
+
+      .login-container h2 {
+        text-align: center;
+        margin-bottom: 20px;
+        color: #333;
+      }
+
+      .login-input {
+        width: 100%;
+        margin: 10px 0;
+        padding: 10px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        box-sizing: border-box;
+      }
+
+      .login-button {
+        width: 100%;
+        padding: 10px;
+        margin: 5px 0;
+        background-color: #4caf50;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: background-color 0.3s;
+      }
+
+      .login-button:hover {
+        background-color: #45a049;
+      }
+
+      .login-button.secondary {
+        background-color: #2196f3;
+      }
+
+      .login-button.secondary:hover {
+        background-color: #0b7dda;
+      }
+
+      .asset-selection {
+        display: none;
+        margin-top: 15px;
+      }
+
+      .asset-item {
+        margin: 10px 0;
+        padding: 10px;
+        border: 1px solid #eee;
+        border-radius: 4px;
+        display: flex;
+        align-items: center;
+      }
+
+      .asset-item img {
+        width: 50px;
+        height: auto;
+        margin-right: 10px;
+      }
+
+      .asset-item label {
+        margin-left: 5px;
+      }
+
+      #waiting-message {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: rgba(0, 0, 0, 0.8);
+        color: white;
+        padding: 20px;
+        border-radius: 8px;
+        z-index: 101;
+        text-align: center;
+      }
     </style>
   </head>
   <body>
+    <!-- صفحه لاگین/ثبت نام -->
+    <div id="login-screen">
+      <div class="login-container">
+        <h2>Login / Register</h2>
+        <div id="login-form">
+          <input
+            type="text"
+            id="username"
+            class="login-input"
+            placeholder="Username"
+          />
+          <input
+            type="password"
+            id="password"
+            class="login-input"
+            placeholder="Password"
+          />
+          <input
+            type="password"
+            id="confirm-password"
+            class="login-input"
+            placeholder="Confirm Password"
+            style="display: none"
+          />
+          <button id="login-button" class="login-button">Login</button>
+          <button id="register-button" class="login-button secondary">
+            Register
+          </button>
+        </div>
+        <div id="asset-selection" class="asset-selection">
+          <h3>Select Airplane</h3>
+          <div id="airplane-list"></div>
+          <h3>Select Bullets</h3>
+          <div id="bullet-list"></div>
+          <button id="start-game-button" class="login-button">
+            Start Game
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div id="waiting-message" style="display: none">
+      <p>Waiting for an opponent...</p>
+    </div>
+
     <script type="module" src="./js/script.js"></script>
   </body>
 </html>

@@ -97,6 +97,14 @@ export class Airplane {
 
     this.element.style.left = `${Math.min(Math.max(0, x), maxX)}px`;
     this.element.style.top = `${Math.min(Math.max(0, y), maxY)}px`;
+
+    // ارسال موقعیت به سرور
+    if (window.networkManager) {
+      window.networkManager.sendMove(
+        parseInt(this.element.style.left) || 0,
+        parseInt(this.element.style.top) || 0
+      );
+    }
   }
 
   setPosition(x, y) {
@@ -113,19 +121,19 @@ export class Airplane {
     };
   }
 
-  shoot(bulletImage, size, speed, rotation) {
+  shoot(bulletImage, size, speed, rotation = 0) {
     const pos = this.getPosition();
     // Calculate center position with proper offsets
     const bulletX = pos.x + pos.width / 2;
-    const bulletY = pos.y + pos.height / 2;
+    const bulletY = pos.y; // شلیک از بالای هواپیما
 
     const bullet = new Bullet(
       bulletImage,
       bulletX,
       bulletY,
-      size, // size
-      speed, // speed
-      rotation // rotation
+      size,
+      speed,
+      rotation // rotation - به سمت بالا
     );
 
     this.bullets.push(bullet);

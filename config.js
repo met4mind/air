@@ -1,7 +1,8 @@
 export const CONFIG = {
+  BASEURL: "http://localhost:3000",
   assets: {
-    airplane: "./assets/images/airplanes/airplane1.png",
-    bullet: "./assets/images/bullets/bullet1/lvl1.png",
+    airplane: "./assets/images/airplanes/Tier 1/1.png",
+    bullet: "./assets/images/bullets/lvl1.png",
     bomb: "./assets/images/bullets/bomb1/lvl1.png",
     sound: "./assets/sounds/bullets/bullet1.wav",
     clouds: [
