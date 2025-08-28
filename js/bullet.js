@@ -59,26 +59,33 @@ export class Bullet {
   animate() {
     if (!this.active) return;
 
-    // حرکت گلوله بر اساس زاویه
+    // حرکت گلوله بر اساس زاویه - اصلاح شده
+    const angleRad = this.radians;
+    this.x += Math.sin(angleRad) * this.speed;
+
     if (this.isOpponent) {
       // گلوله حریف به سمت پایین حرکت می‌کند
-      this.y += Math.abs(Math.cos(this.radians)) * this.speed;
+      this.y += Math.abs(Math.cos(angleRad)) * this.speed;
     } else {
       // گلوله کاربر به سمت بالا حرکت می‌کند
-      this.y -= Math.abs(Math.cos(this.radians)) * this.speed;
+      this.y -= Math.abs(Math.cos(angleRad)) * this.speed;
     }
 
     this.setPosition(this.x, this.y);
 
     // Remove if off screen
-    if (this.y < -this.size || this.y > window.innerHeight) {
+    if (
+      this.y < -this.size ||
+      this.y > window.innerHeight ||
+      this.x < -this.size ||
+      this.x > window.innerWidth + this.size
+    ) {
       this.remove();
       return;
     }
 
     requestAnimationFrame(this.animate.bind(this));
   }
-
   remove() {
     this.active = false;
     if (this.element.parentNode) {

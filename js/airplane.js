@@ -98,7 +98,7 @@ export class Airplane {
     this.element.style.left = `${Math.min(Math.max(0, x), maxX)}px`;
     this.element.style.top = `${Math.min(Math.max(0, y), maxY)}px`;
 
-    // ارسال موقعیت به سرور
+    // ارسال موقعیت به سرور - موقعیت واقعی نه معکوس
     if (window.networkManager) {
       window.networkManager.sendMove(
         parseInt(this.element.style.left) || 0,

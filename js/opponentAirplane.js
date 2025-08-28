@@ -48,20 +48,21 @@ export class OpponentAirplane {
     };
   }
 
-  shoot(bulletImage, size, speed) {
+  // تغییر تابع shoot برای پذیرش rotation دلخواه
+  shoot(bulletImage, size, speed, rotation = 180) {
     const pos = this.getPosition();
     // Calculate center position with proper offsets
     const bulletX = pos.x + pos.width / 2;
     const bulletY = pos.y + pos.height;
 
-    // گلوله‌های حریف به سمت پایین شلیک می‌شوند (180 درجه)
+    // گلوله‌های حریف با rotation مشخص شده شلیک می‌شوند
     const bullet = new Bullet(
       bulletImage,
       bulletX,
       bulletY,
       size,
       speed,
-      180, // rotation - به سمت پایین
+      rotation, // استفاده از rotation ارسال شده
       true // isOpponent
     );
 

@@ -135,6 +135,21 @@ export class NetworkManager {
     }
   }
 
+  sendShoot(x, y, rotation, isWingman = false) {
+    if (this.connected) {
+      this.socket.send(
+        JSON.stringify({
+          type: "shoot",
+          userId: this.userId,
+          x: x,
+          y: y,
+          rotation: rotation,
+          isWingman: isWingman,
+        })
+      );
+    }
+  }
+
   sendMove(x, y) {
     if (this.connected) {
       this.socket.send(
@@ -147,21 +162,6 @@ export class NetworkManager {
       );
     }
   }
-
-  sendShoot(x, y, rotation) {
-    if (this.connected) {
-      this.socket.send(
-        JSON.stringify({
-          type: "shoot",
-          userId: this.userId,
-          x: x,
-          y: y,
-          rotation: rotation,
-        })
-      );
-    }
-  }
-
   sendHit(damage) {
     if (this.connected) {
       this.socket.send(

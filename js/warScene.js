@@ -45,21 +45,26 @@ export class WarScene {
     if (this.networkManager) {
       this.networkManager.onOpponentMove = (x, y) => {
         if (this.opponentAirplane) {
-          // تبدیل مختصات به حرکت معکوس
+          // تبدیل مختصات به حرکت معکوس - اصلاح شده
           const mirroredX = this.screenWidth - x - this.CONFIG.airplane.width;
-          const mirroredY = this.screenHeight - y - this.CONFIG.airplane.height;
+          const mirroredY = y; // فقط مختصات X معکوس می‌شود، Y مستقیم باقی می‌ماند
 
           this.opponentAirplane.setPosition(mirroredX, mirroredY);
         }
       };
 
-      this.networkManager.onOpponentShoot = (x, y) => {
-        // تبدیل مختصات شلیک به موقعیت معکوس
-        const mirroredX = this.screenWidth - x;
-        const mirroredY = this.screenHeight - y;
-        this.createOpponentBullet(mirroredX, mirroredY);
-      };
+      this.networkManager.onOpponentShoot = (x, y, rotation, isWingman) => {
+        console.log("Received opponent shoot:", x, y, rotation, isWingman);
 
+        if (!this.opponentAirplane) return;
+
+        // محاسبه موقعیت صحیح برای گلوله حریف
+        const airplanePos = this.opponentAirplane.getPosition();
+        const bulletX = airplanePos.x + airplanePos.width / 2;
+        const bulletY = airplanePos.y + airplanePos.height;
+
+        this.createOpponentBullet(bulletX, bulletY, rotation);
+      };
       this.networkManager.onYouHit = (damage) => {
         this.applyDamage(damage);
       };
@@ -102,13 +107,14 @@ export class WarScene {
     this.opponentAirplane.setPosition(initialX, initialY);
   }
 
-  createOpponentBullet(x, y) {
+  createOpponentBullet(x, y, rotation = 180) {
     if (!this.opponentAirplane) return;
 
     const bullet = this.opponentAirplane.shoot(
       this.getBulletImage(this.opponent.bullets),
       this.CONFIG.bullets.size,
-      this.CONFIG.bullets.speed
+      this.CONFIG.bullets.speed,
+      rotation
     );
 
     // تنظیم موقعیت گلوله حریف اگر مختصات مشخص شده باشد
@@ -121,7 +127,6 @@ export class WarScene {
     // پخش صدای شلیک حریف
     this.playSound(this.CONFIG.assets.sound);
   }
-
   setupScene() {
     this.roadManager = new RoadManager(this.CONFIG);
     this.roadManager.init();
@@ -229,8 +234,9 @@ export class WarScene {
     }
   }
 
+  // در تابع setupEventListeners، interval شلیک حریف را حذف کنید
   setupEventListeners() {
-    // Setup shooting intervals
+    // Setup shooting intervals - فقط برای بازیکن اصلی
     this.shootingInterval = setInterval(() => {
       this.CONFIG.bullets.angles.forEach((angle) => {
         const bullet = this.airplane.shoot(
@@ -248,13 +254,11 @@ export class WarScene {
       // اطلاع به سرور از شلیک (با مختصات معکوس)
       if (this.networkManager && this.networkManager.sendShoot) {
         const pos = this.airplane.getPosition();
-        const mirroredX = this.screenWidth - pos.x - this.CONFIG.airplane.width;
-        const mirroredY =
-          this.screenHeight - pos.y - this.CONFIG.airplane.height;
 
+        // ارسال موقعیت هواپیما به جای موقعیت گلوله
         this.networkManager.sendShoot(
-          mirroredX + this.CONFIG.airplane.width / 2,
-          mirroredY,
+          pos.x,
+          pos.y,
           180 // rotation برای شلیک به سمت پایین در صفحه حریف
         );
       }
@@ -267,16 +271,22 @@ export class WarScene {
           const wingmanBullets = this.wingman.shoot();
           this.bullets = this.bullets.concat(wingmanBullets);
           this.playSound(this.CONFIG.assets.sound);
+
+          // ارسال اطلاعات شلیک wingman به سرور
+          if (this.networkManager && this.networkManager.sendShoot) {
+            const pos = this.airplane.getPosition();
+
+            // ارسال موقعیت wingman برای شلیک
+            this.networkManager.sendShoot(
+              pos.x,
+              pos.y,
+              180,
+              true // پرچم indicating wingman shot
+            );
+          }
         }
       }, this.CONFIG.bullets.interval * this.CONFIG.wingmen.shootDelayMultiplier);
     }
-
-    // شلیک حریف (اتوماتیک)
-    this.opponentShootingInterval = setInterval(() => {
-      if (this.opponentAirplane && Math.random() < 0.3) {
-        this.createOpponentBullet();
-      }
-    }, 1000);
   }
 
   startGameLoop() {

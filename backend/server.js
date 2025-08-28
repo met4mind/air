@@ -149,6 +149,7 @@ wss.on("connection", (ws) => {
           }
           break;
 
+        // در بخش مدیریت پیام shoot
         case "shoot":
           // ارسال اطلاعات شلیک به حریف
           if (players[message.userId] && players[message.userId].opponent) {
@@ -160,6 +161,7 @@ wss.on("connection", (ws) => {
                   x: message.x,
                   y: message.y,
                   rotation: message.rotation,
+                  isWingman: message.isWingman || false,
                 })
               );
             }
