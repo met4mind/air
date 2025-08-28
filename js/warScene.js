@@ -47,10 +47,17 @@ export class WarScene {
         if (this.opponentAirplane) {
           // تبدیل مختصات به حرکت معکوس - اصلاح شده
           const mirroredX = this.screenWidth - x - this.CONFIG.airplane.width;
-          const mirroredY = y; // فقط مختصات X معکوس می‌شود، Y مستقیم باقی می‌ماند
+          const mirroredY = this.screenHeight - y - this.CONFIG.airplane.height; // فقط مختصات X معکوس می‌شود، Y مستقیم باقی می‌ماند
 
           this.opponentAirplane.setPosition(mirroredX, mirroredY);
         }
+      };
+
+      this.networkManager.onHealthUpdate = (health, opponentHealth) => {
+        this.health = health;
+        this.opponentHealth = opponentHealth;
+        this.updateHealthDisplay();
+        this.updateOpponentHealthDisplay();
       };
 
       this.networkManager.onOpponentShoot = (x, y, rotation, isWingman) => {
@@ -383,27 +390,13 @@ export class WarScene {
         this.opponentAirplane &&
         this.isColliding(bullet, this.opponentAirplane)
       ) {
-        // کاهش سلامت حریف
-        this.opponentHealth -= 10;
-        if (this.opponentHealth < 0) this.opponentHealth = 0;
-
-        this.updateOpponentHealthDisplay();
-
-        // اطلاع به سرور از آسیب به حریف
+        // فقط در صورت برخورد واقعی به سرور اطلاع دهید
         if (this.networkManager && this.networkManager.sendHit) {
           this.networkManager.sendHit(10);
         }
 
         bullet.remove();
         this.bullets.splice(i, 1);
-
-        // بررسی پایان بازی
-        if (this.opponentHealth <= 0) {
-          this.showGameOver(true);
-          if (this.networkManager && this.networkManager.sendGameOver) {
-            this.networkManager.sendGameOver();
-          }
-        }
       }
     }
 
@@ -411,10 +404,28 @@ export class WarScene {
     for (let i = this.opponentBullets.length - 1; i >= 0; i--) {
       const bullet = this.opponentBullets[i];
       if (this.isColliding(bullet, this.airplane)) {
-        this.applyDamage(10);
+        // فقط در صورت برخورد واقعی به سرور اطلاع دهید
+        if (this.networkManager && this.networkManager.sendHit) {
+          this.networkManager.sendHit(10);
+        }
+
         bullet.remove();
         this.opponentBullets.splice(i, 1);
       }
+    }
+  }
+
+  setHealth(health, opponentHealth) {
+    this.health = health;
+    this.opponentHealth = opponentHealth;
+    this.updateHealthDisplay();
+    this.updateOpponentHealthDisplay();
+
+    // بررسی پایان بازی محلی (برای موارد قطع ارتباط)
+    if (this.health <= 0) {
+      this.showGameOver(false);
+    } else if (this.opponentHealth <= 0) {
+      this.showGameOver(true);
     }
   }
 
@@ -425,30 +436,17 @@ export class WarScene {
     // تشخیص برخورد با حاشیه‌های کاهش یافته برای طبیعی‌تر شدن بازی
     const collisionMargin = 15;
 
+    // محاسبه مرکز گلوله
+    const bulletCenterX = bulletPos.x + bulletPos.width / 2;
+    const bulletCenterY = bulletPos.y + bulletPos.height / 2;
+
+    // بررسی برخورد با استفاده از مرکز گلوله و محدوده هواپیما
     return (
-      bulletPos.x + collisionMargin <
-        airplanePos.x + airplanePos.width - collisionMargin &&
-      bulletPos.x + bulletPos.width - collisionMargin >
-        airplanePos.x + collisionMargin &&
-      bulletPos.y + collisionMargin <
-        airplanePos.y + airplanePos.height - collisionMargin &&
-      bulletPos.y + bulletPos.height - collisionMargin >
-        airplanePos.y + collisionMargin
+      bulletCenterX > airplanePos.x + collisionMargin &&
+      bulletCenterX < airplanePos.x + airplanePos.width - collisionMargin &&
+      bulletCenterY > airplanePos.y + collisionMargin &&
+      bulletCenterY < airplanePos.y + airplanePos.height - collisionMargin
     );
-  }
-
-  applyDamage(damage) {
-    this.health -= damage;
-    if (this.health < 0) this.health = 0;
-
-    this.updateHealthDisplay();
-
-    if (this.health <= 0) {
-      this.showGameOver(false);
-      if (this.networkManager && this.networkManager.sendGameOver) {
-        this.networkManager.sendGameOver();
-      }
-    }
   }
 
   showGameOver(isWinner) {

@@ -9,6 +9,7 @@ export class NetworkManager {
     this.baseURL = CONFIG.BASEURL;
 
     // event handlers
+    this.onHealthUpdate = null;
     this.onGameStart = null;
     this.onWaiting = null;
     this.onOpponentMove = null;
@@ -115,6 +116,11 @@ export class NetworkManager {
 
       case "opponent_disconnected":
         if (this.onOpponentDisconnected) this.onOpponentDisconnected();
+        break;
+
+      case "health_update":
+        if (this.onHealthUpdate)
+          this.onHealthUpdate(message.health, message.opponentHealth);
         break;
     }
   }

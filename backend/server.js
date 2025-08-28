@@ -20,7 +20,7 @@ const UserSchema = new mongoose.Schema({
   wins: { type: Number, default: 0 },
   losses: { type: Number, default: 0 },
 });
-
+const gameRooms = {};
 const User = mongoose.model("User", UserSchema);
 
 const app = express();
@@ -169,17 +169,91 @@ wss.on("connection", (ws) => {
           break;
 
         case "hit":
-          // ثبت آسیب به حریف
           if (players[message.userId] && players[message.userId].opponent) {
-            const opponentId = players[message.userId].opponent;
-            if (players[opponentId]) {
-              players[opponentId].ws.send(
-                JSON.stringify({
-                  type: "you_hit",
-                  damage: message.damage,
-                })
-              );
-            }
+            const roomId = players[message.userId].roomId;
+            const room = gameRooms[roomId];
+
+            setTimeout(async () => {
+              if (room) {
+                // تشخیص اینکه کدام بازیکن آسیب دیده
+                const opponentId = players[message.userId].opponent;
+                const damage = message.damage || 10;
+
+                // کاهش سلامت در سرور
+                if (room.player1.id === opponentId) {
+                  room.player1.health = Math.max(
+                    0,
+                    room.player1.health - damage
+                  );
+                } else if (room.player2.id === opponentId) {
+                  room.player2.health = Math.max(
+                    0,
+                    room.player2.health - damage
+                  );
+                }
+
+                // ارسال وضعیت سلامت به هر دو بازیکن
+                players[message.userId].ws.send(
+                  JSON.stringify({
+                    type: "health_update",
+                    health:
+                      room.player1.id === message.userId
+                        ? room.player1.health
+                        : room.player2.health,
+                    opponentHealth:
+                      room.player1.id === message.userId
+                        ? room.player2.health
+                        : room.player1.health,
+                  })
+                );
+
+                players[opponentId].ws.send(
+                  JSON.stringify({
+                    type: "health_update",
+                    health:
+                      room.player1.id === opponentId
+                        ? room.player1.health
+                        : room.player2.health,
+                    opponentHealth:
+                      room.player1.id === opponentId
+                        ? room.player2.health
+                        : room.player1.health,
+                  })
+                );
+
+                // بررسی پایان بازی
+                if (room.player1.health <= 0 || room.player2.health <= 0) {
+                  const winnerId =
+                    room.player1.health > 0 ? room.player1.id : room.player2.id;
+                  const loserId =
+                    room.player1.health > 0 ? room.player2.id : room.player1.id;
+
+                  // آپدیت آمار برد و باخت
+                  await User.findByIdAndUpdate(winnerId, { $inc: { wins: 1 } });
+                  await User.findByIdAndUpdate(loserId, {
+                    $inc: { losses: 1 },
+                  });
+
+                  // ارسال پیام پایان بازی
+                  players[winnerId].ws.send(
+                    JSON.stringify({
+                      type: "game_over",
+                      result: "win",
+                    })
+                  );
+
+                  players[loserId].ws.send(
+                    JSON.stringify({
+                      type: "game_over",
+                      result: "lose",
+                    })
+                  );
+
+                  // حذف اتاق بازی
+                  delete gameRooms[roomId];
+                }
+              }
+            }, 50);
           }
           break;
 
@@ -238,10 +312,26 @@ wss.on("connection", (ws) => {
 });
 
 function startGame(player1Id, player2Id) {
-  players[player1Id].opponent = player2Id;
-  players[player2Id].opponent = player1Id;
+  const roomId = `${player1Id}_${player2Id}`;
 
-  // ارسال اطلاعات شروع بازی به هر دو بازیکن
+  // ایجاد اتاق بازی با وضعیت سلامت
+  gameRooms[roomId] = {
+    player1: {
+      id: player1Id,
+      health: 100,
+    },
+    player2: {
+      id: player2Id,
+      health: 100,
+    },
+  };
+
+  players[player1Id].opponent = player2Id;
+  players[player1Id].roomId = roomId;
+  players[player2Id].opponent = player1Id;
+  players[player2Id].roomId = roomId;
+
+  // ارسال اطلاعات شروع بازی
   players[player1Id].ws.send(
     JSON.stringify({
       type: "game_start",
@@ -250,6 +340,8 @@ function startGame(player1Id, player2Id) {
         airplane: players[player2Id].airplane,
         bullets: players[player2Id].bullets,
       },
+      health: 100, // سلامت اولیه
+      opponentHealth: 100, // سلامت حریف
     })
   );
 
@@ -261,6 +353,8 @@ function startGame(player1Id, player2Id) {
         airplane: players[player1Id].airplane,
         bullets: players[player1Id].bullets,
       },
+      health: 100,
+      opponentHealth: 100,
     })
   );
 }

@@ -233,6 +233,11 @@ class GameManager {
         bulletName: selectedBullet?.dataset.name,
       };
 
+      this.networkManager.onHealthUpdate = (health, opponentHealth) => {
+        if (this.currentScene && this.currentScene.setHealth) {
+          this.currentScene.setHealth(health, opponentHealth);
+        }
+      };
       // ایجاد صحنه جنگ با اطلاعات انتخاب کاربر
       this.scenes.war = new WarScene(CONFIG, this.networkManager, playerAssets);
 
