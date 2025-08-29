@@ -98,12 +98,18 @@ export class NetworkManager {
         break;
 
       case "opponent_move":
-        if (this.onOpponentMove) this.onOpponentMove(message.x, message.y);
+        if (this.onOpponentMove)
+          this.onOpponentMove(message.percentX, message.percentY);
         break;
 
       case "opponent_shoot":
         if (this.onOpponentShoot)
-          this.onOpponentShoot(message.x, message.y, message.rotation);
+          this.onOpponentShoot(
+            message.percentX,
+            message.percentY,
+            message.rotation,
+            message.isWingman
+          );
         break;
 
       case "you_hit":
@@ -112,6 +118,10 @@ export class NetworkManager {
 
       case "game_over":
         if (this.onGameOver) this.onGameOver(message.result);
+        break;
+
+      case "game_settings":
+        if (this.onGameSettings) this.onGameSettings(message);
         break;
 
       case "opponent_disconnected":
@@ -125,7 +135,16 @@ export class NetworkManager {
     }
   }
 
-  sendLogin(username, airplane, airplaneName, bullets, bulletName) {
+  // در network.js
+  sendLogin(
+    username,
+    airplane,
+    airplaneName,
+    bullets,
+    bulletName,
+    screenWidth,
+    screenHeight
+  ) {
     if (this.connected) {
       this.socket.send(
         JSON.stringify({
@@ -136,19 +155,36 @@ export class NetworkManager {
           airplaneName: airplaneName,
           bullets: bullets,
           bulletName: bulletName,
+          screenWidth: screenWidth,
+          screenHeight: screenHeight,
         })
       );
     }
   }
 
-  sendShoot(x, y, rotation, isWingman = false) {
+  // در network.js - تابع sendMove
+  sendMove(percentX, percentY) {
+    if (this.connected) {
+      this.socket.send(
+        JSON.stringify({
+          type: "move",
+          userId: this.userId,
+          percentX: percentX,
+          percentY: percentY,
+        })
+      );
+    }
+  }
+
+  // در network.js - تابع sendShoot
+  sendShoot(percentX, percentY, rotation, isWingman = false) {
     if (this.connected) {
       this.socket.send(
         JSON.stringify({
           type: "shoot",
           userId: this.userId,
-          x: x,
-          y: y,
+          percentX: percentX,
+          percentY: percentY,
           rotation: rotation,
           isWingman: isWingman,
         })
@@ -156,18 +192,8 @@ export class NetworkManager {
     }
   }
 
-  sendMove(x, y) {
-    if (this.connected) {
-      this.socket.send(
-        JSON.stringify({
-          type: "move",
-          userId: this.userId,
-          x: x,
-          y: y,
-        })
-      );
-    }
-  }
+  // در network.js - تابع handleMessage
+
   sendHit(damage) {
     if (this.connected) {
       this.socket.send(

@@ -33,7 +33,27 @@ export class Airplane {
       this.element.style.backgroundColor = "red";
     }
   }
+  handleResize() {
+    this.screenWidth = window.innerWidth;
+    this.screenHeight = window.innerHeight;
 
+    // به روزرسانی موقعیت هواپیماها بر اساس درصد موقعیت
+    if (this.airplane && this.airplane.percentPosition) {
+      const actualX = this.airplane.percentPosition.x * this.screenWidth;
+      const actualY = this.airplane.percentPosition.y * this.screenHeight;
+
+      this.airplane.setPosition(actualX, actualY);
+    }
+
+    if (this.opponentAirplane && this.opponentAirplane.percentPosition) {
+      const actualX =
+        this.opponentAirplane.percentPosition.x * this.screenWidth;
+      const actualY =
+        this.opponentAirplane.percentPosition.y * this.screenHeight;
+
+      this.opponentAirplane.setPosition(actualX, actualY);
+    }
+  }
   setupEvents() {
     this.element.addEventListener("mousedown", this.handleStart.bind(this));
     this.element.addEventListener(
@@ -92,21 +112,27 @@ export class Airplane {
   updatePosition(clientX, clientY) {
     const x = clientX - this.offsetX;
     const y = clientY - this.offsetY;
+
     const maxX = window.innerWidth - this.width;
     const maxY = window.innerHeight - this.height;
 
     this.element.style.left = `${Math.min(Math.max(0, x), maxX)}px`;
     this.element.style.top = `${Math.min(Math.max(0, y), maxY)}px`;
 
-    // ارسال موقعیت به سرور - موقعیت واقعی نه معکوس
+    // ذخیره موقعیت درصدی
+    this.percentPosition = {
+      x: (parseInt(this.element.style.left) || 0) / window.innerWidth,
+      y: (parseInt(this.element.style.top) || 0) / window.innerHeight,
+    };
+
+    // ارسال موقعیت درصدی به سرور
     if (window.networkManager) {
       window.networkManager.sendMove(
-        parseInt(this.element.style.left) || 0,
-        parseInt(this.element.style.top) || 0
+        this.percentPosition.x,
+        this.percentPosition.y
       );
     }
   }
-
   setPosition(x, y) {
     this.element.style.left = `${x}px`;
     this.element.style.top = `${y}px`;

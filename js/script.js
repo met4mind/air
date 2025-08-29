@@ -174,7 +174,9 @@ class GameManager {
         selectedAirplane.value,
         selectedAirplane.dataset.name,
         selectedBullet.value,
-        selectedBullet.dataset.name
+        selectedBullet.dataset.name,
+        window.innerWidth, // عرض صفحه
+        window.innerHeight // ارتفاع صفحه
       );
 
       // منتظر بمان تا بازی شروع شود

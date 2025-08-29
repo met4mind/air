@@ -108,13 +108,18 @@ wss.on("connection", (ws) => {
 
       switch (message.type) {
         case "login":
-          // ذخیره اطلاعات کاربر
           players[message.userId] = {
             ws,
             userId: message.userId,
             username: message.username,
             airplane: message.airplane,
             bullets: message.bullets,
+            screenSize: {
+              width: message.screenWidth || 1920,
+              height: message.screenHeight || 1080,
+            },
+            airplaneWidth: 100, // باید از کلاینت دریافت شود یا ثابت در نظر گرفته شود
+            airplaneHeight: 100,
             position: { x: 0, y: 0 },
           };
 
@@ -133,16 +138,16 @@ wss.on("connection", (ws) => {
           }
           break;
 
+        // در server.js - بخش مدیریت پیام move
         case "move":
-          // به روزرسانی موقعیت و ارسال به حریف
           if (players[message.userId] && players[message.userId].opponent) {
             const opponentId = players[message.userId].opponent;
             if (players[opponentId]) {
               players[opponentId].ws.send(
                 JSON.stringify({
                   type: "opponent_move",
-                  x: message.x,
-                  y: message.y,
+                  percentX: message.percentX,
+                  percentY: message.percentY,
                 })
               );
             }
@@ -151,15 +156,14 @@ wss.on("connection", (ws) => {
 
         // در بخش مدیریت پیام shoot
         case "shoot":
-          // ارسال اطلاعات شلیک به حریف
           if (players[message.userId] && players[message.userId].opponent) {
             const opponentId = players[message.userId].opponent;
             if (players[opponentId]) {
               players[opponentId].ws.send(
                 JSON.stringify({
                   type: "opponent_shoot",
-                  x: message.x,
-                  y: message.y,
+                  percentX: message.percentX,
+                  percentY: message.percentY,
                   rotation: message.rotation,
                   isWingman: message.isWingman || false,
                 })

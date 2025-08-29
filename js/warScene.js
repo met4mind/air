@@ -43,16 +43,22 @@ export class WarScene {
 
   setupNetworkHandlers() {
     if (this.networkManager) {
-      this.networkManager.onOpponentMove = (x, y) => {
+      // در warScene.js - تابع onOpponentMove
+      this.networkManager.onOpponentMove = (percentX, percentY) => {
         if (this.opponentAirplane) {
-          // تبدیل مختصات به حرکت معکوس - اصلاح شده
-          const mirroredX = this.screenWidth - x - this.CONFIG.airplane.width;
-          const mirroredY = this.screenHeight - y - this.CONFIG.airplane.height; // فقط مختصات X معکوس می‌شود، Y مستقیم باقی می‌ماند
+          // تبدیل درصد به موقعیت واقعی در صفحه فعلی
+          const actualX =
+            (1 - percentX) * window.innerWidth - this.opponentAirplane.width;
+          const actualY =
+            (1 - percentY) * window.innerHeight - this.opponentAirplane.height;
 
-          this.opponentAirplane.setPosition(mirroredX, mirroredY);
+          this.opponentAirplane.setPosition(actualX, actualY);
         }
       };
-
+      this.networkManager.onGameSettings = (settings) => {
+        window.gameSettings = settings;
+        this.updateGameBounds(settings);
+      };
       this.networkManager.onHealthUpdate = (health, opponentHealth) => {
         this.health = health;
         this.opponentHealth = opponentHealth;
@@ -60,17 +66,24 @@ export class WarScene {
         this.updateOpponentHealthDisplay();
       };
 
-      this.networkManager.onOpponentShoot = (x, y, rotation, isWingman) => {
-        console.log("Received opponent shoot:", x, y, rotation, isWingman);
-
+      // در warScene.js - تابع onOpponentShoot
+      // در warScene.js - تابع onOpponentShoot
+      this.networkManager.onOpponentShoot = (
+        percentX,
+        percentY,
+        rotation,
+        isWingman
+      ) => {
         if (!this.opponentAirplane) return;
 
-        // محاسبه موقعیت صحیح برای گلوله حریف
+        // موقعیت هواپیمای حریف
         const airplanePos = this.opponentAirplane.getPosition();
-        const bulletX = airplanePos.x + airplanePos.width / 2;
-        const bulletY = airplanePos.y + airplanePos.height;
+        const noseX = airplanePos.x + airplanePos.width / 2;
+        const noseY = airplanePos.y + airplanePos.height;
 
-        this.createOpponentBullet(bulletX, bulletY, rotation);
+        // ایجاد گلوله مستقیماً از دماغه هواپیما
+        // (نادیده گرفتن موقعیت درصدی برای رفع مشکل)
+        this.createOpponentBullet(noseX, noseY, 180);
       };
       this.networkManager.onYouHit = (damage) => {
         this.applyDamage(damage);
@@ -240,10 +253,30 @@ export class WarScene {
       }
     }
   }
+  updateGameBounds(settings) {
+    // ذخیره محدوده مجاز حرکت
+    this.gameBounds = {
+      minX: 0,
+      maxX: settings.maxX,
+      minY: 0,
+      maxY: settings.maxY,
+    }; // محدود کردن موقعیت فعلی هواپیما
+    const currentPos = this.airplane.getPosition();
+    const newX = Math.min(
+      Math.max(currentPos.x, this.gameBounds.minX),
+      this.gameBounds.maxX
+    );
+    const newY = Math.min(
+      Math.max(currentPos.y, this.gameBounds.minY),
+      this.gameBounds.maxY
+    );
 
+    this.airplane.setPosition(newX, newY);
+  }
   // در تابع setupEventListeners، interval شلیک حریف را حذف کنید
   setupEventListeners() {
     // Setup shooting intervals - فقط برای بازیکن اصلی
+    // در warScene.js - تابع setupEventListeners
     this.shootingInterval = setInterval(() => {
       this.CONFIG.bullets.angles.forEach((angle) => {
         const bullet = this.airplane.shoot(
@@ -258,42 +291,15 @@ export class WarScene {
       });
       this.playSound(this.CONFIG.assets.sound);
 
-      // اطلاع به سرور از شلیک (با مختصات معکوس)
+      // اطلاع به سرور از شلیک با موقعیت درصدی
       if (this.networkManager && this.networkManager.sendShoot) {
         const pos = this.airplane.getPosition();
+        const percentX = pos.x / window.innerWidth;
+        const percentY = pos.y / window.innerHeight;
 
-        // ارسال موقعیت هواپیما به جای موقعیت گلوله
-        this.networkManager.sendShoot(
-          pos.x,
-          pos.y,
-          180 // rotation برای شلیک به سمت پایین در صفحه حریف
-        );
+        this.networkManager.sendShoot(percentX, percentY, 180);
       }
     }, this.CONFIG.bullets.interval);
-
-    // شلیک wingman ها (اگر فعال باشند)
-    if (this.wingman) {
-      this.wingmanShootingInterval = setInterval(() => {
-        if (Math.random() < this.CONFIG.wingmen.shootProbability) {
-          const wingmanBullets = this.wingman.shoot();
-          this.bullets = this.bullets.concat(wingmanBullets);
-          this.playSound(this.CONFIG.assets.sound);
-
-          // ارسال اطلاعات شلیک wingman به سرور
-          if (this.networkManager && this.networkManager.sendShoot) {
-            const pos = this.airplane.getPosition();
-
-            // ارسال موقعیت wingman برای شلیک
-            this.networkManager.sendShoot(
-              pos.x,
-              pos.y,
-              180,
-              true // پرچم indicating wingman shot
-            );
-          }
-        }
-      }, this.CONFIG.bullets.interval * this.CONFIG.wingmen.shootDelayMultiplier);
-    }
   }
 
   startGameLoop() {

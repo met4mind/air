@@ -37,6 +37,12 @@ export class OpponentAirplane {
   setPosition(x, y) {
     this.element.style.left = `${x}px`;
     this.element.style.top = `${y}px`;
+
+    // ذخیره موقعیت درصدی
+    this.percentPosition = {
+      x: x / window.innerWidth,
+      y: y / window.innerHeight,
+    };
   }
 
   getPosition() {
