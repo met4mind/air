@@ -40,17 +40,17 @@ export class NetworkManager {
     }
   }
 
-  async register(username, password, confirmPassword) {
+  async register(username, password, confirmPassword, tgid) {
     return this.apiRequest("/api/register", {
       method: "POST",
-      body: JSON.stringify({ username, password, confirmPassword }),
+      body: JSON.stringify({ username, password, confirmPassword, tgid }),
     });
   }
 
-  async login(username, password) {
+  async login(username, password, tgid) {
     return this.apiRequest("/api/login", {
       method: "POST",
-      body: JSON.stringify({ username, password }),
+      body: JSON.stringify({ username, password, tgid }),
     });
   }
 
@@ -162,6 +162,7 @@ export class NetworkManager {
     }
   }
 
+  // در network.js - تابع sendMove
   // در network.js - تابع sendMove
   sendMove(percentX, percentY) {
     if (this.connected) {

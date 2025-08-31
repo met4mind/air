@@ -1,4 +1,9 @@
 export const CONFIG = {
+  mongoURI: "mongodb://localhost:27017/airplane-game",
+  telegramBotToken: "your_bot_token",
+  telegramChannel: "@your_channel",
+  youtubeChannel: "@your_youtube",
+  instagramPage: "@your_instagram",
   BASEURL: "http://localhost:3000",
   assets: {
     airplane: "./assets/images/airplanes/Tier 1/1.png",

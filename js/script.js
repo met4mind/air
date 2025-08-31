@@ -48,6 +48,7 @@ class GameManager {
   async handleLogin() {
     const username = document.getElementById("username").value;
     const password = document.getElementById("password").value;
+    const tgid = document.getElementById("tgid").value;
 
     if (!username || !password) {
       alert("Please enter both username and password");
@@ -65,11 +66,16 @@ class GameManager {
           return;
         }
 
-        await this.networkManager.register(username, password, confirmPassword);
+        await this.networkManager.register(
+          username,
+          password,
+          confirmPassword,
+          tgid
+        );
         await this.loadAssets();
       } else {
         const result = await this.networkManager.login(username, password);
-        this.networkManager.userId = result.user._id;
+        this.networkManager.userId = result._id;
         await this.loadAssets();
       }
     } catch (error) {

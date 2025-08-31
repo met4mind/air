@@ -3,8 +3,9 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Airplane Game</title>
+    <title>بازی جنگنده‌ها</title>
     <link rel="stylesheet" href="css/main-style.css" />
+    <link rel="stylesheet" href="css/menu-style.css" />
     <style>
       body {
         margin: 0;
@@ -190,51 +191,185 @@
     </style>
   </head>
   <body>
-    <!-- صفحه لاگین/ثبت نام -->
-    <div id="login-screen">
-      <div class="login-container">
-        <h2>Login / Register</h2>
-        <div id="login-form">
-          <input
-            type="text"
-            id="username"
-            class="login-input"
-            placeholder="Username"
-          />
-          <input
-            type="password"
-            id="password"
-            class="login-input"
-            placeholder="Password"
-          />
-          <input
-            type="password"
-            id="confirm-password"
-            class="login-input"
-            placeholder="Confirm Password"
-            style="display: none"
-          />
-          <button id="login-button" class="login-button">Login</button>
-          <button id="register-button" class="login-button secondary">
-            Register
-          </button>
+    <!-- منوی اصلی -->
+    <div id="main-menu" class="menu-container">
+      <div class="menu-header">
+        <h1>جنگنده‌های هوایی</h1>
+        <div class="user-info">
+          <span id="user-stars">0 ★</span>
+          <span id="user-coins">0 سکه</span>
         </div>
-        <div id="asset-selection" class="asset-selection">
-          <h3>Select Airplane</h3>
-          <div id="airplane-list"></div>
-          <h3>Select Bullets</h3>
-          <div id="bullet-list"></div>
-          <button id="start-game-button" class="login-button">
-            Start Game
-          </button>
-        </div>
+      </div>
+
+      <div class="menu-options">
+        <button id="play-btn" class="menu-btn">شروع بازی</button>
+        <button id="leaderboard-btn" class="menu-btn">جدول رتبه‌بندی</button>
+        <button id="upgrade-btn" class="menu-btn">ارتقاء هواپیما</button>
+        <button id="shop-btn" class="menu-btn">فروشگاه</button>
+        <button id="free-coins-btn" class="menu-btn">سکه رایگان</button>
       </div>
     </div>
 
-    <div id="waiting-message" style="display: none">
-      <p>Waiting for an opponent...</p>
+    <!-- منوی جدول رتبه‌بندی -->
+    <div id="leaderboard-menu" class="menu-container hidden">
+      <div class="menu-header">
+        <h2>جدول رتبه‌بندی</h2>
+        <div class="timer" id="reset-timer">00:00:00</div>
+      </div>
+      <div class="prize-image">
+        <img src="assets/images/prizes/gold-trophy.png" alt="جایزه" />
+      </div>
+      <div id="leaderboard-content" class="leaderboard-content">
+        <!-- محتوای جدول رتبه‌بندی به صورت داینامیک پر می‌شود -->
+      </div>
+      <button class="back-btn">بازگشت</button>
     </div>
 
-    <script type="module" src="./js/script.js"></script>
+    <!-- منوی ارتقاء -->
+    <div id="upgrade-menu" class="menu-container hidden">
+      <h2>ارتقاء هواپیما</h2>
+      <div class="upgrade-options">
+        <div class="upgrade-item">
+          <h3>قدرت damage</h3>
+          <p>سطح فعلی: <span id="damage-level">1</span></p>
+          <p>هزینه ارتقاء: <span id="damage-cost">50</span> سکه</p>
+          <button class="upgrade-btn" data-type="damage">ارتقاء</button>
+        </div>
+        <div class="upgrade-item">
+          <h3>سرعت اصابت تیرها</h3>
+          <p>سطح فعلی: <span id="speed-level">1</span></p>
+          <p>هزینه ارتقاء: <span id="speed-cost">40</span> سکه</p>
+          <button class="upgrade-btn" data-type="speed">ارتقاء</button>
+        </div>
+        <div class="upgrade-item">
+          <h3>سلامتی هواپیما</h3>
+          <p>سطح فعلی: <span id="health-level">1</span></p>
+          <p>هزینه ارتقاء: <span id="health-cost">60</span> سکه</p>
+          <button class="upgrade-btn" data-type="health">ارتقاء</button>
+        </div>
+        <div class="upgrade-item">
+          <h3>خرید هواپیما</h3>
+          <p>سطح فعلی: <span id="airplane-tier">1</span></p>
+          <p>هزینه ارتقاء: <span id="airplane-cost">100</span> سکه</p>
+          <button class="upgrade-btn" data-type="airplane">ارتقاء</button>
+        </div>
+      </div>
+      <button class="back-btn">بازگشت</button>
+    </div>
+
+    <!-- منوی فروشگاه -->
+    <div id="shop-menu" class="menu-container hidden">
+      <h2>فروشگاه</h2>
+      <div class="shop-tabs">
+        <button class="tab-btn active" data-tab="potions">معجون‌ها</button>
+        <button class="tab-btn" data-tab="boosters">بوسترها</button>
+        <button class="tab-btn" data-tab="packages">بسته‌های ویژه</button>
+      </div>
+
+      <div class="shop-content">
+        <div id="potions-tab" class="tab-content active">
+          <!-- لیست معجون‌ها -->
+        </div>
+        <div id="boosters-tab" class="tab-content">
+          <!-- لیست بوسترها -->
+        </div>
+        <div id="packages-tab" class="tab-content">
+          <!-- بسته‌های ویژه -->
+        </div>
+      </div>
+      <button class="back-btn">بازگشت</button>
+    </div>
+
+    <!-- منوی سکه رایگان -->
+    <div id="free-coins-menu" class="menu-container hidden">
+      <h2>دریافت سکه رایگان</h2>
+      <div class="free-options">
+        <div class="free-item">
+          <h3>دعوت از دوستان</h3>
+          <p>برای هر دعوت موفق ۱۰ سکه دریافت کنید</p>
+          <button id="invite-btn">دعوت دوستان</button>
+        </div>
+        <div class="free-item">
+          <h3>عضویت در کانال تلگرام</h3>
+          <p>۱۰ سکه رایگان</p>
+          <button class="offer-btn" data-platform="telegram">
+            بررسی عضویت
+          </button>
+        </div>
+        <div class="free-item">
+          <h3>عضویت در اینستاگرام</h3>
+          <p>۱۵ سکه رایگان</p>
+          <button class="offer-btn" data-platform="instagram">
+            بررسی عضویت
+          </button>
+        </div>
+        <div class="free-item">
+          <h3>سابسکرایب یوتیوب</h3>
+          <p>۲۰ سکه رایگان</p>
+          <button class="offer-btn" data-platform="youtube">
+            بررسی سابسکرایب
+          </button>
+        </div>
+      </div>
+      <button class="back-btn">بازگشت</button>
+    </div>
+    <!-- صفحه لاگین/ثبت نام -->
+
+    <div id="game-container" class="hidden">
+      <div id="login-screen">
+        <div class="login-container">
+          <h2>Login / Register</h2>
+          <div id="login-form">
+            <input
+              type="text"
+              id="username"
+              class="login-input"
+              placeholder="Username"
+            />
+            <input
+              type="number"
+              id="tgid"
+              class="login-input"
+              placeholder="tgid"
+            />
+            <input
+              type="password"
+              id="password"
+              class="login-input"
+              placeholder="Password"
+            />
+            <input
+              type="password"
+              id="confirm-password"
+              class="login-input"
+              placeholder="Confirm Password"
+              style="display: none"
+            />
+            <button id="login-button" class="login-button">Login</button>
+            <button id="register-button" class="login-button secondary">
+              Register
+            </button>
+          </div>
+          <div id="asset-selection" class="asset-selection">
+            <h3>Select Airplane</h3>
+            <div id="airplane-list"></div>
+            <h3>Select Bullets</h3>
+            <div id="bullet-list"></div>
+            <button id="start-game-button" class="login-button">
+              Start Game
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div id="waiting-message" style="display: none">
+        <p>Waiting for an opponent...</p>
+      </div>
+    </div>
+
+    <!-- In index.html, update the script tags -->
+    <script type="module" src="js/script.js"></script>
+    <script src="js/menu.js"></script>
+    <script type="module" src="js/network.js"></script>
   </body>
 </html>
