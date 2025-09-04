@@ -8,7 +8,7 @@ const Leaderboard = require("../models/leaderboard");
 // Middleware برای احراز هویت کاربر تلگرام
 const auth = async (req, res, next) => {
   try {
-    const tgid = req.query.tgid || req.body.tgid;
+    const tgid = req.headers["x-tgid"] || req.query.tgid || req.body.tgid;
     if (!tgid) {
       return res.status(401).json({ error: "Authentication required" });
     }

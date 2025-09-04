@@ -1,6 +1,5 @@
-// مدیریت منوها و ناوبری
-
 const BASEURL = "http://localhost:3000";
+
 class MenuManager {
   constructor() {
     this.currentMenu = "main-menu";
@@ -11,10 +10,10 @@ class MenuManager {
   init() {
     this.bindEvents();
     this.loadUserData();
+    this.startDataSync();
   }
 
   bindEvents() {
-    // دکمه‌های منوی اصلی
     document
       .getElementById("play-btn")
       .addEventListener("click", () => this.startGame());
@@ -31,24 +30,20 @@ class MenuManager {
       .getElementById("free-coins-btn")
       .addEventListener("click", () => this.showFreeCoinsMenu());
 
-    // دکمه‌های بازگشت
     document.querySelectorAll(".back-btn").forEach((btn) => {
       btn.addEventListener("click", () => this.showMainMenu());
     });
 
-    // تب‌های فروشگاه
     document.querySelectorAll(".tab-btn").forEach((tab) => {
       tab.addEventListener("click", (e) => this.switchShopTab(e.target));
     });
 
-    // دکمه‌های ارتقاء
     document.querySelectorAll(".upgrade-btn").forEach((btn) => {
       btn.addEventListener("click", (e) =>
         this.upgradeFeature(e.target.dataset.type)
       );
     });
 
-    // دکمه‌های دریافت سکه رایگان
     document
       .getElementById("invite-btn")
       .addEventListener("click", () => this.inviteFriends());
@@ -59,49 +54,26 @@ class MenuManager {
     });
   }
 
-  async loadUserData() {
+  loadUserData() {
     try {
-      // دریافت اطلاعات کاربر از سرور
-      const tgid = this.getTgId();
-
-      // Use a fallback if server is not available
-      try {
-        const response = await fetch(`${BASEURL}/api/user?tgid=${tgid}`);
-        if (response.ok) {
-          this.userData = await response.json();
-        } else {
-          // Use default data if server is not available
-          this.userData = this.getDefaultUserData();
-        }
-      } catch (error) {
-        console.warn("Server not available, using default data");
-        this.userData = this.getDefaultUserData();
-      }
+      const savedData = localStorage.getItem("userData");
+      this.userData = JSON.parse(savedData);
 
       this.updateUI();
     } catch (error) {
       console.error("Error loading user data:", error);
-      this.userData = this.getDefaultUserData();
-      this.updateUI();
     }
   }
 
-  getDefaultUserData() {
-    return {
-      stars: 0,
-      coins: 100,
-      damageLevel: 1,
-      speedLevel: 1,
-      healthLevel: 1,
-      airplaneTier: 1,
-      username: "Player",
-    };
+  startDataSync() {
+    setInterval(() => {
+      this.loadUserData();
+    }, 5000);
   }
 
   updateUI() {
     if (!this.userData) return;
 
-    // به روزرسانی اطلاعات کاربر
     document.getElementById(
       "user-stars"
     ).textContent = `${this.userData.stars} ★`;
@@ -109,7 +81,6 @@ class MenuManager {
       "user-coins"
     ).textContent = `${this.userData.coins} سکه`;
 
-    // به روزرسانی سطوح ارتقاء
     document.getElementById("damage-level").textContent =
       this.userData.damageLevel;
     document.getElementById("speed-level").textContent =
@@ -119,7 +90,6 @@ class MenuManager {
     document.getElementById("airplane-tier").textContent =
       this.userData.airplaneTier;
 
-    // محاسبه هزینه‌های ارتقاء
     document.getElementById("damage-cost").textContent =
       this.userData.damageLevel * 50;
     document.getElementById("speed-cost").textContent =
@@ -131,16 +101,13 @@ class MenuManager {
   }
 
   showMenu(menuId) {
-    // مخفی کردن همه منوها
     document.querySelectorAll(".menu-container").forEach((menu) => {
       menu.classList.add("hidden");
     });
 
-    // نمایش منوی انتخاب شده
     document.getElementById(menuId).classList.remove("hidden");
     this.currentMenu = menuId;
 
-    // بارگذاری محتوای خاص منو
     if (menuId === "leaderboard-menu") {
       this.loadLeaderboard();
     } else if (menuId === "shop-menu") {
@@ -169,25 +136,46 @@ class MenuManager {
   }
 
   startGame() {
-    // مخفی کردن منوها و نمایش بازی
     document.querySelectorAll(".menu-container").forEach((menu) => {
       menu.classList.add("hidden");
     });
     document.getElementById("game-container").classList.remove("hidden");
 
-    // شروع بازی
     if (typeof startGame === "function") {
       startGame();
     }
   }
 
+  async apiRequest(endpoint, options = {}) {
+    try {
+      const response = await fetch(`${BASEURL}${endpoint}`, {
+        headers: {
+          "Content-Type": "application/json",
+          "x-tgid": this.getTgId(),
+          ...options.headers,
+        },
+        ...options,
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error("API request failed:", error);
+      throw error;
+    }
+  }
+
   async loadLeaderboard() {
     try {
-      const response = await fetch(`${BASEURL}/api/leaderboard`);
+      const response = await this.apiRequest(`/api/leaderboard`);
+      const tgid = localStorage.getItem("tgid");
+
       const leaderboard = await response.json();
       this.renderLeaderboard(leaderboard);
 
-      // به روزرسانی تایمر
       this.updateResetTimer(leaderboard.endDate);
     } catch (error) {
       console.error("Error loading leaderboard:", error);
@@ -246,56 +234,147 @@ class MenuManager {
     setInterval(updateTimer, 1000);
   }
 
+  // در فایل menu.js - متد loadShopItems را با این کد جایگزین کنید
   async loadShopItems() {
     try {
-      // بارگذاری معجون‌ها
-      const response = await fetch(`${BASEURL}/api/potions`);
-      const potions = await response.json();
-      this.renderPotions(potions);
+      const response = await this.apiRequest(`/api/potions`);
+
+      // فقط یک بار response.json() را فراخوانی کنید
+
+      this.renderPotions(response);
     } catch (error) {
       console.error("Error loading shop items:", error);
+      this.showNotification("خطا در بارگذاری معجون‌ها", "error");
     }
   }
 
+  // در فایل menu.js - بهبود متد renderPotions
+  // در فایل menu.js - متد renderPotions را با این کد جایگزین کنید
   renderPotions(potions) {
     const container = document.getElementById("potions-tab");
     container.innerHTML = "";
+
+    // بررسی کنید که potions یک آرایه است
+    if (!Array.isArray(potions) || potions.length === 0) {
+      container.innerHTML =
+        "<p class='no-items'>هیچ معجونی در فروشگاه موجود نیست.</p>";
+      return;
+    }
+
+    // ایجاد یک گرید برای نمایش معجون‌ها
+    const gridContainer = document.createElement("div");
+    gridContainer.className = "potions-grid";
 
     potions.forEach((potion) => {
       const potionItem = document.createElement("div");
       potionItem.className = "shop-item";
 
       potionItem.innerHTML = `
-                <img src="${potion.imagePath}" alt="${potion.name}">
-                <div class="shop-item-info">
-                    <h4>${potion.name}</h4>
-                    <p>${potion.description}</p>
-                    <p>قیمت: ${potion.price} سکه</p>
-                </div>
-                <button class="buy-btn" data-id="${potion._id}">خرید</button>
-            `;
+      <img src="${potion.imagePath}" alt="${
+        potion.name
+      }" onerror="this.src='assets/images/potions/heal.png'">
+      <div class="shop-item-info">
+        <h4>${potion.name}</h4>
+        <p>${potion.description}</p>
+        <p class="potion-effect">${potion.effect}</p>
+        <p class="shop-item-price">قیمت: ${potion.price} سکه</p>
+      </div>
+      <button class="buy-btn" data-id="${potion._id}" 
+              ${this.userData.coins < potion.price ? "disabled" : ""}>
+        خرید
+      </button>
+    `;
 
-      container.appendChild(potionItem);
+      gridContainer.appendChild(potionItem);
     });
+
+    container.appendChild(gridContainer);
 
     // اضافه کردن event listener برای دکمه‌های خرید
     document.querySelectorAll(".buy-btn").forEach((btn) => {
-      btn.addEventListener("click", (e) => this.buyPotion(e.target.dataset.id));
+      btn.addEventListener("click", (e) => {
+        const potionId = e.target.closest(".buy-btn").dataset.id;
+        this.buyPotion(potionId);
+      });
     });
   }
 
+  // بهبود متد buyPotion برای نمایش بهتر نتیجه خرید
+  async buyPotion(potionId) {
+    try {
+      const potion = this.getPotionById(potionId); // فرض می‌کنیم این متد وجود دارد
+      if (!potion) {
+        this.showNotification("معجون مورد نظر یافت نشد!", "error");
+        return;
+      }
+
+      if (this.userData.coins < potion.price) {
+        this.showNotification("سکه کافی برای خرید این معجون ندارید!", "error");
+        return;
+      }
+
+      const response = await this.apiRequest(`/api/shop/buy-potion`, {
+        method: "POST",
+        body: JSON.stringify({
+          tgid: this.getTgId(),
+          potionId,
+          quantity: 1,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (response.ok) {
+        this.showNotification(
+          `معجون ${potion.name} با موفقیت خریداری شد!`,
+          "success"
+        );
+        this.userData.coins = result.coins;
+        localStorage.setItem("userData", JSON.stringify(this.userData));
+        this.updateUI();
+
+        // به‌روزرسانی وضعیت دکمه‌های خرید
+        this.loadShopItems();
+      } else {
+        this.showNotification(result.error || "خطا در خرید معجون", "error");
+      }
+    } catch (error) {
+      console.error("Error buying potion:", error);
+      this.showNotification("خطا در ارتباط با سرور", "error");
+    }
+  }
+
+  // اضافه کردن متد کمکی برای نمایش نوتیفیکیشن
+  showNotification(message, type = "info") {
+    // ایجاد یا استفاده از سیستم نوتیفیکیشن موجود
+    const notification = document.createElement("div");
+    notification.className = `notification ${type}`;
+    notification.textContent = message;
+
+    // اضافه کردن به DOM
+    document.body.appendChild(notification);
+
+    // حذف خودکار پس از چند ثانیه
+    setTimeout(() => {
+      notification.remove();
+    }, 3000);
+  }
+
+  // اضافه کردن متد کمکی برای پیدا کردن معجون بر اساس ID
+  getPotionById(potionId) {
+    // این متد فرضی است - باید با داده‌های واقعی پر شود
+    const potions = this.getAvailablePotions(); // باید پیاده‌سازی شود
+    return potions.find((p) => p._id === potionId);
+  }
   switchShopTab(clickedTab) {
-    // غیرفعال کردن همه تب‌ها
     document.querySelectorAll(".tab-btn").forEach((tab) => {
       tab.classList.remove("active");
     });
 
-    // مخفی کردن همه محتواها
     document.querySelectorAll(".tab-content").forEach((content) => {
       content.classList.remove("active");
     });
 
-    // فعال کردن تب انتخاب شده
     clickedTab.classList.add("active");
     const tabName = clickedTab.dataset.tab;
     document.getElementById(`${tabName}-tab`).classList.add("active");
@@ -303,11 +382,8 @@ class MenuManager {
 
   async upgradeFeature(featureType) {
     try {
-      const response = await fetch(`${BASEURL}/api/upgrade`, {
+      const response = await this.apiRequest(`/api/upgrade`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
         body: JSON.stringify({
           tgid: this.getTgId(),
           type: featureType,
@@ -319,6 +395,7 @@ class MenuManager {
       if (response.ok) {
         alert("ارتقاء با موفقیت انجام شد!");
         this.userData.coins = result.coins;
+        localStorage.setItem("userData", JSON.stringify(this.userData));
         this.updateUI();
       } else {
         alert(result.error);
@@ -331,11 +408,8 @@ class MenuManager {
 
   async buyPotion(potionId) {
     try {
-      const response = await fetch(`${BASEURL}/api/shop/buy-potion`, {
+      const response = await this.apiRequest(`/api/shop/buy-potion`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
         body: JSON.stringify({
           tgid: this.getTgId(),
           potionId,
@@ -348,6 +422,7 @@ class MenuManager {
       if (response.ok) {
         alert("خرید با موفقیت انجام شد!");
         this.userData.coins = result.coins;
+        localStorage.setItem("userData", JSON.stringify(this.userData));
         this.updateUI();
       } else {
         alert(result.error);
@@ -359,14 +434,12 @@ class MenuManager {
   }
 
   inviteFriends() {
-    // در مینی اپ تلگرام، از ویژگی اشتراک‌گذاری استفاده می‌شود
     if (window.Telegram && window.Telegram.WebApp) {
       window.Telegram.WebApp.shareUrl(
         `https://t.me/your_bot_username?start=ref_${this.getTgId()}`,
         "به بازی جنگنده‌های هوایی بپیوندید و ۱۰ سکه رایگان دریافت کنید!"
       );
     } else {
-      // برای محیط‌های تست
       prompt(
         "لینک دعوت خود را کپی کنید:",
         `https://t.me/your_bot_username?start=ref_${this.getTgId()}`
@@ -376,11 +449,8 @@ class MenuManager {
 
   async checkMembership(platform) {
     try {
-      const response = await fetch(`${BASEURL}/api/check-membership`, {
+      const response = await this.apiRequest(`/api/check-membership`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
         body: JSON.stringify({
           tgid: this.getTgId(),
           platform,
@@ -397,6 +467,7 @@ class MenuManager {
           } سکه به حساب شما اضافه شد.`
         );
         this.userData.coins = result.coins;
+        localStorage.setItem("userData", JSON.stringify(this.userData));
         this.updateUI();
       } else {
         alert(result.error);
@@ -408,18 +479,15 @@ class MenuManager {
   }
 
   getTgId() {
-    // در مینی اپ تلگرام، از WebApp.initData استفاده می‌شود
     if (window.Telegram && window.Telegram.WebApp) {
       return window.Telegram.WebApp.initDataUnsafe.user.id;
     }
 
-    // برای محیط‌های تست، از پارامتر URL استفاده می‌شود
     const urlParams = new URLSearchParams(window.location.search);
-    return urlParams.get("tgid") || "test-user";
+    return urlParams.get("tgid") || localStorage.getItem("tgid");
   }
 }
 
-// مقداردهی اولیه منوها هنگام بارگذاری صفحه
 document.addEventListener("DOMContentLoaded", () => {
   window.menuManager = new MenuManager();
 });

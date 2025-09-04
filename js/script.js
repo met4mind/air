@@ -5,35 +5,31 @@ import { NetworkManager } from "./network.js";
 class GameManager {
   constructor() {
     this.currentScene = null;
-    this.scenes = {
-      war: null,
-    };
+    this.scenes = { war: null };
     this.networkManager = new NetworkManager();
     this.isRegistering = false;
     this.username = "";
+    this.userDataInterval = null;
   }
 
   async init() {
-    // راه‌اندازی event listeners برای صفحه لاگین
+    this.hideScreen("asset-selection");
+    this.hideScreen("main-menu");
     this.setupLoginListeners();
   }
 
   setupNetwork() {
-    // تنظیم event handlers برای network manager
     this.networkManager.onGameStart = (opponent) => {
-      console.log("Game starting with opponent:", opponent);
       this.hideLoginScreen();
       this.startGame(opponent);
     };
 
     this.networkManager.onWaiting = (message) => {
-      console.log("Waiting message:", message);
       this.showWaitingMessage(message);
     };
   }
 
   setupLoginListeners() {
-    // تنظیم event listeners برای دکمه‌های لاگین/ثبت نام
     document
       .getElementById("login-button")
       .addEventListener("click", () => this.handleLogin());
@@ -49,6 +45,7 @@ class GameManager {
     const username = document.getElementById("username").value;
     const password = document.getElementById("password").value;
     const tgid = document.getElementById("tgid").value;
+    localStorage.setItem("tgid", tgid);
 
     if (!username || !password) {
       alert("Please enter both username and password");
@@ -72,15 +69,60 @@ class GameManager {
           confirmPassword,
           tgid
         );
-        await this.loadAssets();
+        this.hideScreen("login-screen");
+        this.showScreen("main-menu");
+        this.startUserDataSync(); // شروع سینک بعد از ثبت نام
       } else {
-        const result = await this.networkManager.login(username, password);
+        const result = await this.networkManager.login(
+          username,
+          password,
+          tgid
+        );
         this.networkManager.userId = result._id;
-        await this.loadAssets();
+        this.hideScreen("login-screen");
+        this.showScreen("main-menu");
+        this.startUserDataSync(); // شروع سینک بعد از لاگین
       }
     } catch (error) {
       alert(error.message || "An error occurred during login");
     }
+  }
+
+  startUserDataSync() {
+    // متوقف کردن interval قبلی اگر وجود داشت
+    if (this.userDataInterval) {
+      clearInterval(this.userDataInterval);
+    }
+
+    const fetchAndSaveUserData = async () => {
+      try {
+        const userData = await this.networkManager.apiRequest("/api/user");
+
+        // Save individual properties
+        Object.keys(userData).forEach((key) => {
+          localStorage.setItem(`user_${key}`, JSON.stringify(userData[key]));
+        });
+
+        // Save complete object
+        localStorage.setItem("userData", JSON.stringify(userData));
+
+        console.log("User data updated:", userData);
+        return userData;
+      } catch (error) {
+        console.error("Error fetching user data:", error);
+        const cachedData = localStorage.getItem("userData");
+        if (cachedData) {
+          return JSON.parse(cachedData);
+        }
+        throw error;
+      }
+    };
+
+    // اجرای فوری اولین بار
+    fetchAndSaveUserData();
+
+    // تنظیم interval برای هر یک دقیقه
+    this.userDataInterval = setInterval(fetchAndSaveUserData, 5000);
   }
 
   showRegisterForm() {
@@ -91,17 +133,13 @@ class GameManager {
 
   async loadAssets() {
     try {
-      // ابتدا به WebSocket متصل شو
       await this.networkManager.connect();
-
-      // سپس event handlers را تنظیم کن
       this.setupNetwork();
 
       const airplanes = await this.networkManager.getAirplanes();
       const bullets = await this.networkManager.getBullets();
 
       this.displayAssets(airplanes, bullets);
-
       document.getElementById("login-form").style.display = "none";
       document.getElementById("asset-selection").style.display = "block";
     } catch (error) {
@@ -150,7 +188,6 @@ class GameManager {
       });
     }
 
-    // به طور پیش فرض اولین آیتم را انتخاب کن
     const firstAirplane = document.querySelector('input[name="airplane"]');
     const firstBullet = document.querySelector('input[name="bullet"]');
 
@@ -173,23 +210,27 @@ class GameManager {
 
     try {
       this.showWaitingMessage("Connecting to game server...");
-
-      // اطلاعات را به سرور ارسال کن
       this.networkManager.sendLogin(
         this.username,
         selectedAirplane.value,
         selectedAirplane.dataset.name,
         selectedBullet.value,
         selectedBullet.dataset.name,
-        window.innerWidth, // عرض صفحه
-        window.innerHeight // ارتفاع صفحه
+        window.innerWidth,
+        window.innerHeight
       );
-
-      // منتظر بمان تا بازی شروع شود
       this.showWaitingMessage("Waiting for an opponent...");
     } catch (error) {
       alert("Failed to start game: " + error.message);
     }
+  }
+
+  hideScreen(id) {
+    document.getElementById(id).classList.add("hidden");
+  }
+
+  showScreen(id) {
+    document.getElementById(id).classList.remove("hidden");
   }
 
   hideLoginScreen() {
@@ -221,12 +262,8 @@ class GameManager {
     waitingDiv.style.display = "block";
   }
 
-  // در تابع startGame تغییرات زیر را اعمال کنید:
   async startGame(opponent) {
-    console.log("Starting game with opponent:", opponent);
-
     try {
-      // دریافت اطلاعات انتخاب کاربر
       const selectedAirplane = document.querySelector(
         'input[name="airplane"]:checked'
       );
@@ -246,13 +283,10 @@ class GameManager {
           this.currentScene.setHealth(health, opponentHealth);
         }
       };
-      // ایجاد صحنه جنگ با اطلاعات انتخاب کاربر
-      this.scenes.war = new WarScene(CONFIG, this.networkManager, playerAssets);
 
-      // شروع با صحنه جنگ
+      this.scenes.war = new WarScene(CONFIG, this.networkManager, playerAssets);
       await this.switchScene("war");
 
-      // انتقال اطلاعات حریف به صحنه جنگ
       if (this.currentScene && this.currentScene.setOpponent) {
         this.currentScene.setOpponent(opponent);
       }
@@ -263,15 +297,12 @@ class GameManager {
   }
 
   async switchScene(sceneName) {
-    // تمیز کردن صحنه فعلی
     if (this.currentScene && this.currentScene.cleanup) {
       await this.currentScene.cleanup();
     }
 
-    // تنظیم صحنه جدید
     this.currentScene = this.scenes[sceneName];
 
-    // راه‌اندازی صحنه جدید
     if (this.currentScene && this.currentScene.init) {
       await this.currentScene.init();
     }

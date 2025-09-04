@@ -24,6 +24,7 @@ export class NetworkManager {
       const response = await fetch(`${this.baseURL}${endpoint}`, {
         headers: {
           "Content-Type": "application/json",
+          "x-tgid": localStorage.getItem("tgid"),
           ...options.headers,
         },
         ...options,
