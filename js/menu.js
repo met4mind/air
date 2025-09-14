@@ -57,9 +57,11 @@ class MenuManager {
   loadUserData() {
     try {
       const savedData = localStorage.getItem("userData");
-      this.userData = JSON.parse(savedData);
-
-      this.updateUI();
+      if (savedData) {
+        this.userData = JSON.parse(savedData);
+        this.updateUI();
+        this.displayOwnedPotions(); // جدید
+      }
     } catch (error) {
       console.error("Error loading user data:", error);
     }
@@ -74,30 +76,162 @@ class MenuManager {
   updateUI() {
     if (!this.userData) return;
 
-    document.getElementById(
-      "user-stars"
-    ).textContent = `${this.userData.stars} ★`;
-    document.getElementById(
-      "user-coins"
-    ).textContent = `${this.userData.coins} سکه`;
+    // به روزرسانی منوی اصلی
+    const mainMenuStars = document.querySelector("#main-menu #user-stars");
+    const mainMenuCoins = document.querySelector("#main-menu #user-coins");
 
-    document.getElementById("damage-level").textContent =
-      this.userData.damageLevel;
-    document.getElementById("speed-level").textContent =
-      this.userData.speedLevel;
-    document.getElementById("health-level").textContent =
-      this.userData.healthLevel;
-    document.getElementById("airplane-tier").textContent =
-      this.userData.airplaneTier;
+    if (mainMenuStars) {
+      mainMenuStars.textContent = `${this.userData.stars} ★`;
+    }
+    if (mainMenuCoins) {
+      mainMenuCoins.textContent = `${this.userData.coins} سکه`;
+    }
 
-    document.getElementById("damage-cost").textContent =
-      this.userData.damageLevel * 50;
-    document.getElementById("speed-cost").textContent =
-      this.userData.speedLevel * 40;
-    document.getElementById("health-cost").textContent =
-      this.userData.healthLevel * 60;
-    document.getElementById("airplane-cost").textContent =
-      this.userData.airplaneTier * 100;
+    // به روزرسانی منوی انتخاب دارایی
+    const selectionMenuStars = document.querySelector(
+      "#selection-menu #user-stars"
+    );
+    const selectionMenuCoins = document.querySelector(
+      "#selection-menu #user-coins"
+    );
+
+    if (selectionMenuStars) {
+      selectionMenuStars.textContent = `${this.userData.stars} ★`;
+    }
+    if (selectionMenuCoins) {
+      selectionMenuCoins.textContent = `${this.userData.coins} سکه`;
+    }
+  }
+
+  displayOwnedPotions() {
+    const container = document.getElementById("potion-selection-container");
+    container.innerHTML = "";
+
+    if (
+      this.userData &&
+      this.userData.ownedPotions &&
+      this.userData.ownedPotions.length > 0
+    ) {
+      this.userData.ownedPotions.forEach((p) => {
+        const potionInfo = this.allPotions.find((ap) => ap._id === p.potion);
+        if (potionInfo && p.quantity > 0) {
+          const potionEl = document.createElement("div");
+          potionEl.className = "selection-item owned-potion-item";
+          potionEl.dataset.potionId = p.potion;
+          potionEl.innerHTML = `
+          <img src="${potionInfo.imagePath}" alt="${potionInfo.name}">
+          <p>${potionInfo.name} (x${p.quantity})</p>
+        `;
+
+          potionEl.addEventListener("click", () => {
+            document
+              .querySelectorAll(".selection-item")
+              .forEach((el) => el.classList.remove("selected"));
+            potionEl.classList.add("selected");
+            this.selectedPotion = {
+              potion: p.potion,
+              ...potionInfo,
+            };
+            window.gameManager.selectedPotion = this.selectedPotion;
+          });
+          container.appendChild(potionEl);
+        }
+      });
+    } else {
+      const noPotionMessage = document.createElement("p");
+      noPotionMessage.textContent = "معجونی در اختیار ندارید";
+      noPotionMessage.style.color = "#fff";
+      noPotionMessage.style.textAlign = "center";
+      noPotionMessage.style.marginTop = "10px";
+      container.appendChild(noPotionMessage);
+    }
+  }
+
+  displayOwnedAirplanes() {
+    const container = document.getElementById("owned-airplane-list");
+    const selectionContainer = document.getElementById(
+      "airplane-selection-container"
+    );
+    container.innerHTML = "";
+
+    if (
+      this.userData &&
+      this.userData.ownedAirplanes &&
+      this.userData.ownedAirplanes.length > 0
+    ) {
+      selectionContainer.classList.remove("hidden");
+      this.userData.ownedAirplanes.forEach((a) => {
+        const airplaneInfo = this.allAirplanes.find(
+          (ap) => ap._id === a.airplane
+        );
+        if (airplaneInfo && a.quantity > 0) {
+          const airplaneEl = document.createElement("div");
+          airplaneEl.className = "owned-airplane-item owned-asset-item";
+          airplaneEl.dataset.airplaneId = a.airplane;
+          airplaneEl.innerHTML = `<img src="${airplaneInfo.imagePath}" alt="${airplaneInfo.name}" title="${airplaneInfo.name} (x${a.quantity})">`;
+
+          airplaneEl.addEventListener("click", () => {
+            document
+              .querySelectorAll(".owned-airplane-item")
+              .forEach((el) => el.classList.remove("selected"));
+            airplaneEl.classList.add("selected");
+            this.selectedAirplane = {
+              airplane: a.airplane,
+              ...airplaneInfo,
+            };
+            window.gameManager.selectedAirplane = this.selectedAirplane;
+          });
+          container.appendChild(airplaneEl);
+        }
+      });
+    } else {
+      selectionContainer.classList.add("hidden");
+    }
+  }
+
+  displayOwnedBullets() {
+    const container = document.getElementById("owned-bullet-list");
+    const selectionContainer = document.getElementById(
+      "bullet-selection-container"
+    );
+    container.innerHTML = "";
+
+    if (
+      this.userData &&
+      this.userData.ownedBullets &&
+      this.userData.ownedBullets.length > 0
+    ) {
+      selectionContainer.classList.remove("hidden");
+      this.userData.ownedBullets.forEach((b) => {
+        const bulletInfo = this.allBullets.find((ab) => ab._id === b.bullet);
+        if (bulletInfo && b.quantity > 0) {
+          const bulletEl = document.createElement("div");
+          bulletEl.className = "owned-bullet-item owned-asset-item";
+          bulletEl.dataset.bulletId = b.bullet;
+          bulletEl.innerHTML = `<img src="${bulletInfo.imagePath}" alt="${bulletInfo.name}" title="${bulletInfo.name} (x${b.quantity})">`;
+
+          bulletEl.addEventListener("click", () => {
+            document
+              .querySelectorAll(".owned-bullet-item")
+              .forEach((el) => el.classList.remove("selected"));
+            bulletEl.classList.add("selected");
+            this.selectedBullet = {
+              bullet: b.bullet,
+              ...bulletInfo,
+            };
+            window.gameManager.selectedBullet = this.selectedBullet;
+          });
+          container.appendChild(bulletEl);
+        }
+      });
+    } else {
+      selectionContainer.classList.add("hidden");
+    }
+  }
+
+  async showShopMenu() {
+    this.showMenu("shop-menu");
+    await this.loadShopItems(); // تغییر: اطمینان از بارگذاری آیتم‌ها
   }
 
   showMenu(menuId) {
@@ -117,6 +251,9 @@ class MenuManager {
 
   showMainMenu() {
     this.showMenu("main-menu");
+    this.displayOwnedPotions();
+    this.displayOwnedAirplanes();
+    this.displayOwnedBullets();
   }
 
   showLeaderboard() {
@@ -170,12 +307,8 @@ class MenuManager {
 
   async loadLeaderboard() {
     try {
-      const response = await this.apiRequest(`/api/leaderboard`);
-      const tgid = localStorage.getItem("tgid");
-
-      const leaderboard = await response.json();
+      const leaderboard = await this.apiRequest(`/api/leaderboard`); // تغییر: await مستقیم
       this.renderLeaderboard(leaderboard);
-
       this.updateResetTimer(leaderboard.endDate);
     } catch (error) {
       console.error("Error loading leaderboard:", error);
@@ -237,14 +370,46 @@ class MenuManager {
   // در فایل menu.js - متد loadShopItems را با این کد جایگزین کنید
   async loadShopItems() {
     try {
-      const response = await this.apiRequest(`/api/potions`);
-
-      // فقط یک بار response.json() را فراخوانی کنید
-
-      this.renderPotions(response);
+      const potions = await this.apiRequest(`/api/potions`);
+      this.allPotions = potions; // جدید: کش کردن اطلاعات
+      this.renderPotions(potions);
+      this.displayOwnedPotions(); // جدید: آپدیت لیست معجون‌های قابل انتخاب
     } catch (error) {
       console.error("Error loading shop items:", error);
       this.showNotification("خطا در بارگذاری معجون‌ها", "error");
+    }
+  }
+
+  async buyPotion(potionId) {
+    try {
+      const potion = this.allPotions.find((p) => p._id === potionId);
+      if (!potion) {
+        this.showNotification("معجون مورد نظر یافت نشد!", "error");
+        return;
+      }
+      if (this.userData.coins < potion.price) {
+        this.showNotification("سکه کافی برای خرید این معجون ندارید!", "error");
+        return;
+      }
+
+      const result = await this.apiRequest(`/api/shop/buy-potion`, {
+        // تغییر: await مستقیم
+        method: "POST",
+        body: JSON.stringify({ potionId, quantity: 1 }),
+      });
+
+      this.showNotification(
+        `معجون ${potion.name} با موفقیت خریداری شد!`,
+        "success"
+      );
+      // آپدیت مستقیم اطلاعات کاربر از پاسخ سرور
+      this.userData.coins = result.coins;
+      localStorage.setItem("userData", JSON.stringify(this.userData));
+      this.loadUserData(); // به‌روزرسانی کامل
+      await this.loadShopItems(); // رفرش کردن فروشگاه برای غیرفعال کردن دکمه‌ها
+    } catch (error) {
+      console.error("Error buying potion:", error);
+      this.showNotification(error.message || "خطا در ارتباط با سرور", "error");
     }
   }
 

@@ -17,6 +17,8 @@ export class WarScene {
     this.health = 100;
     this.opponentHealth = 100;
     this.bullets = [];
+    this.selectedPotion = selectedPotion || null; // جدید
+    this.isPotionActive = false; // جدید
 
     // قرار دادن networkManager در scope全局 برای دسترسی از airplane.js
     window.networkManager = networkManager;
@@ -32,7 +34,52 @@ export class WarScene {
     this.setupEventListeners();
     this.setupNetworkHandlers();
     this.startGameLoop();
+
     this.createHealthDisplays();
+    this.setupPotionButton(); // جدید
+  }
+  setupPotionButton() {
+    const potionBtn = document.getElementById("use-potion-btn");
+    if (this.selectedPotion) {
+      potionBtn.classList.remove("hidden");
+      potionBtn.innerHTML = `<img src="${this.selectedPotion.imagePath}" alt="${this.selectedPotion.name}">`;
+      potionBtn.addEventListener("click", () => this.activatePotion(), {
+        once: true,
+      }); // فقط یک بار قابل کلیک باشد
+    } else {
+      potionBtn.classList.add("hidden");
+    }
+  }
+
+  activatePotion() {
+    if (!this.selectedPotion || this.isPotionActive) return;
+
+    this.isPotionActive = true;
+    const potionBtn = document.getElementById("use-potion-btn");
+    potionBtn.style.opacity = "0.5";
+    potionBtn.style.cursor = "not-allowed";
+
+    console.log(`Potion Activated: ${this.selectedPotion.name}`);
+
+    // اعمال افکت بر اساس نوع معجون
+    // این یک مثال ساده است و باید بر اساس فیلد effect در دیتابیس پیاده‌سازی شود
+    switch (this.selectedPotion.name) {
+      case "معجون قدرت":
+        const originalDamage = 10;
+        const boostedDamage = 15;
+        // افزایش موقت قدرت برخورد
+        this.networkManager.damage = boostedDamage;
+        setTimeout(() => {
+          this.networkManager.damage = originalDamage;
+          this.isPotionActive = false;
+          console.log("Power potion expired.");
+        }, 20000); // 20 ثانیه
+        break;
+      // ... سایر معجون‌ها
+    }
+
+    // اطلاع به سرور (اختیاری، بستگی به منطق بازی شما دارد)
+    // this.networkManager.send({ type: 'potion_activated', potionId: this.selectedPotion._id });
   }
 
   setOpponent(opponent) {
@@ -389,32 +436,34 @@ export class WarScene {
   }
 
   checkCollisions() {
-    // بررسی برخورد گلوله‌های من با حریف
+    // Determine the damage to send based on whether the power potion is active
+    const damageToSend = this.isPotionActive ? 15 : 10;
+
+    // Check for collisions between my bullets and the opponent's airplane
     for (let i = this.bullets.length - 1; i >= 0; i--) {
       const bullet = this.bullets[i];
       if (
         this.opponentAirplane &&
         this.isColliding(bullet, this.opponentAirplane)
       ) {
-        // فقط در صورت برخورد واقعی به سرور اطلاع دهید
         if (this.networkManager && this.networkManager.sendHit) {
-          this.networkManager.sendHit(10);
+          // Send the determined damage to the server
+          this.networkManager.sendHit(damageToSend);
         }
-
+        // Remove the bullet after it hits
         bullet.remove();
         this.bullets.splice(i, 1);
       }
     }
 
-    // بررسی برخورد گلوله‌های حریف با من
+    // Check for collisions between opponent's bullets and my airplane
     for (let i = this.opponentBullets.length - 1; i >= 0; i--) {
       const bullet = this.opponentBullets[i];
       if (this.isColliding(bullet, this.airplane)) {
-        // فقط در صورت برخورد واقعی به سرور اطلاع دهید
-        if (this.networkManager && this.networkManager.sendHit) {
-          this.networkManager.sendHit(10);
-        }
+        // No need to send damage to the server from here, as the server should handle the opponent's hits
+        // and update our health via a socket message.
 
+        // Remove the bullet after it hits
         bullet.remove();
         this.opponentBullets.splice(i, 1);
       }

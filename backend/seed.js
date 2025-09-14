@@ -1,6 +1,6 @@
 const mongoose = require("mongoose");
 const Potion = require("./models/potion");
-const config = require("../config");
+const config = require("./config");
 
 const potionsData = [
   {

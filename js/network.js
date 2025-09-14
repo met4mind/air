@@ -41,10 +41,10 @@ export class NetworkManager {
     }
   }
 
-  async register(username, password, confirmPassword, tgid) {
+  async register(username, password, tgid) {
     return this.apiRequest("/api/register", {
       method: "POST",
-      body: JSON.stringify({ username, password, confirmPassword, tgid }),
+      body: JSON.stringify({ username, password, tgid }),
     });
   }
 
@@ -144,7 +144,8 @@ export class NetworkManager {
     bullets,
     bulletName,
     screenWidth,
-    screenHeight
+    screenHeight,
+    potionId // جدید
   ) {
     if (this.connected) {
       this.socket.send(
@@ -158,6 +159,7 @@ export class NetworkManager {
           bulletName: bulletName,
           screenWidth: screenWidth,
           screenHeight: screenHeight,
+          potionId: potionId || null, // جدید
         })
       );
     }

@@ -266,6 +266,8 @@
       }
 
       .menu-header {
+        min-width: 250px;
+        max-width: 250px;
         text-align: center;
         margin-bottom: 30px;
       }
@@ -874,10 +876,170 @@
       .sound-click {
         display: none;
       }
+      /* استایل‌های جدید برای نمایش آیتم‌های قابل انتخاب */
+      .potion-selection-container,
+      .airplane-selection-container,
+      .bullet-selection-container {
+        width: 100%;
+        max-width: 600px;
+        margin-top: 20px;
+        padding: 15px;
+        background: rgba(42, 58, 42, 0.7);
+        border: 1px solid var(--military-sand);
+        border-radius: 8px;
+        text-align: center;
+      }
+      .owned-potions-list,
+      .owned-airplane-list,
+      .owned-bullet-list {
+        display: flex;
+        justify-content: center;
+        gap: 15px;
+        flex-wrap: wrap;
+        margin-top: 15px;
+      }
+
+      .owned-potion-item,
+      .owned-asset-item {
+        width: 80px;
+        height: 80px;
+        border: 2px solid transparent;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        padding: 5px;
+      }
+
+      .owned-potion-item:hover,
+      .owned-asset-item:hover {
+        transform: scale(1.1);
+        border-color: var(--military-gold);
+      }
+
+      .owned-potion-item.selected,
+      .owned-asset-item.selected {
+        border-color: var(--military-gold);
+        box-shadow: 0 0 10px var(--military-gold);
+        background-color: rgba(184, 134, 11, 0.2);
+      }
+
+      .owned-potion-item img,
+      .owned-asset-item img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+      }
+
+      .selection-grid {
+        display: flex;
+        justify-content: center; /* شبکه آیتم‌ها را وسط‌چین می‌کند */
+        flex-wrap: wrap;
+        gap: 15px;
+        margin-top: 15px;
+      }
+
+      .selection-item {
+        background: rgba(42, 58, 42, 0.7);
+        border: 2px solid var(--military-sand);
+        border-radius: 8px;
+        padding: 18px;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.3s ease;
+      }
+
+      .selection-item:hover {
+        transform: scale(1.05);
+        border-color: var(--military-gold);
+      }
+
+      .selection-item.selected {
+        border-color: var(--military-gold);
+        box-shadow: 0 0 10px var(--military-gold);
+        background-color: rgba(184, 134, 11, 0.2);
+      }
+
+      .selection-item img {
+        width: 60px;
+        height: 60px;
+        object-fit: contain;
+        margin-bottom: 8px;
+      }
+
+      .selection-item p {
+        color: #e0e0e0;
+        font-size: 14px;
+        margin: 0;
+      }
+      .selection-item img {
+        width: 60px;
+        height: 60px;
+        object-fit: contain;
+        margin-bottom: 8px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 5px;
+        padding: 5px;
+      }
+
+      /* برای تصاویر معجون که load نمی‌شوند */
+      .selection-item img[src*="default.png"] {
+        background: rgba(255, 255, 255, 0.2);
+        padding: 15px;
+      }
+      .selection-section {
+        max-width: 250px;
+        min-width: 250px;
+        margin-bottom: 25px;
+        padding: 15px;
+        background: rgba(42, 58, 42, 0.5);
+        border-radius: 8px;
+        border: 1px solid var(--military-sand);
+      }
+      .selection-section h2 {
+        color: var(--military-gold);
+        text-align: center;
+        margin-bottom: 15px;
+        border-bottom: 1px solid var(--military-sand);
+        padding-bottom: 8px;
+      }
     </style>
   </head>
   <body class="military-theme">
     <!-- صفحه لاگین/ثبت نام -->
+
+    <div id="selection-menu" class="menu-container hidden">
+      <div class="menu-header">
+        <h1>انتخاب دارایی</h1>
+        <div class="user-info">
+          <span id="user-stars"></span>
+          <span id="user-coins"></span>
+        </div>
+      </div>
+
+      <div class="selection-section">
+        <h2>هواپیماها</h2>
+        <div id="airplane-selection-container" class="selection-grid"></div>
+      </div>
+
+      <div class="selection-section">
+        <h2>گلوله‌ها</h2>
+        <div id="bullet-selection-container" class="selection-grid"></div>
+      </div>
+
+      <div class="selection-section">
+        <h2>معجون‌ها</h2>
+        <div id="potion-selection-container" class="selection-grid">
+          <!-- گزینه "هیچکدام" به صورت پیشفرض -->
+          <div class="selection-item selected" data-potion-id="none">
+            <img src="assets/images/potions/none.png" alt="هیچکدام" />
+            <p>هیچکدام</p>
+          </div>
+          <!-- معجون‌ها به صورت داینامیک اضافه خواهند شد -->
+        </div>
+      </div>
+      <button class="back-btn">بازگشت</button>
+    </div>
+
     <div id="login-screen">
       <div class="login-container">
         <h2>ورود / ثبت‌نام</h2>
@@ -915,15 +1077,6 @@
       </div>
     </div>
 
-    <!-- انتخاب هواپیما و گلوله -->
-    <div id="asset-selection" class="asset-selection">
-      <h3>انتخاب هواپیما</h3>
-      <div id="airplane-list"></div>
-      <h3>انتخاب گلوله</h3>
-      <div id="bullet-list"></div>
-      <button id="start-game-button" class="login-button">شروع بازی</button>
-    </div>
-
     <!-- منوی اصلی -->
     <div id="main-menu" class="menu-container hidden">
       <div class="menu-header">
@@ -936,6 +1089,9 @@
 
       <div class="menu-options">
         <button id="play-btn" class="menu-btn">شروع بازی</button>
+        <button id="selection-btn" class="menu-btn">
+          انتخاب هواپیما و معجون
+        </button>
         <button id="leaderboard-btn" class="menu-btn">جدول رتبه‌بندی</button>
         <button id="upgrade-btn" class="menu-btn">ارتقاء هواپیما</button>
         <button id="shop-btn" class="menu-btn">فروشگاه</button>
@@ -1033,6 +1189,24 @@
         <p>در انتظار حریف...</p>
       </div>
     </div>
+    <script>
+      // مدیریت خطاهای تصویر برای معجون‌ها
+      document.addEventListener("DOMContentLoaded", function () {
+        document.body.addEventListener(
+          "error",
+          function (e) {
+            if (
+              e.target.tagName === "IMG" &&
+              e.target.closest(".selection-item")
+            ) {
+              e.target.src = "assets/images/potions/default.png";
+              e.target.onerror = null; // جلوگیری از حلقه بی‌نهایت
+            }
+          },
+          true
+        );
+      });
+    </script>
     <script src="js/military-sounds.js"></script>
     <script src="js/military-menu.js"></script>
     <script type="module" src="js/script.js"></script>
