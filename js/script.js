@@ -357,32 +357,6 @@ class GameManager {
     console.log("Potion selected:", potion ? potion.name : "None");
   }
 
-  selectAsset(type, asset, container) {
-    document
-      .querySelectorAll(`#${container.id} .selection-item`)
-      .forEach((el) => el.classList.remove("selected"));
-    event.currentTarget.classList.add("selected");
-
-    switch (type) {
-      case "airplane":
-        this.selectedAirplane = asset;
-        break;
-      case "bullet":
-        this.selectedBullet = asset;
-        break;
-      case "potion":
-        this.selectedPotion = asset;
-        break;
-    }
-
-    // ذخیره انتخاب در localStorage
-    localStorage.setItem(
-      `selected${type.charAt(0).toUpperCase() + type.slice(1)}`,
-      JSON.stringify(asset)
-    );
-    console.log(`${type} selected:`, asset);
-  }
-
   async fetchUserData() {
     try {
       const userData = await this.networkManager.apiRequest("/api/user");

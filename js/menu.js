@@ -54,13 +54,29 @@ class MenuManager {
     });
   }
 
+  // در تابع loadUserData
   loadUserData() {
     try {
       const savedData = localStorage.getItem("userData");
       if (savedData) {
         this.userData = JSON.parse(savedData);
         this.updateUI();
-        this.displayOwnedPotions(); // جدید
+
+        // بارگذاری معجون انتخاب شده از localStorage
+        const savedPotion = localStorage.getItem("selectedPotion");
+        if (savedPotion && savedPotion !== "null") {
+          try {
+            window.gameManager.selectedPotion = JSON.parse(savedPotion);
+            this.selectedPotion = window.gameManager.selectedPotion;
+          } catch (error) {
+            console.error("Error parsing selected potion:", error);
+            window.gameManager.selectedPotion = null;
+            this.selectedPotion = null;
+          }
+        } else {
+          window.gameManager.selectedPotion = null;
+          this.selectedPotion = null;
+        }
       }
     } catch (error) {
       console.error("Error loading user data:", error);
