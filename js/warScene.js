@@ -7,7 +7,7 @@ import { AirplaneWingman } from "./wingman.js";
 import { Bullet } from "./bullet.js";
 
 export class WarScene {
-  constructor(CONFIG, networkManager, playerAssets = {}) {
+  constructor(CONFIG, networkManager, playerAssets = {}, selectedPotion) {
     this.CONFIG = CONFIG;
     this.networkManager = networkManager;
     this.playerAssets = playerAssets;
@@ -384,7 +384,8 @@ export class WarScene {
             this.CONFIG.clouds.minSpeed +
             Math.random() *
               (this.CONFIG.clouds.maxSpeed - this.CONFIG.clouds.minSpeed),
-          horizontalSpeed: (Math.random() - 0.5) * 0.8,
+          // <<<< تغییر اصلی اینجاست: افزایش ضریب برای سرعت بیشتر >>>>
+          horizontalSpeed: (Math.random() - 0.5) * 2.5, // قبلاً 0.8 بود
           size:
             this.CONFIG.clouds.minSize +
             Math.random() *
@@ -405,7 +406,8 @@ export class WarScene {
           this.CONFIG.clouds.minSpeed +
           Math.random() *
             (this.CONFIG.clouds.maxSpeed - this.CONFIG.clouds.minSpeed),
-        horizontalSpeed: (Math.random() - 0.5) * 0.8,
+        // <<<< تغییر اصلی اینجاست: افزایش ضریب برای سرعت بیشتر >>>>
+        horizontalSpeed: (Math.random() - 0.5) * 2.5, // قبلاً 0.8 بود
         size:
           this.CONFIG.clouds.minSize +
           Math.random() *
@@ -435,6 +437,9 @@ export class WarScene {
     }
   }
 
+  // در فایل: js/warScene.js
+  // این تابع را به طور کامل جایگزین تابع قبلی کنید.
+
   checkCollisions() {
     // Determine the damage to send based on whether the power potion is active
     const damageToSend = this.isPotionActive ? 15 : 10;
@@ -446,6 +451,7 @@ export class WarScene {
         this.opponentAirplane &&
         this.isColliding(bullet, this.opponentAirplane)
       ) {
+        // <<<< تغییر اصلی اینجاست: این خط باید فعال شود >>>>
         if (this.networkManager && this.networkManager.sendHit) {
           // Send the determined damage to the server
           this.networkManager.sendHit(damageToSend);

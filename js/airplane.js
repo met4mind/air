@@ -1,3 +1,6 @@
+// در فایل: js/airplane.js
+// کل محتوای این فایل را با کد زیر جایگزین کنید.
+
 import { Bullet } from "./bullet.js";
 
 export class Airplane {
@@ -8,6 +11,11 @@ export class Airplane {
     this.offsetX = 0;
     this.offsetY = 0;
     this.bullets = [];
+
+    // <<<< بخش ۱ تغییر: یکبار bind کردن متدها در constructor >>>>
+    this.boundHandleMove = this.handleMove.bind(this);
+    this.boundHandleTouchMove = this.handleTouchMove.bind(this);
+    this.boundHandleEnd = this.handleEnd.bind(this);
 
     // Create airplane element
     this.element = document.createElement("div");
@@ -33,27 +41,7 @@ export class Airplane {
       this.element.style.backgroundColor = "red";
     }
   }
-  handleResize() {
-    this.screenWidth = window.innerWidth;
-    this.screenHeight = window.innerHeight;
 
-    // به روزرسانی موقعیت هواپیماها بر اساس درصد موقعیت
-    if (this.airplane && this.airplane.percentPosition) {
-      const actualX = this.airplane.percentPosition.x * this.screenWidth;
-      const actualY = this.airplane.percentPosition.y * this.screenHeight;
-
-      this.airplane.setPosition(actualX, actualY);
-    }
-
-    if (this.opponentAirplane && this.opponentAirplane.percentPosition) {
-      const actualX =
-        this.opponentAirplane.percentPosition.x * this.screenWidth;
-      const actualY =
-        this.opponentAirplane.percentPosition.y * this.screenHeight;
-
-      this.opponentAirplane.setPosition(actualX, actualY);
-    }
-  }
   setupEvents() {
     this.element.addEventListener("mousedown", this.handleStart.bind(this));
     this.element.addEventListener(
@@ -69,8 +57,9 @@ export class Airplane {
     this.offsetX = e.clientX - rect.left;
     this.offsetY = e.clientY - rect.top;
 
-    document.addEventListener("mousemove", this.handleMove.bind(this));
-    document.addEventListener("mouseup", this.handleEnd.bind(this));
+    // <<<< بخش ۲ تغییر: استفاده از متدهای bind شده >>>>
+    document.addEventListener("mousemove", this.boundHandleMove);
+    document.addEventListener("mouseup", this.boundHandleEnd);
     e.preventDefault();
   }
 
@@ -81,10 +70,11 @@ export class Airplane {
     this.offsetX = touch.clientX - rect.left;
     this.offsetY = touch.clientY - rect.top;
 
-    document.addEventListener("touchmove", this.handleTouchMove.bind(this), {
+    // <<<< بخش ۲ تغییر: استفاده از متدهای bind شده >>>>
+    document.addEventListener("touchmove", this.boundHandleTouchMove, {
       passive: false,
     });
-    document.addEventListener("touchend", this.handleEnd.bind(this));
+    document.addEventListener("touchend", this.boundHandleEnd);
     e.preventDefault();
   }
 
@@ -103,10 +93,11 @@ export class Airplane {
 
   handleEnd() {
     this.isDragging = false;
-    document.removeEventListener("mousemove", this.handleMove.bind(this));
-    document.removeEventListener("mouseup", this.handleEnd.bind(this));
-    document.removeEventListener("touchmove", this.handleTouchMove.bind(this));
-    document.removeEventListener("touchend", this.handleEnd.bind(this));
+    // <<<< بخش ۳ تغییر: حذف کردن listener با همان متدهای bind شده >>>>
+    document.removeEventListener("mousemove", this.boundHandleMove);
+    document.removeEventListener("mouseup", this.boundHandleEnd);
+    document.removeEventListener("touchmove", this.boundHandleTouchMove);
+    document.removeEventListener("touchend", this.boundHandleEnd);
   }
 
   updatePosition(clientX, clientY) {
@@ -149,9 +140,8 @@ export class Airplane {
 
   shoot(bulletImage, size, speed, rotation = 0) {
     const pos = this.getPosition();
-    // Calculate center position with proper offsets
     const bulletX = pos.x + pos.width / 2;
-    const bulletY = pos.y; // شلیک از بالای هواپیما
+    const bulletY = pos.y;
 
     const bullet = new Bullet(
       bulletImage,
@@ -159,7 +149,7 @@ export class Airplane {
       bulletY,
       size,
       speed,
-      rotation // rotation - به سمت بالا
+      rotation
     );
 
     this.bullets.push(bullet);

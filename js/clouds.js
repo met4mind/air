@@ -1,8 +1,13 @@
 // Updated Cloud class in clouds.js
 export class Cloud {
+  // در فایل: js/clouds.js
+  // این تابع را به طور کامل جایگزین تابع قبلی کنید.
+
   constructor(options) {
-    this.backwardSpeed = options.backwardSpeed;
-    this.horizontalSpeed = options.horizontalSpeed;
+    // <<<< تغییر اصلی اینجاست: اضافه کردن مقادیر پیش‌فرض برای سرعت >>>>
+    this.backwardSpeed = options.backwardSpeed || 1.5; // اگر سرعتی تعریف نشده بود، از 1.5 استفاده کن
+    this.horizontalSpeed = options.horizontalSpeed || 0; // اگر سرعتی تعریف نشده بود، از 0 استفاده کن
+
     this.size = options.size;
     this.rotation = options.rotation;
     this.active = true;
@@ -10,19 +15,17 @@ export class Cloud {
     this.element = document.createElement("div");
     this.element.className = "cloud";
 
-    // Set styles with initial transparency
+    // ... بقیه کدهای constructor بدون تغییر باقی می‌ماند ...
     this.element.style.width = `${this.size}px`;
     this.element.style.height = `${this.size}px`;
     this.element.style.opacity = "0"; // Start invisible
     this.element.style.transition = "opacity 1s ease-in";
     this.element.style.transform = `rotate(${this.rotation}deg)`;
 
-    // Load image
     const img = new Image();
     img.src = options.imageUrl;
     img.onload = () => {
       this.element.style.backgroundImage = `url('${options.imageUrl}')`;
-      // Fade in when loaded
       setTimeout(() => {
         this.element.style.opacity = "1";
       }, 100);
@@ -32,17 +35,15 @@ export class Cloud {
       this.element.style.opacity = "1";
     };
 
-    // Start position (outside viewport)
     this.position = {
       x: options.startX,
-      y: -this.size - Math.random() * 100, // Start above viewport
+      y: -this.size - Math.random() * 100,
     };
     this.setPosition(this.position.x, this.position.y);
 
     document.body.appendChild(this.element);
     this.animate();
   }
-
   setPosition(x, y) {
     this.position = { x, y };
     this.element.style.left = `${x}px`;

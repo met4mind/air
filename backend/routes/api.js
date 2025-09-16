@@ -6,32 +6,33 @@ const Game = require("../models/game");
 const Leaderboard = require("../models/leaderboard");
 
 // Middleware برای احراز هویت کاربر تلگرام
+// در فایل: routes/api.js
+
+// Middleware برای احراز هویت کاربر تلگرام
 const auth = async (req, res, next) => {
   try {
     const tgid = req.headers["x-tgid"] || req.query.tgid || req.body.tgid;
     if (!tgid) {
-      return res.status(401).json({ error: "Authentication required" });
+      return res
+        .status(401)
+        .json({ error: "Authentication required, tgid missing" });
     }
 
-    let user = await User.findOne({ tgid });
+    const user = await User.findOne({ tgid });
+
+    // <<<< تغییر اصلی اینجاست >>>>
+    // اگر کاربری با این tgid پیدا نشد، دیگر کاربر جدید نساز، بلکه خطای 401 برگردان
     if (!user) {
-      // اگر کاربر وجود ندارد، آن را ایجاد کنید
-      user = new User({
-        tgid,
-        username: req.query.username || req.body.username,
-        first_name: req.query.first_name || req.body.first_name,
-        last_name: req.query.last_name || req.body.last_name,
-      });
-      await user.save();
+      return res.status(401).json({ error: "User not found with this tgid" });
     }
 
     req.user = user;
     next();
   } catch (error) {
+    // اگر خطای دیگری در دیتابیس رخ داد، خطای 500 برگردان
     res.status(500).json({ error: error.message });
   }
 };
-
 // دریافت اطلاعات کاربر
 router.get("/user", auth, async (req, res) => {
   try {
@@ -486,19 +487,34 @@ router.get("/assets/bullets", (req, res) => {
   ]);
 });
 // ورود کاربر
+// در فایل: routes/api.js
+// این تابع را به طور کامل جایگزین تابع لاگین قبلی کنید.
+
+// ورود کاربر
 router.post("/login", async (req, res) => {
   try {
-    const { username, password } = req.body;
+    // <<<< تغییر ۱: tgid را نیز از body درخواست دریافت می‌کنیم >>>>
+    const { username, password, tgid } = req.body;
 
-    // پیدا کردن کاربر
+    // پیدا کردن کاربر بر اساس نام کاربری
     const user = await User.findOne({ username });
+
+    // بررسی اولیه: آیا کاربر وجود دارد و رمز عبور صحیح است
     if (!user || user.password !== password) {
       return res
         .status(401)
         .json({ error: "نام کاربری یا رمز عبور اشتباه است" });
     }
 
-    // در پروژه واقعی، یک توکن JWT برگردانید
+    // <<<< تغییر ۲ (بخش اصلی): بررسی مطابقت tgid >>>>
+    // اگر tgid ارسال شده با tgid ذخیره شده در دیتابیس مطابقت نداشت، خطا برگردان
+    if (user.tgid !== tgid) {
+      return res
+        .status(401)
+        .json({ error: "آیدی تلگرام با این حساب کاربری مطابقت ندارد" });
+    }
+
+    // اگر همه موارد صحیح بود، اطلاعات کاربر را برگردان
     res.json(user);
   } catch (error) {
     res.status(500).json({ error: error.message });

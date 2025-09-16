@@ -8,6 +8,10 @@ export class NetworkManager {
     this.opponent = null;
     this.baseURL = CONFIG.BASEURL;
 
+    // <<<< تغییر ۱: tgid را به عنوان یک پراپرتی کلاس اضافه می‌کنیم >>>>
+    // در ابتدای کار، tgid را از localStorage می‌خوانیم تا لاگین خودکار کار کند
+    this.tgid = localStorage.getItem("tgid") || null;
+
     // event handlers
     this.onHealthUpdate = null;
     this.onGameStart = null;
@@ -18,13 +22,19 @@ export class NetworkManager {
     this.onGameOver = null;
     this.onOpponentDisconnected = null;
   }
+  setTgid(tgid) {
+    this.tgid = tgid;
+    localStorage.setItem("tgid", tgid); // برای ذخیره‌سازی بین نشست‌ها (sessions)
+    console.log(`Tgid in NetworkManager was set to: ${this.tgid}`); // برای دیباگ کردن
+  }
 
   async apiRequest(endpoint, options = {}) {
     try {
       const response = await fetch(`${this.baseURL}${endpoint}`, {
         headers: {
           "Content-Type": "application/json",
-          "x-tgid": localStorage.getItem("tgid"),
+          // <<<< تغییر ۳: همیشه از پراپرتی کلاس استفاده می‌کنیم >>>>
+          "x-tgid": this.tgid,
           ...options.headers,
         },
         ...options,

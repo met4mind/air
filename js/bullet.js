@@ -1,4 +1,7 @@
 export class Bullet {
+  // در فایل: js/bullet.js
+  // این تابع را به طور کامل جایگزین تابع قبلی کنید.
+
   constructor(
     imageUrl,
     x,
@@ -15,7 +18,6 @@ export class Bullet {
     this.isOpponent = isOpponent;
     this.radians = (rotationDeg * Math.PI) / 180;
 
-    // Create bullet element
     this.element = document.createElement("div");
     this.element.className = "bullet";
     this.element.style.width = `${size}px`;
@@ -23,29 +25,25 @@ export class Bullet {
     this.element.style.position = "absolute";
     this.element.style.transformOrigin = "center center";
 
-    // اضافه کردن کلاس برای تشخیص گلوله حریف
     if (isOpponent) {
       this.element.classList.add("opponent-bullet");
     }
 
-    // Set image with rotation
     if (imageUrl) {
       this.element.style.backgroundImage = `url('${imageUrl}')`;
       this.element.style.backgroundSize = "contain";
       this.element.style.backgroundRepeat = "no-repeat";
       this.element.style.backgroundPosition = "center";
-      this.element.style.transform = `rotate(${rotationDeg}deg)`;
+
+      // <<<< تغییر اصلی اینجاست: اضافه کردن 90 درجه به چرخش ظاهری >>>>
+      // این کار فقط ظاهر تیر را می‌چرخاند و مسیر حرکت آن را تغییر نمی‌دهد
+      this.element.style.transform = `rotate(${rotationDeg + -90}deg)`;
     } else {
       this.element.style.backgroundColor = isOpponent ? "red" : "yellow";
     }
 
-    // Set initial position (centered)
     this.setPosition(x, y);
-
-    // Add to DOM
     document.body.appendChild(this.element);
-
-    // Start animation
     this.animate();
   }
 

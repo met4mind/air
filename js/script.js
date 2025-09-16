@@ -20,8 +20,6 @@ class GameManager {
       localStorage.getItem("selectedAirplane")
     );
     this.selectedBullet = JSON.parse(localStorage.getItem("selectedBullet"));
-
-    // بارگذاری معجون انتخاب شده
     try {
       const savedPotion = localStorage.getItem("selectedPotion");
       if (savedPotion && savedPotion !== "null") {
@@ -33,10 +31,13 @@ class GameManager {
       console.error("Error loading selected potion:", error);
       this.selectedPotion = null;
     }
+
     const tgid = localStorage.getItem("tgid");
 
     if (tgid) {
-      // Attempt to automatically log in with the stored tgid
+      // <<<< تغییر ۱: tgid را قبل از ارسال درخواست در NetworkManager تنظیم می‌کنیم >>>>
+      this.networkManager.setTgid(tgid);
+
       try {
         const userData = await this.networkManager.apiRequest("/api/user");
         if (userData && userData.username) {
@@ -49,16 +50,13 @@ class GameManager {
           this.startUserDataSync();
           console.log("Auto-login successful. User:", userData.username);
         } else {
-          // If user data is incomplete, fall back to the login screen
           this.showScreen("login-screen");
         }
       } catch (error) {
-        // If API call fails (e.g., invalid tgid), fall back to the login screen
         console.error("Auto-login failed:", error);
         this.showScreen("login-screen");
       }
     } else {
-      // If no tgid is found in localStorage, show the login screen
       this.showScreen("login-screen");
     }
 
@@ -446,7 +444,8 @@ class GameManager {
       return;
     }
 
-    localStorage.setItem("tgid", tgid);
+    // <<<< تغییر ۲: به جای ذخیره مستقیم، از متد setTgid استفاده می‌کنیم >>>>
+    this.networkManager.setTgid(tgid);
     this.username = username;
 
     try {
@@ -476,7 +475,6 @@ class GameManager {
       alert(error.message || "خطا در هنگام ورود یا ثبت‌نام");
     }
   }
-
   startUserDataSync() {
     if (this.userDataInterval) {
       clearInterval(this.userDataInterval);
@@ -511,6 +509,7 @@ class GameManager {
       this.networkManager.onWaiting = (message) =>
         this.showWaitingMessage(message);
 
+      // منتظر بمانید تا اتصال وب‌سوکت برقرار شود
       await new Promise((resolve, reject) => {
         const checkConnection = () => {
           if (this.networkManager.connected) {
@@ -527,17 +526,30 @@ class GameManager {
         checkConnection();
       });
 
+      // ================= START: کد اصلاح شده =================
       const userData = JSON.parse(localStorage.getItem("userData"));
+
+      // استفاده از دارایی‌های انتخاب شده، همراه با مقادیر پیش‌فرض برای اطمینان
+      const airplanePath =
+        this.selectedAirplane?.image || "assets/images/airplanes/Tier 1/1.png";
+      const airplaneName = this.selectedAirplane?.name || "Default Fighter";
+      const bulletPath =
+        this.selectedBullet?.image || "assets/images/bullets/lvl1.png";
+      const bulletName = this.selectedBullet?.name || "Standard Bullet";
+
+      // ارسال اطلاعات ورود به سرور همراه با دارایی‌های انتخاب شده
       this.networkManager.sendLogin(
         userData.username,
-        "assets/images/airplanes/Tier 1/1.png",
-        "F-16",
-        "assets/images/bullets/lvl1.png",
-        "Standard",
+        airplanePath,
+        airplaneName,
+        bulletPath,
+        bulletName,
         window.innerWidth,
         window.innerHeight,
-        this.selectedPotion ? this.selectedPotion.potion : null
+        this.selectedPotion ? this.selectedPotion._id : null // ارسال ID معجون
       );
+      // ================== END: کد اصلاح شده ==================
+
       this.showWaitingMessage("در انتظار حریف...");
     } catch (error) {
       console.error("Failed to start game:", error);
@@ -545,7 +557,6 @@ class GameManager {
       this.hideWaitingMessage();
     }
   }
-
   async loadAssets() {
     try {
       await this.networkManager.connect();

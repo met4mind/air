@@ -396,39 +396,6 @@ class MenuManager {
     }
   }
 
-  async buyPotion(potionId) {
-    try {
-      const potion = this.allPotions.find((p) => p._id === potionId);
-      if (!potion) {
-        this.showNotification("معجون مورد نظر یافت نشد!", "error");
-        return;
-      }
-      if (this.userData.coins < potion.price) {
-        this.showNotification("سکه کافی برای خرید این معجون ندارید!", "error");
-        return;
-      }
-
-      const result = await this.apiRequest(`/api/shop/buy-potion`, {
-        // تغییر: await مستقیم
-        method: "POST",
-        body: JSON.stringify({ potionId, quantity: 1 }),
-      });
-
-      this.showNotification(
-        `معجون ${potion.name} با موفقیت خریداری شد!`,
-        "success"
-      );
-      // آپدیت مستقیم اطلاعات کاربر از پاسخ سرور
-      this.userData.coins = result.coins;
-      localStorage.setItem("userData", JSON.stringify(this.userData));
-      this.loadUserData(); // به‌روزرسانی کامل
-      await this.loadShopItems(); // رفرش کردن فروشگاه برای غیرفعال کردن دکمه‌ها
-    } catch (error) {
-      console.error("Error buying potion:", error);
-      this.showNotification(error.message || "خطا در ارتباط با سرور", "error");
-    }
-  }
-
   // در فایل menu.js - بهبود متد renderPotions
   // در فایل menu.js - متد renderPotions را با این کد جایگزین کنید
   renderPotions(potions) {
@@ -481,50 +448,43 @@ class MenuManager {
   }
 
   // بهبود متد buyPotion برای نمایش بهتر نتیجه خرید
+
+  // در menu.js این تنها نسخه buyPotion باشد
+
   async buyPotion(potionId) {
     try {
-      const potion = this.getPotionById(potionId); // فرض می‌کنیم این متد وجود دارد
+      const potion = this.allPotions.find((p) => p._id === potionId);
       if (!potion) {
         this.showNotification("معجون مورد نظر یافت نشد!", "error");
         return;
       }
-
       if (this.userData.coins < potion.price) {
         this.showNotification("سکه کافی برای خرید این معجون ندارید!", "error");
         return;
       }
 
-      const response = await this.apiRequest(`/api/shop/buy-potion`, {
+      const result = await this.apiRequest(`/api/shop/buy-potion`, {
         method: "POST",
-        body: JSON.stringify({
-          tgid: this.getTgId(),
-          potionId,
-          quantity: 1,
-        }),
+        body: JSON.stringify({ potionId, quantity: 1 }),
       });
 
-      const result = await response.json();
+      this.showNotification(
+        `معجون ${potion.name} با موفقیت خریداری شد!`,
+        "success"
+      );
 
-      if (response.ok) {
-        this.showNotification(
-          `معجون ${potion.name} با موفقیت خریداری شد!`,
-          "success"
-        );
-        this.userData.coins = result.coins;
-        localStorage.setItem("userData", JSON.stringify(this.userData));
-        this.updateUI();
+      // آپدیت اطلاعات کاربر و نمایش در UI
+      this.userData.coins = result.coins;
+      localStorage.setItem("userData", JSON.stringify(this.userData));
+      this.loadUserData(); // این تابع UI را هم آپدیت می‌کند
 
-        // به‌روزرسانی وضعیت دکمه‌های خرید
-        this.loadShopItems();
-      } else {
-        this.showNotification(result.error || "خطا در خرید معجون", "error");
-      }
+      // فروشگاه را مجدد بارگذاری کنید تا دکمه‌های خرید آپدیت شوند
+      await this.loadShopItems();
     } catch (error) {
       console.error("Error buying potion:", error);
-      this.showNotification("خطا در ارتباط با سرور", "error");
+      this.showNotification(error.message || "خطا در ارتباط با سرور", "error");
     }
   }
-
   // اضافه کردن متد کمکی برای نمایش نوتیفیکیشن
   showNotification(message, type = "info") {
     // ایجاد یا استفاده از سیستم نوتیفیکیشن موجود
@@ -584,33 +544,6 @@ class MenuManager {
     } catch (error) {
       console.error("Error upgrading feature:", error);
       alert("خطا در ارتقاء ویژگی");
-    }
-  }
-
-  async buyPotion(potionId) {
-    try {
-      const response = await this.apiRequest(`/api/shop/buy-potion`, {
-        method: "POST",
-        body: JSON.stringify({
-          tgid: this.getTgId(),
-          potionId,
-          quantity: 1,
-        }),
-      });
-
-      const result = await response.json();
-
-      if (response.ok) {
-        alert("خرید با موفقیت انجام شد!");
-        this.userData.coins = result.coins;
-        localStorage.setItem("userData", JSON.stringify(this.userData));
-        this.updateUI();
-      } else {
-        alert(result.error);
-      }
-    } catch (error) {
-      console.error("Error buying potion:", error);
-      alert("خطا در خرید معجون");
     }
   }
 

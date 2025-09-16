@@ -329,6 +329,14 @@
         font-weight: bold;
         margin-left: 15px;
       }
+      .road {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: -1; /* این باعث می‌شود جاده زیر هواپیماها و بالای پس‌زمینه body قرار گیرد */
+      }
 
       .rank-1 {
         background: linear-gradient(to right, #ffd700, #ffaa00);
@@ -1239,6 +1247,23 @@
       <div id="waiting-message" style="display: none">
         <p>در انتظار حریف...</p>
       </div>
+      <button
+        id="use-potion-btn"
+        class="hidden"
+        style="
+          position: fixed;
+          bottom: 20px;
+          right: 20px;
+          width: 60px;
+          height: 60px;
+          z-index: 100;
+          background-color: rgba(0, 0, 0, 0.5);
+          border: 2px solid gold;
+          border-radius: 50%;
+          padding: 5px;
+          cursor: pointer;
+        "
+      ></button>
     </div>
     <script>
       // مدیریت خطاهای تصویر برای معجون‌ها

@@ -61,6 +61,7 @@ wss.on("connection", (ws) => {
             airplaneWidth: 100,
             airplaneHeight: 100,
             position: { x: 0, y: 0 },
+            lastShotTime: 0, // <<<< این خط برای امنیت اضافه شده است
           };
 
           // اضافه کردن به لیست انتظار یا شروع بازی
@@ -94,6 +95,12 @@ wss.on("connection", (ws) => {
           break;
 
         case "shoot":
+          // زمان شلیک را برای بررسی امنیتی ثبت کنید
+          if (players[message.userId]) {
+            players[message.userId].lastShotTime = Date.now();
+          }
+
+          // ارسال پیام شلیک به حریف
           if (players[message.userId] && players[message.userId].opponent) {
             const opponentId = players[message.userId].opponent;
             if (players[opponentId]) {
@@ -111,17 +118,21 @@ wss.on("connection", (ws) => {
           break;
 
         case "hit":
-          if (players[message.userId] && players[message.userId].opponent) {
-            const roomId = players[message.userId].roomId;
-            const room = gameRooms[roomId];
+          const player = players[message.userId];
+          if (player && player.opponent) {
+            // بررسی امنیتی: آیا بازیکن اخیراً شلیک کرده است؟
+            const timeSinceLastShot = Date.now() - (player.lastShotTime || 0);
 
-            setTimeout(async () => {
+            // فقط اگر در 1.5 ثانیه گذشته شلیک کرده باشد، برخورد را قبول کن
+            if (timeSinceLastShot < 1500) {
+              const roomId = player.roomId;
+              const room = gameRooms[roomId];
+
               if (room) {
-                // تشخیص اینکه کدام بازیکن آسیب دیده (همیشه حریف آسیب میبیند)
-                const targetPlayerId = players[message.userId].opponent;
+                const targetPlayerId = player.opponent;
                 const damage = message.damage || 10;
 
-                // کاهش سلامت بازیکن هدف
+                // کاهش جان بازیکن هدف (حریف)
                 if (room.player1.id === targetPlayerId) {
                   room.player1.health = Math.max(
                     0,
@@ -134,86 +145,101 @@ wss.on("connection", (ws) => {
                   );
                 }
 
-                // ارسال وضعیت سلامت به هر دو بازیکن
-                players[message.userId].ws.send(
+                // ارسال وضعیت جدید سلامتی به هر دو بازیکن
+                // ارسال به بازیکن فعلی
+                player.ws.send(
                   JSON.stringify({
                     type: "health_update",
                     health:
-                      room.player1.id === message.userId
+                      room.player1.id === player.userId
                         ? room.player1.health
                         : room.player2.health,
                     opponentHealth:
-                      room.player1.id === message.userId
-                        ? room.player2.health
-                        : room.player1.health,
+                      room.player1.id === targetPlayerId
+                        ? room.player1.health
+                        : room.player2.health,
                   })
                 );
 
-                players[targetPlayerId].ws.send(
-                  JSON.stringify({
-                    type: "health_update",
-                    health:
-                      room.player1.id === targetPlayerId
-                        ? room.player1.health
-                        : room.player2.health,
-                    opponentHealth:
-                      room.player1.id === targetPlayerId
-                        ? room.player2.health
-                        : room.player1.health,
-                  })
-                );
+                // ارسال به حریف
+                const opponentPlayer = players[targetPlayerId];
+                if (opponentPlayer) {
+                  opponentPlayer.ws.send(
+                    JSON.stringify({
+                      type: "health_update",
+                      health:
+                        room.player1.id === targetPlayerId
+                          ? room.player1.health
+                          : room.player2.health,
+                      opponentHealth:
+                        room.player1.id === player.userId
+                          ? room.player1.health
+                          : room.player2.health,
+                    })
+                  );
+                }
 
                 // بررسی پایان بازی
                 if (room.player1.health <= 0 || room.player2.health <= 0) {
                   const winnerId =
                     room.player1.health > 0 ? room.player1.id : room.player2.id;
                   const loserId =
-                    room.player1.health > 0 ? room.player2.id : room.player1.id;
+                    room.player1.health <= 0
+                      ? room.player1.id
+                      : room.player2.id;
 
-                  // آپدیت آمار برد و باخت
-                  try {
-                    const User = require("./models/user");
-                    await User.findByIdAndUpdate(winnerId, {
-                      $inc: { wins: 1 },
-                    });
-                    await User.findByIdAndUpdate(loserId, {
-                      $inc: { losses: 1 },
-                    });
-                  } catch (error) {
-                    console.error("Error updating user stats:", error);
+                  // آپدیت آمار برد، باخت و ستاره‌ها در دیتابیس
+                  (async () => {
+                    try {
+                      const User = require("./models/user");
+                      await User.findByIdAndUpdate(winnerId, {
+                        $inc: { wins: 1, stars: 10 },
+                      });
+                      await User.findByIdAndUpdate(loserId, {
+                        $inc: { losses: 1, stars: 2 },
+                      });
+                    } catch (error) {
+                      console.error("Error updating user stats:", error);
+                    }
+                  })();
+
+                  // ارسال پیام پایان بازی به برنده و بازنده
+                  if (players[winnerId]) {
+                    players[winnerId].ws.send(
+                      JSON.stringify({
+                        type: "game_over",
+                        result: "win",
+                      })
+                    );
+                  }
+                  if (players[loserId]) {
+                    players[loserId].ws.send(
+                      JSON.stringify({
+                        type: "game_over",
+                        result: "lose",
+                      })
+                    );
                   }
 
-                  // ارسال پیام پایان بازی
-                  players[winnerId].ws.send(
-                    JSON.stringify({
-                      type: "game_over",
-                      result: "win",
-                    })
-                  );
-
-                  players[loserId].ws.send(
-                    JSON.stringify({
-                      type: "game_over",
-                      result: "lose",
-                    })
-                  );
-
-                  // حذف اتاق بازی
+                  // پاکسازی اطلاعات بازی از حافظه سرور
                   delete gameRooms[roomId];
 
-                  // حذف بازیکنان از لیست
-                  delete players[winnerId];
-                  delete players[loserId];
-
-                  // حذف از لیست انتظار در صورت وجود
                   const winnerIndex = waitingPlayers.indexOf(winnerId);
                   if (winnerIndex > -1) waitingPlayers.splice(winnerIndex, 1);
 
                   const loserIndex = waitingPlayers.indexOf(loserId);
                   if (loserIndex > -1) waitingPlayers.splice(loserIndex, 1);
+
+                  delete players[winnerId];
+                  delete players[loserId];
                 }
               }
-            }, 50);
+            } else {
+              // اگر پیام هیت بدون شلیک اخیر ارسال شود، آن را نادیده گرفته و در لاگ ثبت کن
+              console.log(
+                `Invalid hit from ${message.userId}. No recent shot.`
+              );
+            }
           }
           break;
 
@@ -350,7 +376,7 @@ function startGame(player1Id, player2Id) {
 
 // Error handling middleware
 app.use((err, req, res, next) => {
-  console.error(err.stack); 
+  console.error(err.stack);
   res.status(500).json({ error: "Something went wrong!" });
 });
 
