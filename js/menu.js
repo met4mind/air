@@ -4,13 +4,26 @@ class MenuManager {
   constructor() {
     this.currentMenu = "main-menu";
     this.userData = null;
+    this.allPotions = []; // <<<< ۱. این خط را اضافه کنید تا متغیر از ابتدا تعریف شده باشد
     this.init();
   }
 
-  init() {
+  async init() {
+    // <<<< ۲. کلمه async را به این تابع اضافه کنید
+    await this.loadMasterData(); // <<<< ۳. این خط را اضافه کنید تا دیتاهای اصلی در ابتدا لود شوند
     this.bindEvents();
     this.loadUserData();
     this.startDataSync();
+  }
+
+  async loadMasterData() {
+    try {
+      // لیست تمام معجون ها را یکبار در ابتدای کار می گیریم و ذخیره می کنیم
+      this.allPotions = await this.apiRequest(`/api/potions`);
+    } catch (error) {
+      console.error("Failed to load master potion data:", error);
+      this.allPotions = []; // در صورت خطا، یک آرایه خالی قرار می دهیم تا برنامه کرش نکند
+    }
   }
 
   bindEvents() {
@@ -265,13 +278,14 @@ class MenuManager {
     }
   }
 
+  // در فایل: js/menu.js
+
   showMainMenu() {
     this.showMenu("main-menu");
     this.displayOwnedPotions();
-    this.displayOwnedAirplanes();
-    this.displayOwnedBullets();
+    // this.displayOwnedAirplanes(); // <<<< این خط را حذف یا کامنت کنید
+    // this.displayOwnedBullets(); // <<<< این خط را حذف یا کامنت کنید
   }
-
   showLeaderboard() {
     this.showMenu("leaderboard-menu");
   }

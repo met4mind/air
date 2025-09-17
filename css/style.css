@@ -1,0 +1,588 @@
+/* =================================================================
+   SHEET CSS یکپارچه برای بازی جنگنده های هوایی
+   ================================================================= */
+
+/* استایل‌های عمومی و ریست */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+  touch-action: none;
+  position: fixed;
+  font-family: Arial, sans-serif;
+}
+
+body {
+  background-color: #003000 !important;
+}
+
+.hidden {
+  display: none !important;
+}
+
+/* استایل‌های صفحه لاگین */
+#login-screen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.8);
+  z-index: 10000;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.login-container {
+  background: white;
+  padding: 20px;
+  border-radius: 10px;
+  width: 300px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+  text-align: center;
+}
+
+.login-container h2 {
+  margin-bottom: 20px;
+  color: #333;
+}
+
+.login-input {
+  width: 100%;
+  margin: 10px 0;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  box-sizing: border-box;
+}
+
+.login-button {
+  width: 100%;
+  padding: 10px;
+  margin: 5px 0;
+  background-color: #4caf50;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.login-button:hover {
+  background-color: #45a049;
+}
+
+.login-button.secondary {
+  background-color: #2196f3;
+}
+
+.login-button.secondary:hover {
+  background-color: #0b7dda;
+}
+
+/* استایل پیام انتظار */
+#waiting-message {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 20px;
+  border-radius: 8px;
+  z-index: 101;
+  text-align: center;
+}
+
+/* استایل نوتیفیکیشن */
+.notification {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  padding: 15px 20px;
+  border-radius: 5px;
+  color: white;
+  z-index: 10000;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
+  animation: slideIn 0.3s ease;
+}
+
+.notification.success {
+  background: #4caf50;
+}
+
+.notification.error {
+  background: #f44336;
+}
+
+.notification.info {
+  background: #2196f3;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+/* =================================================================
+   تم چریکی نظامی (Military Theme)
+   ================================================================= */
+
+:root {
+  --military-dark-green: #2a4a2a;
+  --military-green: #3a5c3a;
+  --military-light-green: #4a6e4a;
+  --military-sand: #a08c65;
+  --military-black: #1a1a1a;
+  --military-gold: #b8860b;
+}
+
+.military-theme {
+  background: linear-gradient(to bottom, #1a2a1a, #2a3a2a);
+  color: #e0e0e0;
+}
+
+.military-theme .menu-container {
+  background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><rect width="100" height="100" fill="%232a4a2a" opacity="0.8"/><path d="M0 0L100 100" stroke="%233a5c3a" stroke-width="1"/><path d="M100 0L0 100" stroke="%233a5c3a" stroke-width="1"/></svg>')
+    repeat;
+  border: 2px solid var(--military-sand);
+  box-shadow: 0 0 15px rgba(0, 0, 0, 0.7);
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20px;
+  z-index: 1000;
+  overflow-y: auto;
+}
+
+.military-theme .menu-header {
+  min-width: 250px;
+  max-width: 250px;
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.military-theme .menu-header h1,
+.military-theme .menu-header h2 {
+  color: var(--military-gold);
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.7);
+  font-weight: bold;
+}
+
+.military-theme .user-info {
+  background: rgba(42, 58, 42, 0.7);
+  border: 1px solid var(--military-sand);
+  border-radius: 5px;
+  padding: 8px 15px;
+  margin-top: 10px;
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+}
+
+.military-theme .menu-options {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  width: 80%;
+  max-width: 400px;
+}
+
+.military-theme .menu-btn {
+  background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="200" height="50" viewBox="0 0 200 50"><rect width="200" height="50" fill="%233a5c3a" rx="5" ry="5"/><path d="M5,5 L195,5 L195,45 L5,45 Z" fill="none" stroke="%23a08c65" stroke-width="1"/></svg>')
+    center/cover no-repeat;
+  border: none;
+  color: #e0e0e0;
+  font-weight: bold;
+  font-size: 18px;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+  padding: 15px 25px;
+  margin: 8px 0;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.military-theme .menu-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+  color: var(--military-gold);
+}
+
+/* --- استایل سایر دکمه ها --- */
+.military-theme .back-btn,
+.military-theme .upgrade-btn,
+.military-theme .offer-btn,
+.military-theme .buy-btn {
+  background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="120" height="40" viewBox="0 0 120 40"><rect width="120" height="40" fill="%233a5c3a" rx="3" ry="3"/><path d="M5,5 L115,5 L115,35 L5,35 Z" fill="none" stroke="%23a08c65" stroke-width="1"/></svg>')
+    center/cover no-repeat;
+  border: none;
+  color: #e0e0e0;
+  padding: 10px 20px;
+  border-radius: 3px;
+  font-weight: bold;
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.military-theme .back-btn:hover,
+.military-theme .upgrade-btn:hover,
+.military-theme .offer-btn:hover,
+.military-theme .buy-btn:hover {
+  background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="120" height="40" viewBox="0 0 120 40"><rect width="120" height="40" fill="%234a6e4a" rx="3" ry="3"/><path d="M5,5 L115,5 L115,35 L5,35 Z" fill="none" stroke="%23b8860b" stroke-width="1"/></svg>')
+    center/cover no-repeat;
+  color: var(--military-gold);
+}
+
+.military-theme .back-btn {
+  margin-top: 20px;
+}
+
+/* --- استایل جدول رتبه بندی (Leaderboard) --- */
+.military-theme .leaderboard-content {
+  background: rgba(32, 42, 32, 0.7);
+  border: 1px solid var(--military-sand);
+  border-radius: 5px;
+  padding: 15px;
+  width: 100%;
+  max-width: 500px;
+  margin: 20px 0;
+}
+
+.military-theme .leaderboard-item {
+  background: rgba(58, 74, 58, 0.7);
+  border-bottom: 1px solid var(--military-sand);
+  margin: 0;
+  padding: 12px;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  border-radius: 0;
+}
+.military-theme .leaderboard-item:last-child {
+  border-bottom: none;
+}
+.military-theme .leaderboard-item:hover {
+  background: rgba(58, 74, 58, 0.9);
+  transform: translateX(5px);
+}
+.military-theme .leaderboard-rank {
+  background-color: var(--military-green);
+  color: var(--military-gold);
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  margin-right: 15px; /* Changed from margin-left for RTL */
+  flex-shrink: 0;
+}
+.military-theme .rank-1 {
+  background-color: var(--military-gold);
+  color: #000;
+}
+.military-theme .rank-2 {
+  background-color: #c0c0c0;
+  color: #000;
+}
+.military-theme .rank-3 {
+  background-color: #cd7f32;
+  color: #000;
+}
+.military-theme .leaderboard-user {
+  flex-grow: 1;
+}
+.military-theme .leaderboard-stars {
+  color: var(--military-gold);
+  font-size: 14px;
+}
+
+/* --- استایل سایر بخش های منو --- */
+.military-theme .timer {
+  background: rgba(42, 58, 42, 0.7);
+  border: 1px solid var(--military-sand);
+  border-radius: 20px;
+  padding: 8px 15px;
+  color: var(--military-gold);
+  font-weight: bold;
+  margin-top: 10px;
+}
+.military-theme .prize-image img {
+  border: 2px solid var(--military-gold);
+  border-radius: 50%;
+  padding: 5px;
+  background: rgba(42, 58, 42, 0.7);
+  box-shadow: 0 0 10px rgba(184, 134, 11, 0.5);
+  max-width: 100px;
+  margin: 15px 0;
+}
+.military-theme .upgrade-options,
+.military-theme .free-options {
+  width: 100%;
+  max-width: 500px;
+}
+.military-theme .upgrade-item,
+.military-theme .free-item {
+  background: rgba(42, 58, 42, 0.8);
+  border: 1px solid var(--military-sand);
+  border-radius: 5px;
+  padding: 15px;
+  margin: 10px 0;
+  transition: all 0.3s ease;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+.military-theme .upgrade-item:hover,
+.military-theme .free-item:hover {
+  background: rgba(42, 58, 42, 0.95);
+  transform: translateY(-3px);
+}
+.military-theme .upgrade-item img,
+.military-theme .free-item img {
+  width: 80px;
+  height: 80px;
+  margin-bottom: 10px;
+  object-fit: contain;
+}
+.military-theme .shop-tabs {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+.military-theme .tab-btn {
+  background: rgba(58, 74, 58, 0.7);
+  border: 1px solid var(--military-sand);
+  color: #e0e0e0;
+  padding: 8px 15px;
+  border-radius: 5px;
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+.military-theme .tab-btn.active {
+  background: rgba(184, 134, 11, 0.3);
+  border-color: var(--military-gold);
+  color: var(--military-gold);
+}
+.military-theme .tab-content {
+  display: none;
+  width: 100%;
+}
+.military-theme .tab-content.active {
+  display: block;
+}
+.military-theme .potions-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 15px;
+  width: 100%;
+}
+.military-theme .shop-item {
+  display: flex;
+  flex-direction: column;
+  background: rgba(42, 58, 42, 0.7);
+  border: 1px solid var(--military-sand);
+  border-radius: 10px;
+  padding: 15px;
+  transition: all 0.3s ease;
+}
+.military-theme .shop-item:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+}
+.military-theme .shop-item img {
+  width: 100%;
+  height: 100px;
+  object-fit: contain;
+  margin-bottom: 10px;
+  border-radius: 5px;
+}
+.military-theme .shop-item-info {
+  flex-grow: 1;
+  margin-bottom: 15px;
+}
+.military-theme .shop-item-info h4 {
+  color: var(--military-gold);
+  margin-bottom: 8px;
+  font-size: 16px;
+}
+.military-theme .shop-item-info p {
+  margin-bottom: 5px;
+  font-size: 14px;
+  line-height: 1.4;
+}
+.military-theme .potion-effect {
+  color: #a0e7a0 !important;
+  font-style: italic;
+}
+.military-theme .shop-item-price {
+  color: gold !important;
+  font-weight: bold;
+  margin-top: 10px;
+}
+
+/* --- استایل منوی انتخاب دارایی (Selection Menu) --- */
+.military-theme .selection-section {
+  width: 90%;
+  max-width: 500px;
+  margin-bottom: 25px;
+  padding: 15px;
+  background: rgba(42, 58, 42, 0.5);
+  border-radius: 8px;
+  border: 1px solid var(--military-sand);
+}
+.military-theme .selection-section h2 {
+  color: var(--military-gold);
+  text-align: center;
+  margin-bottom: 15px;
+  border-bottom: 1px solid var(--military-sand);
+  padding-bottom: 8px;
+}
+.military-theme .selection-grid {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 15px;
+  margin-top: 15px;
+}
+.military-theme .selection-item {
+  background: rgba(42, 58, 42, 0.7);
+  border: 2px solid var(--military-sand);
+  border-radius: 8px;
+  padding: 10px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  min-width: 90px;
+}
+.military-theme .selection-item:hover {
+  transform: scale(1.05);
+  border-color: var(--military-gold);
+}
+.military-theme .selection-item.selected {
+  border-color: var(--military-gold);
+  box-shadow: 0 0 10px var(--military-gold);
+  background-color: rgba(184, 134, 11, 0.2);
+}
+.military-theme .selection-item img {
+  width: 60px;
+  height: 60px;
+  object-fit: contain;
+  margin-bottom: 8px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 5px;
+  padding: 5px;
+}
+.military-theme .selection-item p {
+  color: #e0e0e0;
+  font-size: 12px;
+  margin: 0;
+}
+
+/* =================================================================
+   استایل های عناصر داخل بازی
+   ================================================================= */
+.road {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+}
+
+.cloud {
+  position: absolute;
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.bullet {
+  z-index: 5;
+  position: absolute;
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+}
+
+.airplane,
+.opponent-airplane {
+  z-index: 10;
+  position: absolute;
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+}
+
+/* =================================================================
+   استایل ریسپانسیو
+   ================================================================= */
+@media (max-width: 768px) {
+  .military-theme .menu-container {
+    padding: 10px;
+  }
+  .military-theme .menu-btn {
+    padding: 12px 20px;
+    font-size: 14px;
+    margin: 5px 0;
+  }
+  .military-theme .menu-header h1 {
+    font-size: 24px;
+  }
+  .military-theme .menu-header h2 {
+    font-size: 20px;
+  }
+}
+
+@media (max-width: 480px) {
+  .military-theme .menu-btn {
+    padding: 10px 15px;
+    font-size: 13px;
+  }
+  .military-theme .menu-header h1 {
+    font-size: 20px;
+  }
+  .military-theme .menu-header h2 {
+    font-size: 18px;
+  }
+  .military-theme .user-info {
+    font-size: 14px;
+    padding: 5px 10px;
+  }
+  .military-theme .back-btn {
+    padding: 8px 15px;
+    font-size: 14px;
+  }
+}

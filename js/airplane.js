@@ -12,12 +12,15 @@ export class Airplane {
     this.offsetY = 0;
     this.bullets = [];
 
-    // <<<< بخش ۱ تغییر: یکبار bind کردن متدها در constructor >>>>
+    // مرحله ۱: متدهای کنترل‌کننده رویداد را یکبار برای همیشه bind می‌کنیم
+    // و آن‌ها را در پراپرتی‌های کلاس ذخیره می‌کنیم تا همیشه به یک تابع واحد دسترسی داشته باشیم.
     this.boundHandleMove = this.handleMove.bind(this);
     this.boundHandleTouchMove = this.handleTouchMove.bind(this);
     this.boundHandleEnd = this.handleEnd.bind(this);
+    this.boundHandleStart = this.handleStart.bind(this);
+    this.boundHandleTouchStart = this.handleTouchStart.bind(this);
 
-    // Create airplane element
+    // ساختن عنصر هواپیما
     this.element = document.createElement("div");
     this.element.className = "airplane";
     this.element.style.width = `${width}px`;
@@ -43,34 +46,36 @@ export class Airplane {
   }
 
   setupEvents() {
-    this.element.addEventListener("mousedown", this.handleStart.bind(this));
-    this.element.addEventListener(
-      "touchstart",
-      this.handleTouchStart.bind(this),
-      { passive: false }
-    );
+    // اینجا از متدهای bind شده برای شروع درگ استفاده می‌کنیم
+    this.element.addEventListener("mousedown", this.boundHandleStart);
+    this.element.addEventListener("touchstart", this.boundHandleTouchStart, {
+      passive: false,
+    });
   }
 
   handleStart(e) {
+    if (this.isDragging) return; // جلوگیری از شروع درگ جدید وقتی یکی در جریان است
     this.isDragging = true;
+
     const rect = this.element.getBoundingClientRect();
     this.offsetX = e.clientX - rect.left;
     this.offsetY = e.clientY - rect.top;
 
-    // <<<< بخش ۲ تغییر: استفاده از متدهای bind شده >>>>
+    // مرحله ۲: برای اضافه کردن listener ها از متدهای bind شده در constructor استفاده می‌کنیم
     document.addEventListener("mousemove", this.boundHandleMove);
     document.addEventListener("mouseup", this.boundHandleEnd);
     e.preventDefault();
   }
 
   handleTouchStart(e) {
+    if (this.isDragging) return;
     this.isDragging = true;
+
     const touch = e.touches[0];
     const rect = this.element.getBoundingClientRect();
     this.offsetX = touch.clientX - rect.left;
     this.offsetY = touch.clientY - rect.top;
 
-    // <<<< بخش ۲ تغییر: استفاده از متدهای bind شده >>>>
     document.addEventListener("touchmove", this.boundHandleTouchMove, {
       passive: false,
     });
@@ -92,8 +97,11 @@ export class Airplane {
   }
 
   handleEnd() {
+    if (!this.isDragging) return;
     this.isDragging = false;
-    // <<<< بخش ۳ تغییر: حذف کردن listener با همان متدهای bind شده >>>>
+
+    // مرحله ۳: برای حذف listener ها دقیقاً از همان متدهای bind شده استفاده می‌کنیم
+    // این کار تضمین می‌کند که listener ها به درستی حذف شوند
     document.removeEventListener("mousemove", this.boundHandleMove);
     document.removeEventListener("mouseup", this.boundHandleEnd);
     document.removeEventListener("touchmove", this.boundHandleTouchMove);
@@ -110,13 +118,11 @@ export class Airplane {
     this.element.style.left = `${Math.min(Math.max(0, x), maxX)}px`;
     this.element.style.top = `${Math.min(Math.max(0, y), maxY)}px`;
 
-    // ذخیره موقعیت درصدی
     this.percentPosition = {
       x: (parseInt(this.element.style.left) || 0) / window.innerWidth,
       y: (parseInt(this.element.style.top) || 0) / window.innerHeight,
     };
 
-    // ارسال موقعیت درصدی به سرور
     if (window.networkManager) {
       window.networkManager.sendMove(
         this.percentPosition.x,
@@ -124,6 +130,7 @@ export class Airplane {
       );
     }
   }
+
   setPosition(x, y) {
     this.element.style.left = `${x}px`;
     this.element.style.top = `${y}px`;
