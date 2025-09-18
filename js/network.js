@@ -21,6 +21,7 @@ export class NetworkManager {
     this.onYouHit = null;
     this.onGameOver = null;
     this.onOpponentDisconnected = null;
+    this.onOpponentPotionActivate = null;
   }
   setTgid(tgid) {
     this.tgid = tgid;
@@ -28,6 +29,17 @@ export class NetworkManager {
     console.log(`Tgid in NetworkManager was set to: ${this.tgid}`); // برای دیباگ کردن
   }
 
+  sendPotionActivate(potionId) {
+    if (this.connected) {
+      this.socket.send(
+        JSON.stringify({
+          type: "potion_activate",
+          userId: this.userId,
+          potionId: potionId,
+        })
+      );
+    }
+  }
   async apiRequest(endpoint, options = {}) {
     try {
       const response = await fetch(`${this.baseURL}${endpoint}`, {
@@ -143,6 +155,16 @@ export class NetworkManager {
         if (this.onHealthUpdate)
           this.onHealthUpdate(message.health, message.opponentHealth);
         break;
+      case "health_update":
+        if (this.onHealthUpdate)
+          this.onHealthUpdate(message.health, message.opponentHealth);
+        break;
+
+      // <<<< این case جدید را اضافه کنید >>>>
+      case "opponent_potion_activate":
+        if (this.onOpponentPotionActivate)
+          this.onOpponentPotionActivate(message.potionName);
+        break;
     }
   }
 
@@ -205,7 +227,19 @@ export class NetworkManager {
       );
     }
   }
+  // در فایل: js/network.js
+  // این تابع جدید را به انتهای کلاس NetworkManager اضافه کنید.
 
+  sendUseHealPotion() {
+    if (this.connected) {
+      this.socket.send(
+        JSON.stringify({
+          type: "use_heal_potion",
+          userId: this.userId,
+        })
+      );
+    }
+  }
   // در network.js - تابع handleMessage
 
   sendHit(damage) {

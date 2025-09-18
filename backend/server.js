@@ -242,7 +242,78 @@ wss.on("connection", (ws) => {
             }
           }
           break;
+        case "potion_activate":
+          const activator = players[message.userId];
+          if (!activator) break;
 
+          const potionId = message.potionId;
+          const opponentId = activator.opponent;
+
+          // آپدیت دیتابیس به صورت async (بازی منتظر نمی‌ماند)
+          (async () => {
+            try {
+              const User = require("./models/user");
+              const Potion = require("./models/potion");
+
+              // اطلاعات معجون را برای ارسال نام آن به حریف پیدا می‌کنیم
+              const potionInfo = await Potion.findById(potionId);
+              if (!potionInfo) return;
+
+              // کم کردن یکی از تعداد معجون کاربر
+              await User.updateOne(
+                { _id: message.userId, "ownedPotions.potion": potionId },
+                { $inc: { "ownedPotions.$.quantity": -1 } }
+              );
+
+              // اگر معجون درمان بود، منطق درمان را اجرا کن
+              if (potionInfo.name === "معجون درمان") {
+                const room = gameRooms[activator.roomId];
+                if (room) {
+                  let playerInRoom =
+                    room.player1.id === message.userId
+                      ? room.player1
+                      : room.player2;
+                  playerInRoom.health = Math.min(100, playerInRoom.health + 50);
+                  // ارسال آپدیت سلامتی به هر دو بازیکن
+                  activator.ws.send(
+                    JSON.stringify({
+                      type: "health_update",
+                      health: playerInRoom.health,
+                      opponentHealth:
+                        room.player1.id === opponentId
+                          ? room.player1.health
+                          : room.player2.health,
+                    })
+                  );
+                  if (players[opponentId]) {
+                    players[opponentId].ws.send(
+                      JSON.stringify({
+                        type: "health_update",
+                        health:
+                          room.player1.id === opponentId
+                            ? room.player1.health
+                            : room.player2.health,
+                        opponentHealth: playerInRoom.health,
+                      })
+                    );
+                  }
+                }
+              } else {
+                // برای بقیه معجون‌ها، فقط به حریف اطلاع بده تا افکت را نمایش دهد
+                if (players[opponentId]) {
+                  players[opponentId].ws.send(
+                    JSON.stringify({
+                      type: "opponent_potion_activate",
+                      potionName: potionInfo.name,
+                    })
+                  );
+                }
+              }
+            } catch (error) {
+              console.error("Error processing potion activation:", error);
+            }
+          })();
+          break;
         case "game_over":
           // پایان بازی و ثبت نتیجه
           if (players[message.userId] && players[message.userId].opponent) {

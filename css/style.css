@@ -586,3 +586,104 @@ body {
     font-size: 14px;
   }
 }
+
+/* =================================================================
+   استایل های افکت معجون (Potion Effects)
+   ================================================================= */
+
+/* افکت عمومی برای همه معجون ها */
+.potion-effect-active {
+  animation-duration: 0.5s;
+  animation-iteration-count: infinite;
+  animation-direction: alternate;
+}
+
+/* افکت برای معجون قدرت (قرمز درخشان) */
+.power-effect {
+  animation-name: pulse-red;
+  box-shadow: 0 0 15px 5px rgba(255, 0, 0, 0.7);
+}
+
+@keyframes pulse-red {
+  from {
+    filter: drop-shadow(0 0 5px #ff4d4d);
+  }
+  to {
+    filter: drop-shadow(0 0 15px #ff0000);
+  }
+}
+
+/* افکت برای معجون سرعت (آبی درخشان) */
+.speed-effect {
+  border-radius: 50%;
+  animation-name: pulse-blue;
+  box-shadow: 0 0 15px 5px rgba(0, 172, 230, 0.7);
+}
+
+@keyframes pulse-blue {
+  from {
+    filter: drop-shadow(0 0 5px #4dffff);
+  }
+  to {
+    filter: drop-shadow(0 0 15px #00ace6);
+  }
+}
+
+/* افکت برای معجون محافظ (سپر طلایی) */
+.shield-effect {
+  position: relative;
+}
+.shield-effect::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+
+  /* <<<< تغییر اصلی اینجاست >>>> */
+  height: 150%; /* ارتفاع را کمی بزرگتر می‌کنیم */
+  aspect-ratio: 1 / 1; /* این خط تضمین می‌کند که عرض و ارتفاع همیشه برابر باشند (مربع) */
+
+  background-image: radial-gradient(
+    circle,
+    rgba(255, 215, 0, 0.1) 20%,
+    rgba(255, 215, 0, 0.4) 100%
+  );
+  border: 2px solid gold;
+  border-radius: 50%; /* یک مربع با این ویژگی همیشه به دایره تبدیل می‌شود */
+  animation: pulse-gold 1s infinite alternate;
+}
+
+@keyframes pulse-gold {
+  from {
+    opacity: 0.7;
+    transform: translate(-50%, -50%) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.05);
+  }
+}
+
+/* افکت برای معجون درمان (ذرات سبز) */
+.heal-particle {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  background-color: #00ff00;
+  border-radius: 50%;
+  opacity: 0.8;
+  animation: float-up 1.5s ease-out forwards;
+  pointer-events: none; /* برای جلوگیری از تداخل با کلیک */
+}
+
+@keyframes float-up {
+  0% {
+    transform: translateY(0) scale(1);
+    opacity: 0.8;
+  }
+  100% {
+    transform: translateY(-80px) scale(0);
+    opacity: 0;
+  }
+}

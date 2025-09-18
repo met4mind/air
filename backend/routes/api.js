@@ -33,6 +33,52 @@ const auth = async (req, res, next) => {
     res.status(500).json({ error: error.message });
   }
 };
+
+// در فایل: routes/api.js
+// این مسیر جدید را قبل از module.exports = router; اضافه کنید
+
+// مسیر داخلی برای ساختن/به‌روزرسانی لیدربورد
+router.post("/leaderboard/generate", async (req, res) => {
+  try {
+    // ۱. همه کاربران را پیدا کرده و بر اساس ستاره مرتب کن
+    const sortedUsers = await User.find({}).sort({ stars: -1 }).limit(100); // محدودیت ۱۰۰ نفر برتر
+
+    // ۲. رتبه‌بندی را بر اساس کاربران مرتب‌شده بساز
+    const rankings = sortedUsers.map((user, index) => ({
+      user: user._id,
+      stars: user.stars,
+      position: index + 1,
+    }));
+
+    // ۳. یک لیدربورد فعال پیدا کن یا یک لیدربورد جدید بساز
+    const sevenDaysFromNow = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+    const updatedLeaderboard = await Leaderboard.findOneAndUpdate(
+      { endDate: { $gt: new Date() } }, // پیدا کردن لیدربورد فعال
+      {
+        $set: {
+          rankings: rankings,
+          startDate: new Date(),
+          endDate: sevenDaysFromNow,
+        },
+      },
+      {
+        new: true, // اگر پیدا شد، داکیومنت آپدیت شده را برگردان
+        upsert: true, // اگر پیدا نشد، یک داکیومنت جدید با این اطلاعات بساز
+        setDefaultsOnInsert: true,
+      }
+    );
+
+    res.status(200).json({
+      message: "Leaderboard generated/updated successfully.",
+      leaderboard: updatedLeaderboard,
+    });
+  } catch (error) {
+    res
+      .status(500)
+      .json({ error: "Failed to generate leaderboard: " + error.message });
+  }
+});
 // دریافت اطلاعات کاربر
 router.get("/user", auth, async (req, res) => {
   try {
@@ -612,19 +658,51 @@ router.post("/upgrade", auth, async (req, res) => {
 });
 
 // دریافت جدول رتبه‌بندی
-router.get("/leaderboard", auth, async (req, res) => {
+// در فایل: routes/api.js
+// این مسیر جدید را قبل از module.exports = router; اضافه کنید
+
+// مسیر داخلی برای ساختن/به‌روزرسانی لیدربورد
+router.post("/leaderboard/generate", async (req, res) => {
   try {
-    const currentLeaderboard = await Leaderboard.findOne({
-      endDate: { $gt: new Date() },
-    }).populate("rankings.user");
+    // ۱. همه کاربران را پیدا کرده و بر اساس ستاره مرتب کن
+    const sortedUsers = await User.find({}).sort({ stars: -1 }).limit(100); // محدودیت ۱۰۰ نفر برتر
 
-    if (!currentLeaderboard) {
-      return res.status(404).json({ error: "No active leaderboard" });
-    }
+    // ۲. رتبه‌بندی را بر اساس کاربران مرتب‌شده بساز
+    const rankings = sortedUsers.map((user, index) => ({
+      user: user._id,
+      stars: user.stars,
+      position: index + 1,
+    }));
 
-    res.json(currentLeaderboard);
+    // ۳. یک لیدربورد فعال پیدا کن یا یک لیدربورد جدید بساز
+    const sevenDaysFromNow = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+    const updatedLeaderboard = await Leaderboard.findOneAndUpdate(
+      { endDate: { $gt: new Date() } }, // پیدا کردن لیدربورد فعال
+      {
+        $set: {
+          rankings: rankings,
+          startDate: new Date(),
+          endDate: sevenDaysFromNow,
+        },
+      },
+      {
+        new: true, // اگر پیدا شد، داکیومنت آپدیت شده را برگردان
+        upsert: true, // اگر پیدا نشد، یک داکیومنت جدید با این اطلاعات بساز
+        setDefaultsOnInsert: true,
+      }
+    );
+
+    res
+      .status(200)
+      .json({
+        message: "Leaderboard generated/updated successfully.",
+        leaderboard: updatedLeaderboard,
+      });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res
+      .status(500)
+      .json({ error: "Failed to generate leaderboard: " + error.message });
   }
 });
 

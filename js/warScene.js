@@ -17,9 +17,14 @@ export class WarScene {
     this.health = 100;
     this.opponentHealth = 100;
     this.bullets = [];
-    this.selectedPotion = selectedPotion || null; // جدید
-    this.isPotionActive = false; // جدید
+    this.selectedPotion = selectedPotion || null;
+    this.isPotionActive = false;
 
+    this.isShielded = false;
+    this.originalBulletSpeed = this.CONFIG.bullets.speed;
+
+    // <<<< این خط جدید را اضافه کنید >>>>
+    this.originalShootingInterval = this.CONFIG.bullets.interval;
     // قرار دادن networkManager در scope全局 برای دسترسی از airplane.js
     window.networkManager = networkManager;
 
@@ -51,35 +56,129 @@ export class WarScene {
     }
   }
 
+  // در فایل: js/warScene.js
+  // این تابع را به طور کامل جایگزین تابع قبلی کنید.
+
   activatePotion() {
     if (!this.selectedPotion || this.isPotionActive) return;
+
+    // <<<< تغییر مهم: ارسال پیام فعال‌سازی به سرور (برای مشکلات ۳ و ۴) >>>>
+    if (this.networkManager) {
+      this.networkManager.sendPotionActivate(this.selectedPotion._id);
+    }
 
     this.isPotionActive = true;
     const potionBtn = document.getElementById("use-potion-btn");
     potionBtn.style.opacity = "0.5";
     potionBtn.style.cursor = "not-allowed";
 
+    const airplaneElement = this.airplane.element;
+    let effectClass = "";
+    let soundPath = "";
+
     console.log(`Potion Activated: ${this.selectedPotion.name}`);
 
-    // اعمال افکت بر اساس نوع معجون
-    // این یک مثال ساده است و باید بر اساس فیلد effect در دیتابیس پیاده‌سازی شود
     switch (this.selectedPotion.name) {
       case "معجون قدرت":
-        const originalDamage = 10;
-        const boostedDamage = 15;
-        // افزایش موقت قدرت برخورد
-        this.networkManager.damage = boostedDamage;
+        soundPath = "assets/sounds/potions/power.mp3";
+        effectClass = "power-effect";
+        airplaneElement.classList.add(effectClass, "potion-effect-active");
         setTimeout(() => {
-          this.networkManager.damage = originalDamage;
+          airplaneElement.classList.remove(effectClass, "potion-effect-active");
           this.isPotionActive = false;
-          console.log("Power potion expired.");
-        }, 20000); // 20 ثانیه
+        }, 20000);
         break;
-      // ... سایر معجون‌ها
+
+      case "معجون سرعت":
+        soundPath = "assets/sounds/potions/speed.mp3";
+        effectClass = "speed-effect";
+        airplaneElement.classList.add(effectClass, "potion-effect-active");
+
+        clearInterval(this.shootingInterval);
+        this.CONFIG.bullets.interval = this.originalShootingInterval / 1.5;
+        console.log(
+          `FIRE RATE INCREASED! New interval: ${this.CONFIG.bullets.interval}ms`
+        ); // برای دیباگ
+        this.setupEventListeners();
+
+        setTimeout(() => {
+          airplaneElement.classList.remove(effectClass, "potion-effect-active");
+          clearInterval(this.shootingInterval);
+          this.CONFIG.bullets.interval = this.originalShootingInterval;
+          this.setupEventListeners();
+          this.isPotionActive = false;
+          console.log(
+            `FIRE RATE NORMALIZED. Interval: ${this.CONFIG.bullets.interval}ms`
+          ); // برای دیباگ
+        }, 30000);
+        break;
+
+      case "معجون محافظ":
+        soundPath = "assets/sounds/potions/shield.mp3";
+        effectClass = "shield-effect";
+        airplaneElement.classList.add(effectClass);
+        this.isShielded = true;
+        setTimeout(() => {
+          airplaneElement.classList.remove(effectClass);
+          this.isShielded = false;
+          this.isPotionActive = false;
+        }, 10000);
+        break;
+
+      case "معجون درمان":
+        soundPath = "assets/sounds/potions/heal.mp3";
+        // منطق درمان اکنون توسط سرور مدیریت می‌شود و پیام آن در ابتدای تابع ارسال شد
+        for (let i = 0; i < 20; i++) {
+          const particle = document.createElement("div");
+          particle.className = "heal-particle";
+          document.body.appendChild(particle);
+          const airplanePos = this.airplane.getPosition();
+          particle.style.left = `${
+            airplanePos.x + Math.random() * airplanePos.width
+          }px`;
+          particle.style.top = `${
+            airplanePos.y + Math.random() * airplanePos.height
+          }px`;
+          setTimeout(() => particle.remove(), 1500);
+        }
+        this.isPotionActive = false;
+        potionBtn.style.display = "none";
+        break;
     }
 
-    // اطلاع به سرور (اختیاری، بستگی به منطق بازی شما دارد)
-    // this.networkManager.send({ type: 'potion_activated', potionId: this.selectedPotion._id });
+    if (soundPath) {
+      this.playSound(soundPath);
+    }
+  }
+  applyOpponentPotionEffect(potionName) {
+    if (!this.opponentAirplane) return;
+
+    const opponentElement = this.opponentAirplane.element;
+    let effectClass = "";
+
+    switch (potionName) {
+      case "معجون قدرت":
+        effectClass = "power-effect";
+        break;
+      case "معجون سرعت":
+        effectClass = "speed-effect";
+        break;
+      case "معجون محافظ":
+        effectClass = "shield-effect";
+        break;
+    }
+
+    if (effectClass) {
+      opponentElement.classList.add(effectClass, "potion-effect-active");
+      // زمان افکت‌ها با سرور هماهنگ است، پس زمان حذف آن‌ها را نیز مشابه کلاینت اصلی میگذاریم
+      let duration = 20000;
+      if (potionName === "معجون سرعت") duration = 30000;
+      if (potionName === "معجون محافظ") duration = 10000;
+
+      setTimeout(() => {
+        opponentElement.classList.remove(effectClass, "potion-effect-active");
+      }, duration);
+    }
   }
 
   setOpponent(opponent) {
@@ -147,6 +246,9 @@ export class WarScene {
       this.networkManager.onOpponentHealthUpdate = (health) => {
         this.opponentHealth = health;
         this.updateOpponentHealthDisplay();
+      };
+      this.networkManager.onOpponentPotionActivate = (potionName) => {
+        this.applyOpponentPotionEffect(potionName);
       };
     }
   }
@@ -323,13 +425,16 @@ export class WarScene {
   // در تابع setupEventListeners، interval شلیک حریف را حذف کنید
   setupEventListeners() {
     // Setup shooting intervals - فقط برای بازیکن اصلی
-    // در warScene.js - تابع setupEventListeners
     this.shootingInterval = setInterval(() => {
+      // <<<< تغییر اصلی اینجاست: از this.playerAssets.bullets استفاده می‌کنیم >>>>
+      // به جای استفاده از مسیر ثابت در CONFIG، از مسیری که از GameManager آمده استفاده می‌کنیم
+      const bulletImage = this.getBulletImage(
+        this.playerAssets.bullets || this.CONFIG.assets.bullet
+      );
+
       this.CONFIG.bullets.angles.forEach((angle) => {
         const bullet = this.airplane.shoot(
-          this.getBulletImage(
-            this.playerAssets.bullets || this.CONFIG.assets.bullet
-          ),
+          bulletImage, // <--- متغیر جدید اینجا استفاده می‌شود
           this.CONFIG.bullets.size,
           this.CONFIG.bullets.speed,
           angle
@@ -441,35 +546,35 @@ export class WarScene {
   // این تابع را به طور کامل جایگزین تابع قبلی کنید.
 
   checkCollisions() {
-    // Determine the damage to send based on whether the power potion is active
-    const damageToSend = this.isPotionActive ? 15 : 10;
+    // آسیب بر اساس فعال بودن معجون قدرت تعیین می‌شود
+    const damageToSend =
+      this.isPotionActive && this.selectedPotion.name === "معجون قدرت"
+        ? 13
+        : 10;
 
-    // Check for collisions between my bullets and the opponent's airplane
+    // ... (بخش مربوط به برخورد گلوله‌های من به حریف بدون تغییر باقی می‌ماند) ...
     for (let i = this.bullets.length - 1; i >= 0; i--) {
       const bullet = this.bullets[i];
       if (
         this.opponentAirplane &&
         this.isColliding(bullet, this.opponentAirplane)
       ) {
-        // <<<< تغییر اصلی اینجاست: این خط باید فعال شود >>>>
         if (this.networkManager && this.networkManager.sendHit) {
-          // Send the determined damage to the server
           this.networkManager.sendHit(damageToSend);
         }
-        // Remove the bullet after it hits
         bullet.remove();
         this.bullets.splice(i, 1);
       }
     }
 
-    // Check for collisions between opponent's bullets and my airplane
+    // <<<< تغییر اصلی اینجاست >>>>
+    // بررسی برخورد گلوله‌های حریف با هواپیمای من
     for (let i = this.opponentBullets.length - 1; i >= 0; i--) {
       const bullet = this.opponentBullets[i];
-      if (this.isColliding(bullet, this.airplane)) {
-        // No need to send damage to the server from here, as the server should handle the opponent's hits
-        // and update our health via a socket message.
 
-        // Remove the bullet after it hits
+      // اگر سپر فعال نباشد و برخورد رخ دهد
+      if (!this.isShielded && this.isColliding(bullet, this.airplane)) {
+        // چون سرور مسئول جان ماست، در کلاینت کاری انجام نمی‌دهیم
         bullet.remove();
         this.opponentBullets.splice(i, 1);
       }
