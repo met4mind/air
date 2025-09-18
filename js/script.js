@@ -14,6 +14,8 @@ class GameManager {
     this.selectedAirplane = null;
     this.selectedBullet = null;
     this.userData = null; // اضافه کردن این خط
+    this.allPlanes = []; // <<<< این خط را اضافه کنید
+    this.init();
   }
   async init() {
     this.selectedAirplane = JSON.parse(
@@ -62,8 +64,15 @@ class GameManager {
 
     this.setupLoginListeners();
     this.setupMenuListeners();
+    this.fetchAllAssets(); // <<<< این خط را اضافه کنید
   }
-
+  async fetchAllAssets() {
+    try {
+      this.allPlanes = await this.networkManager.getAirplanes();
+    } catch (e) {
+      console.error("Failed to fetch all airplanes list.");
+    }
+  }
   setupMenuListeners() {
     document
       .getElementById("play-btn")
@@ -71,13 +80,6 @@ class GameManager {
     document
       .getElementById("selection-btn")
       .addEventListener("click", () => this.showSelectionMenu()); // اضافه کردن این خط
-  }
-
-  async showSelectionMenu() {
-    this.hideScreen("main-menu");
-    this.showScreen("selection-menu");
-    await this.fetchUserData();
-    await this.displayOwnedAssets(); // تبدیل به async
   }
 
   async displayOwnedAssets() {
@@ -355,19 +357,6 @@ class GameManager {
     console.log("Potion selected:", potion ? potion.name : "None");
   }
 
-  async fetchUserData() {
-    try {
-      const userData = await this.networkManager.apiRequest("/api/user");
-      if (userData) {
-        this.userData = userData;
-        localStorage.setItem("userData", JSON.stringify(userData));
-        this.updateUserInfoUI();
-        console.log("User data fetched:", this.userData);
-      }
-    } catch (error) {
-      console.error("Failed to fetch user data:", error);
-    }
-  }
   updateUserInfoUI() {
     if (!this.userData) return;
 
@@ -406,12 +395,11 @@ class GameManager {
   }
 
   setupMenuListeners() {
+    // js/script.js -> GameManager
+
     document
       .getElementById("play-btn")
       .addEventListener("click", () => this.initiateGameConnection());
-    document
-      .getElementById("selection-btn")
-      .addEventListener("click", () => this.showSelectionMenu());
 
     // اضافه کردن event listener برای دکمه بازگشت
     document.querySelectorAll(".back-btn").forEach((btn) => {
@@ -425,13 +413,17 @@ class GameManager {
     this.showScreen("main-menu");
   }
 
+  // در فایل js/script.js -> کلاس GameManager
   setupLoginListeners() {
-    document
-      .getElementById("login-button")
-      .addEventListener("click", () => this.handleLogin());
-    document
-      .getElementById("register-button")
-      .addEventListener("click", () => this.showRegisterForm());
+    const loginButton = document.getElementById("login-button");
+    const registerButton = document.getElementById("register-button");
+
+    if (loginButton) {
+      loginButton.addEventListener("click", () => this.handleLogin());
+    }
+    if (registerButton) {
+      registerButton.addEventListener("click", () => this.showRegisterForm());
+    }
   }
 
   async handleLogin() {
@@ -646,14 +638,27 @@ class GameManager {
     }
   }
 
+  // در فایل js/script.js -> داخل کلاس GameManager
+
   hideScreen(id) {
-    document.getElementById(id).classList.add("hidden");
+    const element = document.getElementById(id);
+    if (element) {
+      // <<<< اول بررسی کن که عنصر وجود دارد
+      element.classList.add("hidden");
+    } else {
+      console.warn(`Element with id "${id}" not found to hide.`);
+    }
   }
 
   showScreen(id) {
-    document.getElementById(id).classList.remove("hidden");
+    const element = document.getElementById(id);
+    if (element) {
+      // <<<< اول بررسی کن که عنصر وجود دارد
+      element.classList.remove("hidden");
+    } else {
+      console.warn(`Element with id "${id}" not found to show.`);
+    }
   }
-
   hideLoginScreen() {
     document.getElementById("login-screen").style.display = "none";
     const waitingDiv = document.getElementById("waiting-message");
@@ -681,8 +686,18 @@ class GameManager {
     waitingDiv.style.display = "block";
   }
 
+  // در فایل js/script.js -> کلاس GameManager
   async startGame(opponent) {
     try {
+      // <<<< بخش اصلاح‌شده: به جای فراخوانی تابع حذف‌شده، اطلاعات را مستقیم از localStorage می‌خوانیم >>>>
+      this.userData = JSON.parse(localStorage.getItem("userData"));
+
+      // اگر به هر دلیلی اطلاعات کاربر در دسترس نبود، بازی را متوقف کن
+      if (!this.userData) {
+        throw new Error("User data not found. Cannot start game.");
+      }
+      // <<<< پایان بخش اصلاح‌شده >>>>
+
       this.hideWaitingMessage();
       this.hideScreen("main-menu");
       this.showScreen("game-container");
@@ -698,7 +713,8 @@ class GameManager {
         CONFIG,
         this.networkManager,
         playerAssets,
-        this.selectedPotion
+        this.selectedPotion,
+        this.userData
       );
 
       await this.switchScene("war");

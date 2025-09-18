@@ -16,7 +16,7 @@ export class OpponentAirplane {
     this.element.style.pointerEvents = "none"; // غیرفعال کردن تعامل
 
     this.setImage(imageUrl);
-    document.body.appendChild(this.element);
+    document.getElementById("game-container").appendChild(this.element);
   }
 
   setImage(imageUrl) {

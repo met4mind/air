@@ -2,237 +2,183 @@
 <html lang="fa" dir="rtl">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover"
+    />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap"
+      rel="stylesheet"
+    />
+
     <link rel="stylesheet" href="css/style.css" />
-    <title>بازی جنگنده‌های هوایی</title>
+    <title>جنگنده‌های هوایی</title>
   </head>
   <body class="military-theme">
-    <!-- صفحه لاگین/ثبت نام -->
-
-    <div id="selection-menu" class="menu-container hidden">
-      <div class="menu-header">
-        <h1>انتخاب دارایی</h1>
-        <div class="user-info">
-          <span id="user-stars"></span>
-          <span id="user-coins"></span>
-        </div>
-      </div>
-
-      <div class="selection-section">
-        <h2>هواپیماها</h2>
-        <div id="airplane-selection-container" class="selection-grid"></div>
-      </div>
-
-      <div class="selection-section">
-        <h2>گلوله‌ها</h2>
-        <div id="bullet-selection-container" class="selection-grid"></div>
-      </div>
-
-      <div class="selection-section">
-        <h2>معجون‌ها</h2>
-        <div id="potion-selection-container" class="selection-grid">
-          <!-- گزینه "هیچکدام" به صورت پیشفرض -->
-          <div class="selection-item selected" data-potion-id="none">
-            <img src="assets/images/potions/none.png" alt="هیچکدام" />
-            <p>هیچکدام</p>
+    <div class="app-container">
+      <div id="main-menu" class="menu-container">
+        <div class="menu-header">
+          <h1>جنگنده‌های هوایی</h1>
+          <div class="user-info">
+            <span id="user-stars">0 ★</span>
+            <span id="user-coins">0 سکه</span>
           </div>
-          <!-- معجون‌ها به صورت داینامیک اضافه خواهند شد -->
         </div>
-      </div>
-      <button class="back-btn">بازگشت</button>
-    </div>
-
-    <div id="login-screen">
-      <div class="login-container">
-        <h2>ورود / ثبت‌نام</h2>
-        <div id="login-form">
-          <input
-            type="text"
-            id="username"
-            class="login-input"
-            placeholder="نام کاربری"
-          />
-          <input
-            type="number"
-            id="tgid"
-            class="login-input"
-            placeholder="آیدی تلگرام"
-          />
-          <input
-            type="password"
-            id="password"
-            class="login-input"
-            placeholder="رمز عبور"
-          />
-          <input
-            type="password"
-            id="confirm-password"
-            class="login-input"
-            placeholder="تکرار رمز عبور"
-            style="display: none"
-          />
-          <button id="login-button" class="login-button">ورود</button>
-          <button id="register-button" class="login-button secondary">
-            ثبت‌نام
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <!-- منوی اصلی -->
-    <div id="main-menu" class="menu-container hidden">
-      <div class="menu-header">
-        <h1>جنگنده‌های هوایی</h1>
-        <div class="user-info">
-          <span id="user-stars">0 ★</span>
-          <span id="user-coins">0 سکه</span>
+        <div class="menu-options">
+          <button id="play-btn" class="menu-btn primary">شروع بازی</button>
+          <button id="selection-btn" class="menu-btn">انتخاب تجهیزات</button>
+          <button id="leaderboard-btn" class="menu-btn">جدول رتبه‌بندی</button>
+          <button id="upgrade-btn" class="menu-btn">ارتقاء</button>
+          <button id="shop-btn" class="menu-btn">فروشگاه</button>
+          <button id="free-coins-btn" class="menu-btn">سکه رایگان</button>
         </div>
       </div>
 
-      <div class="menu-options">
-        <button id="play-btn" class="menu-btn">شروع بازی</button>
-        <button id="selection-btn" class="menu-btn">
-          انتخاب هواپیما و معجون
-        </button>
-        <button id="leaderboard-btn" class="menu-btn">جدول رتبه‌بندی</button>
-        <button id="upgrade-btn" class="menu-btn">ارتقاء هواپیما</button>
-        <button id="shop-btn" class="menu-btn">فروشگاه</button>
-        <button id="free-coins-btn" class="menu-btn">سکه رایگان</button>
-      </div>
-    </div>
+      <div id="login-screen" class="menu-container hidden"></div>
 
-    <!-- منوی جدول رتبه‌بندی -->
-    <div id="leaderboard-menu" class="menu-container hidden">
-      <div class="menu-header">
-        <h2>جدول رتبه‌بندی</h2>
-        <div class="timer" id="reset-timer">00:00:00</div>
-      </div>
-      <div class="prize-image">
-        <img src="assets/images/prizes/gold-trophy.png" alt="جایزه" />
-      </div>
-      <div id="leaderboard-content" class="leaderboard-content">
-        <!-- محتوای جدول رتبه‌بندی به صورت داینامیک پر می‌شود -->
-      </div>
-      <button class="back-btn">بازگشت</button>
-    </div>
-
-    <!-- منوی ارتقاء -->
-    <div id="upgrade-menu" class="menu-container hidden">
-      <h2>ارتقاء هواپیما</h2>
-      <div class="upgrade-options"></div>
-      <button class="back-btn">بازگشت</button>
-    </div>
-
-    <!-- منوی فروشگاه -->
-    <div id="shop-menu" class="menu-container hidden">
-      <h2>فروشگاه</h2>
-      <div class="shop-tabs">
-        <button class="tab-btn active" data-tab="potions">معجون‌ها</button>
-      </div>
-
-      <div class="shop-content">
-        <div id="potions-tab" class="tab-content active">
-          <!-- لیست معجون‌ها -->
+      <div id="selection-menu" class="menu-container hidden">
+        <div class="menu-header">
+          <h2>انتخاب تجهیزات</h2>
         </div>
+
+        <div class="selections-wrapper">
+          <div class="selection-section">
+            <h3>هواپیما</h3>
+            <div id="airplane-selection-container" class="selection-grid"></div>
+          </div>
+
+          <div class="selection-section">
+            <h3>گلوله</h3>
+            <div id="bullet-selection-container" class="selection-grid"></div>
+          </div>
+
+          <div class="selection-section">
+            <h3>معجون</h3>
+            <div id="potion-selection-container" class="selection-grid"></div>
+          </div>
+        </div>
+
+        <button class="back-btn menu-btn">بازگشت</button>
       </div>
-      <button class="back-btn">بازگشت</button>
+
+      <div id="leaderboard-menu" class="menu-container hidden">
+        <div class="menu-header">
+          <h2>جدول رتبه‌بندی</h2>
+        </div>
+        <div class="prize-image">
+          <img src="assets/images/prizes/gold-trophy.png" alt="جایزه" />
+        </div>
+        <div id="leaderboard-content" class="leaderboard-content"></div>
+        <div id="user-rank-display" class="leaderboard-item"></div>
+        <button class="back-btn menu-btn">بازگشت</button>
+      </div>
+
+      <div id="upgrade-menu" class="menu-container hidden">
+        <div class="menu-header">
+          <h2>ارتقاء هواپیما</h2>
+        </div>
+        <div id="upgrade-content" class="upgrade-content"></div>
+        <button class="back-btn menu-btn">بازگشت</button>
+      </div>
+
+      <div id="shop-menu" class="menu-container hidden">
+        <div class="menu-header">
+          <h2>فروشگاه</h2>
+        </div>
+        <div class="shop-tabs">
+          <button class="tab-btn active" data-tab="potions">معجون‌ها</button>
+          <button class="tab-btn" data-tab="exchange">تبدیل ستاره</button>
+        </div>
+        <div class="shop-content">
+          <div id="potions-tab" class="tab-content active selection-grid"></div>
+          <div id="exchange-tab" class="tab-content">
+            <div class="exchange-container">
+              <h4>هر ۱ ستاره ★ = ۱۰ سکه</h4>
+              <input
+                type="number"
+                id="stars-to-exchange-input"
+                class="login-input"
+                placeholder="تعداد ستاره برای تبدیل"
+              />
+              <button id="exchange-stars-btn" class="menu-btn primary">
+                تبدیل
+              </button>
+            </div>
+          </div>
+        </div>
+        <button class="back-btn menu-btn">بازگشت</button>
+      </div>
+
+      <div id="free-coins-menu" class="menu-container hidden">
+        <div class="menu-header">
+          <h2>سکه رایگان</h2>
+        </div>
+        <div class="free-options">
+          <div class="free-item">
+            <img
+              src="assets/images/free-coins/invite.png"
+              alt="دعوت از دوستان"
+            />
+            <div class="free-item-info">
+              <h3>دعوت از دوستان</h3>
+              <p>برای هر دعوت موفق ۱۰ سکه دریافت کنید.</p>
+            </div>
+            <button class="offer-btn menu-btn" id="invite-btn">دعوت</button>
+          </div>
+          <div class="free-item">
+            <img
+              src="assets/images/free-coins/telegram.svg"
+              alt="عضویت در کانال تلگرام"
+            />
+            <div class="free-item-info">
+              <h3>عضویت تلگرام</h3>
+              <p>۱۰ سکه رایگان دریافت کنید.</p>
+            </div>
+            <button class="offer-btn menu-btn" data-platform="telegram">
+              بررسی
+            </button>
+          </div>
+          <div class="free-item">
+            <img
+              src="assets/images/free-coins/instagram.svg"
+              alt="عضویت در اینستاگرام"
+            />
+            <div class="free-item-info">
+              <h3>عضویت اینستاگرام</h3>
+              <p>۱۵ سکه رایگان دریافت کنید.</p>
+            </div>
+            <button class="offer-btn menu-btn" data-platform="instagram">
+              بررسی
+            </button>
+          </div>
+          <div class="free-item">
+            <img
+              src="assets/images/free-coins/youtube.svg"
+              alt="سابسکرایب یوتیوب"
+            />
+            <div class="free-item-info">
+              <h3>سابسکرایب یوتیوب</h3>
+              <p>۲۰ سکه رایگان دریافت کنید.</p>
+            </div>
+            <button class="offer-btn menu-btn" data-platform="youtube">
+              بررسی
+            </button>
+          </div>
+        </div>
+        <button class="back-btn menu-btn">بازگشت</button>
+      </div>
     </div>
 
-    <!-- منوی سکه رایگان -->
-    <div id="free-coins-menu" class="menu-container hidden">
-      <h2>دریافت سکه رایگان</h2>
-      <div class="free-options">
-        <div class="free-item">
-          <img src="assets/images/free-coins/invite.png" alt="دعوت از دوستان" />
-          <h3>دعوت از دوستان</h3>
-          <p>برای هر دعوت موفق ۱۰ سکه دریافت کنید</p>
-          <button class="offer-btn" id="invite-btn">دعوت دوستان</button>
-        </div>
-        <div class="free-item">
-          <img
-            src="assets/images/free-coins/telegram.svg"
-            alt="عضویت در کانال تلگرام"
-          />
-          <h3>عضویت در کانال تلگرام</h3>
-          <p>۱۰ سکه رایگان</p>
-          <button class="offer-btn" data-platform="telegram">
-            بررسی عضویت
-          </button>
-        </div>
-        <div class="free-item">
-          <img
-            src="assets/images/free-coins/instagram.svg"
-            alt="عضویت در اینستاگرام"
-          />
-          <h3>عضویت در اینستاگرام</h3>
-          <p>۱۵ سکه رایگان</p>
-          <button class="offer-btn" data-platform="instagram">
-            بررسی عضویت
-          </button>
-        </div>
-        <div class="free-item">
-          <img
-            src="assets/images/free-coins/youtube.svg"
-            alt="سابسکرایب یوتیوب"
-          />
-          <h3>سابسکرایب یوتیوب</h3>
-          <p>۲۰ سکه رایگان</p>
-          <button class="offer-btn" data-platform="youtube">
-            بررسی سابسکرایب
-          </button>
-        </div>
-      </div>
-      <button class="back-btn">بازگشت</button>
-    </div>
+    <div id="game-container" class="hidden"></div>
+    <div id="notification-container"></div>
 
-    <!-- صفحه بازی -->
-    <div id="game-container" class="hidden">
-      <div id="waiting-message" style="display: none">
-        <p>در انتظار حریف...</p>
-      </div>
-      <button
-        id="use-potion-btn"
-        class="hidden"
-        style="
-          position: fixed;
-          bottom: 20px;
-          right: 20px;
-          width: 60px;
-          height: 60px;
-          z-index: 100;
-          background-color: rgba(0, 0, 0, 0.5);
-          border: 2px solid gold;
-          border-radius: 50%;
-          padding: 5px;
-          cursor: pointer;
-        "
-      ></button>
-    </div>
-    <script>
-      // مدیریت خطاهای تصویر برای معجون‌ها
-      document.addEventListener("DOMContentLoaded", function () {
-        document.body.addEventListener(
-          "error",
-          function (e) {
-            if (
-              e.target.tagName === "IMG" &&
-              e.target.closest(".selection-item")
-            ) {
-              e.target.src = "assets/images/potions/default.png";
-              e.target.onerror = null; // جلوگیری از حلقه بی‌نهایت
-            }
-          },
-          true
-        );
-      });
-    </script>
     <script src="js/military-sounds.js"></script>
     <script src="js/military-menu.js"></script>
     <script type="module" src="js/network.js"></script>
-    <script type="module" src="js/script.js"></script>
     <script type="module" src="js/menu.js"></script>
-
-  </body>
-</html>
+    <script type="module" src="js/script.js"></script>
   </body>
 </html>

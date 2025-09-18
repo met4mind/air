@@ -4,18 +4,48 @@ class MenuManager {
   constructor() {
     this.currentMenu = "main-menu";
     this.userData = null;
-    this.allPotions = []; // <<<< ۱. این خط را اضافه کنید تا متغیر از ابتدا تعریف شده باشد
+    this.allPotions = [];
     this.init();
   }
 
   async init() {
-    // <<<< ۲. کلمه async را به این تابع اضافه کنید
-    await this.loadMasterData(); // <<<< ۳. این خط را اضافه کنید تا دیتاهای اصلی در ابتدا لود شوند
+    await this.loadMasterData();
     this.bindEvents();
     this.loadUserData();
     this.startDataSync();
   }
 
+  async exchangeStars() {
+    const input = document.getElementById("stars-to-exchange-input");
+    const starsToSpend = parseInt(input.value, 10);
+
+    if (isNaN(starsToSpend) || starsToSpend <= 0) {
+      this.showNotification("لطفاً یک عدد معتبر وارد کنید", "error");
+      return;
+    }
+
+    try {
+      const result = await this.apiRequest("/api/shop/exchange-stars", {
+        method: "POST",
+        body: JSON.stringify({ starsToSpend }),
+      });
+
+      this.showNotification(
+        `${starsToSpend} ستاره با موفقیت به سکه تبدیل شد`,
+        "success"
+      );
+
+      // آپدیت اطلاعات کاربر
+      this.userData.coins = result.coins;
+      this.userData.stars = result.stars;
+      localStorage.setItem("userData", JSON.stringify(this.userData));
+      this.updateUI();
+      input.value = "";
+    } catch (error) {
+      const errorData = await error.response.json();
+      this.showNotification(errorData.error || "خطا در هنگام تبدیل", "error");
+    }
+  }
   async loadMasterData() {
     try {
       // لیست تمام معجون ها را یکبار در ابتدای کار می گیریم و ذخیره می کنیم
@@ -26,45 +56,245 @@ class MenuManager {
     }
   }
 
+  // js/menu.js -> MenuManager
   bindEvents() {
+    // Event listeners for main menu buttons
     document
       .getElementById("play-btn")
-      .addEventListener("click", () => this.startGame());
+      .addEventListener("click", () =>
+        window.gameManager.initiateGameConnection()
+      );
     document
       .getElementById("leaderboard-btn")
       .addEventListener("click", () => this.showLeaderboard());
     document
-      .getElementById("upgrade-btn")
-      .addEventListener("click", () => this.showUpgradeMenu());
-    document
       .getElementById("shop-btn")
       .addEventListener("click", () => this.showShopMenu());
     document
+      .getElementById("upgrade-btn")
+      .addEventListener("click", () => this.showUpgradeMenu());
+    document
       .getElementById("free-coins-btn")
-      .addEventListener("click", () => this.showFreeCoinsMenu());
+      .addEventListener("click", () => this.showMenu("free-coins-menu"));
 
+    // <<<< این خط جدید، مشکل اصلی را حل می‌کند >>>>
+    document
+      .getElementById("selection-btn")
+      .addEventListener("click", () => this.showSelectionMenu());
+
+    // Event listener for ALL back buttons
     document.querySelectorAll(".back-btn").forEach((btn) => {
-      btn.addEventListener("click", () => this.showMainMenu());
+      btn.addEventListener("click", () => this.showMenu("main-menu"));
     });
 
-    document.querySelectorAll(".tab-btn").forEach((tab) => {
+    // Event listeners for shop tabs
+    document.querySelectorAll(".shop-tabs .tab-btn").forEach((tab) => {
       tab.addEventListener("click", (e) => this.switchShopTab(e.target));
     });
 
-    document.querySelectorAll(".upgrade-btn").forEach((btn) => {
-      btn.addEventListener("click", (e) =>
-        this.upgradeFeature(e.target.dataset.type)
-      );
-    });
-
     document
-      .getElementById("invite-btn")
-      .addEventListener("click", () => this.inviteFriends());
-    document.querySelectorAll(".offer-btn").forEach((btn) => {
-      btn.addEventListener("click", (e) =>
-        this.checkMembership(e.target.dataset.platform)
+      .getElementById("exchange-stars-btn")
+      .addEventListener("click", () => this.exchangeStars());
+  }
+  // در فایل js/menu.js -> داخل کلاس MenuManager
+
+  // در فایل js/menu.js -> داخل کلاس MenuManager
+  async showSelectionMenu() {
+    this.showMenu("selection-menu");
+
+    const airplaneContainer = document.getElementById(
+      "airplane-selection-container"
+    );
+    const bulletContainer = document.getElementById(
+      "bullet-selection-container"
+    );
+    const potionContainer = document.getElementById(
+      "potion-selection-container"
+    );
+
+    if (!airplaneContainer || !bulletContainer || !potionContainer) return;
+
+    airplaneContainer.innerHTML =
+      '<p class="loading-text">در حال بارگذاری...</p>';
+    bulletContainer.innerHTML =
+      '<p class="loading-text">در حال بارگذاری...</p>';
+    potionContainer.innerHTML =
+      '<p class="loading-text">در حال بارگذاری...</p>';
+
+    try {
+      const [userData, allPlanes, allBullets, allPotions] = await Promise.all([
+        this.apiRequest("/api/user"),
+        this.apiRequest("/api/assets/airplanes"),
+        this.apiRequest("/api/assets/bullets"),
+        this.apiRequest("/api/potions"),
+      ]);
+
+      this.userData = userData;
+
+      // ---- نمایش هواپیماها ----
+      airplaneContainer.innerHTML = "";
+      const userTier = userData.airplaneTier || 1;
+      const availablePlanes = allPlanes.filter((plane) => {
+        const planeTierMatch = plane.name.match(/Tier (\d+)/);
+        return planeTierMatch && parseInt(planeTierMatch[1]) <= userTier;
+      });
+      availablePlanes.forEach((plane) =>
+        airplaneContainer.appendChild(this.createSelectItem(plane, "airplane"))
       );
+
+      // ---- نمایش گلوله‌ها ----
+      bulletContainer.innerHTML = "";
+      allBullets.forEach((bullet) =>
+        bulletContainer.appendChild(this.createSelectItem(bullet, "bullet"))
+      );
+
+      // ---- نمایش معجون‌ها ----
+      potionContainer.innerHTML = "";
+      const nonePotion = {
+        id: "none",
+        name: "هیچکدام",
+        image: "assets/images/potions/none.png",
+      };
+      potionContainer.appendChild(this.createSelectItem(nonePotion, "potion"));
+      if (userData.ownedPotions) {
+        userData.ownedPotions.forEach((owned) => {
+          const potionInfo = allPotions.find((p) => p._id === owned.potion);
+          if (potionInfo && owned.quantity > 0) {
+            potionInfo.displayName = `${potionInfo.name} (x${owned.quantity})`;
+            potionContainer.appendChild(
+              this.createSelectItem(potionInfo, "potion")
+            );
+          }
+        });
+      }
+
+      // <<<< اعمال انتخاب‌های ذخیره شده >>>>
+      this.applySavedSelections({ allBullets, allPotions });
+    } catch (error) {
+      console.error("Failed to load equipment:", error);
+      // ... (بخش مدیریت خطا)
+    }
+  }
+
+  // <<<< این تابع کمکی جدید را هم به کلاس MenuManager اضافه کنید >>>>
+  // در فایل js/menu.js -> داخل کلاس MenuManager
+
+  applySavedSelections({ allBullets, allPotions }) {
+    if (!window.gameManager) return;
+
+    // --- ۱. اعمال انتخاب برای هواپیما ---
+    const airplaneContainer = document.getElementById(
+      "airplane-selection-container"
+    );
+    // <<<< حل مشکل اول: همیشه قبل از انتخاب، همه گزینه‌ها را از حالت انتخاب خارج کن >>>>
+    airplaneContainer
+      .querySelectorAll(".selection-item")
+      .forEach((el) => el.classList.remove("selected"));
+
+    const savedAirplane = JSON.parse(localStorage.getItem("selectedAirplane"));
+    if (savedAirplane) {
+      const itemElement = airplaneContainer.querySelector(
+        `.selection-item[data-asset-id="${savedAirplane.id}"]`
+      );
+      if (itemElement) {
+        itemElement.classList.add("selected");
+        window.gameManager.selectedAirplane = savedAirplane;
+      }
+    }
+
+    // --- ۲. اعمال انتخاب برای گلوله (با انتخاب پیش‌فرض) ---
+    const bulletContainer = document.getElementById(
+      "bullet-selection-container"
+    );
+    bulletContainer
+      .querySelectorAll(".selection-item")
+      .forEach((el) => el.classList.remove("selected"));
+
+    let savedBullet = JSON.parse(localStorage.getItem("selectedBullet"));
+    let selectedBulletElement = savedBullet
+      ? bulletContainer.querySelector(
+          `.selection-item[data-asset-id="${savedBullet.id}"]`
+        )
+      : null;
+
+    // <<<< حل مشکل دوم: اگر هیچ گلوله‌ای انتخاب نشده بود، اولین گزینه را به عنوان پیش‌فرض انتخاب کن >>>>
+    if (!selectedBulletElement && allBullets.length > 0) {
+      selectedBulletElement = bulletContainer.querySelector(".selection-item"); // اولین آیتم
+      const defaultBullet = allBullets.find(
+        (b) => b.id == selectedBulletElement.dataset.assetId
+      );
+      if (defaultBullet) {
+        savedBullet = defaultBullet;
+        localStorage.setItem("selectedBullet", JSON.stringify(defaultBullet));
+      }
+    }
+
+    if (selectedBulletElement) {
+      selectedBulletElement.classList.add("selected");
+      window.gameManager.selectedBullet = savedBullet;
+    }
+
+    // --- ۳. اعمال انتخاب برای معجون (با پیش‌فرض "هیچکدام") ---
+    const potionContainer = document.getElementById(
+      "potion-selection-container"
+    );
+    potionContainer
+      .querySelectorAll(".selection-item")
+      .forEach((el) => el.classList.remove("selected"));
+
+    let savedPotion = JSON.parse(localStorage.getItem("selectedPotion"));
+    let selectedPotionElement = savedPotion
+      ? potionContainer.querySelector(
+          `.selection-item[data-asset-id="${savedPotion._id}"]`
+        )
+      : null;
+
+    if (!selectedPotionElement) {
+      selectedPotionElement = potionContainer.querySelector(
+        '.selection-item[data-asset-id="none"]'
+      );
+      savedPotion = null;
+      localStorage.setItem("selectedPotion", JSON.stringify(null));
+    }
+
+    if (selectedPotionElement) {
+      selectedPotionElement.classList.add("selected");
+      window.gameManager.selectedPotion = savedPotion;
+    }
+  }
+
+  // <<<< این یک متد کمکی جدید است، آن را هم به کلاس MenuManager اضافه کنید >>>>
+  // در فایل js/menu.js -> داخل کلاس MenuManager
+  createSelectItem(asset, type) {
+    const item = document.createElement("div");
+    item.className = "selection-item";
+    const assetId = asset._id || asset.id; // شناسه منحصر به فرد
+    item.dataset.assetId = assetId;
+
+    const imageSrc = asset.imagePath || asset.image;
+
+    item.innerHTML = `
+        <img src="${imageSrc}" alt="${asset.name}">
+        <p>${asset.displayName || asset.name}</p>
+    `;
+
+    item.addEventListener("click", () => {
+      document
+        .querySelectorAll(`#${type}-selection-container .selection-item`)
+        .forEach((el) => el.classList.remove("selected"));
+      item.classList.add("selected");
+
+      if (window.gameManager) {
+        // <<<< بخش جدید برای ذخیره در localStorage >>>>
+        const key = `selected${type.charAt(0).toUpperCase() + type.slice(1)}`; // مثلا: selectedAirplane
+        const valueToStore = asset.id === "none" ? null : asset;
+
+        window.gameManager[key] = valueToStore;
+        localStorage.setItem(key, JSON.stringify(valueToStore)); // ذخیره کل آبجکت
+        console.log(`Saved ${key}:`, valueToStore);
+      }
     });
+    return item;
   }
 
   // در تابع loadUserData
@@ -260,21 +490,15 @@ class MenuManager {
 
   async showShopMenu() {
     this.showMenu("shop-menu");
-    await this.loadShopItems(); // تغییر: اطمینان از بارگذاری آیتم‌ها
+    await this.loadShopItems();
   }
-
   showMenu(menuId) {
     document.querySelectorAll(".menu-container").forEach((menu) => {
       menu.classList.add("hidden");
     });
-
-    document.getElementById(menuId).classList.remove("hidden");
-    this.currentMenu = menuId;
-
-    if (menuId === "leaderboard-menu") {
-      this.loadLeaderboard();
-    } else if (menuId === "shop-menu") {
-      this.loadShopItems();
+    const activeMenu = document.getElementById(menuId);
+    if (activeMenu) {
+      activeMenu.classList.remove("hidden");
     }
   }
 
@@ -290,8 +514,87 @@ class MenuManager {
     this.showMenu("leaderboard-menu");
   }
 
-  showUpgradeMenu() {
+  async showUpgradeMenu() {
     this.showMenu("upgrade-menu");
+    const container = document.getElementById("upgrade-content");
+    if (!container) return;
+    container.innerHTML = "در حال بارگذاری اطلاعات...";
+
+    try {
+      const [userData, allPlanes] = await Promise.all([
+        this.apiRequest("/api/user"),
+        this.apiRequest("/api/assets/airplanes"),
+      ]);
+      this.userData = userData;
+
+      const currentTier = userData.airplaneTier || 1;
+      const currentPlane = allPlanes.find((p) =>
+        p.name.includes(`Tier ${currentTier}`)
+      );
+      const nextPlane = allPlanes.find((p) =>
+        p.name.includes(`Tier ${currentTier + 1}`)
+      );
+
+      let upgradeHTML = "";
+      if (nextPlane) {
+        const cost = currentTier * 100;
+        const canAfford = userData.coins >= cost;
+        upgradeHTML = `
+                    <div class="upgrade-info">
+                        <div class="plane-display">
+                            <h3>هواپیمای فعلی</h3>
+                            <img src="${
+                              currentPlane.image
+                            }" alt="Current Plane"><p>Tier ${currentTier}</p>
+                        </div>
+                        <div class="upgrade-arrow">→</div>
+                        <div class="plane-display">
+                            <h3>ارتقا به</h3>
+                            <img src="${
+                              nextPlane.image
+                            }" alt="Next Plane"><p>Tier ${currentTier + 1}</p>
+                        </div>
+                    </div>
+                    <div class="upgrade-action">
+                        <p class="cost">هزینه ارتقا: ${cost} سکه</p>
+                        <button id="confirm-upgrade-btn" class="menu-btn primary" ${
+                          !canAfford ? "disabled" : ""
+                        }>
+                            ${canAfford ? "ارتقا" : "سکه ناکافی"}
+                        </button>
+                    </div>
+                `;
+      } else {
+        upgradeHTML = `
+                    <div class="upgrade-info"><div class="plane-display">
+                        <h3>هواپیمای شما</h3><img src="${currentPlane.image}" alt="Current Plane"><p>Tier ${currentTier}</p>
+                    </div></div>
+                    <p class="max-level">شما به بالاترین سطح ارتقا رسیده‌اید!</p>
+                `;
+      }
+
+      container.innerHTML = upgradeHTML;
+
+      if (nextPlane) {
+        document
+          .getElementById("confirm-upgrade-btn")
+          .addEventListener("click", async () => {
+            try {
+              await this.apiRequest("/api/upgrade", {
+                method: "POST",
+                body: JSON.stringify({ type: "airplane" }),
+              });
+              window.soundManager.play("upgrade");
+              this.showUpgradeMenu();
+            } catch (error) {
+              window.soundManager.play("error");
+              alert("ارتقا ناموفق بود.");
+            }
+          });
+      }
+    } catch (error) {
+      container.innerHTML = "<p>خطا در دریافت اطلاعات ارتقا.</p>";
+    }
   }
 
   showShopMenu() {
@@ -345,28 +648,56 @@ class MenuManager {
     }
   }
 
+  // در فایل js/menu.js -> کلاس MenuManager
   renderLeaderboard(leaderboard) {
     const container = document.getElementById("leaderboard-content");
+    const userRankContainer = document.getElementById("user-rank-display");
     container.innerHTML = "";
+    userRankContainer.innerHTML = "شما در رتبه‌بندی حضور ندارید.";
 
-    leaderboard.rankings.forEach((item, index) => {
-      const rankItem = document.createElement("div");
-      rankItem.className = "leaderboard-item";
+    if (!this.userData) return; // اگر اطلاعات کاربر لود نشده، خارج شو
 
-      const rankClass = index < 3 ? `rank-${index + 1}` : "";
+    let userFound = false;
 
-      rankItem.innerHTML = `
-                <div class="leaderboard-rank ${rankClass}">${index + 1}</div>
+    // <<<< اطمینان از وجود rankings در آبجکت leaderboard >>>>
+    if (leaderboard && leaderboard.rankings) {
+      leaderboard.rankings.forEach((item, index) => {
+        const rankItem = document.createElement("div");
+        const rankClass = index < 3 ? `rank-${index + 1}` : "";
+        rankItem.className = `leaderboard-item ${rankClass}`;
+
+        rankItem.innerHTML = `
+                <div class="leaderboard-rank">${index + 1}</div>
                 <div class="leaderboard-user">
-                    <strong>${item.user.first_name} ${
-        item.user.last_name || ""
-      }</strong>
+                    <strong>${item.user?.username || "Unknown"}</strong>
                     <span class="leaderboard-stars">${item.stars} ★</span>
                 </div>
             `;
+        container.appendChild(rankItem);
 
-      container.appendChild(rankItem);
-    });
+        // <<<< مقایسه صحیح شناسه‌ها >>>>
+        if (item.user && item.user._id === this.userData._id) {
+          userFound = true;
+          userRankContainer.innerHTML = `
+                    <div class="leaderboard-rank">${index + 1}</div>
+                    <div class="leaderboard-user">
+                        <strong>(شما) ${this.userData.username}</strong>
+                        <span class="leaderboard-stars">${item.stars} ★</span>
+                    </div>
+                `;
+        }
+      });
+    }
+
+    if (!userFound) {
+      userRankContainer.innerHTML = `
+            <div class="leaderboard-rank">--</div>
+            <div class="leaderboard-user">
+                <strong>(شما) ${this.userData.username}</strong>
+                <span class="leaderboard-stars">${this.userData.stars} ★</span>
+            </div>
+        `;
+    }
   }
 
   updateResetTimer(endDate) {
@@ -398,17 +729,42 @@ class MenuManager {
   }
 
   // در فایل menu.js - متد loadShopItems را با این کد جایگزین کنید
+  // در فایل js/menu.js -> کلاس MenuManager
+
+  // تابع loadShopItems را با این کد جایگزین کنید
   async loadShopItems() {
+    const container = document.getElementById("potions-tab");
+    if (!container) return;
+    container.innerHTML = "در حال بارگذاری...";
     try {
-      const potions = await this.apiRequest(`/api/potions`);
-      this.allPotions = potions; // جدید: کش کردن اطلاعات
-      this.renderPotions(potions);
-      this.displayOwnedPotions(); // جدید: آپدیت لیست معجون‌های قابل انتخاب
+      const potions = await this.apiRequest("/api/potions");
+      if (!potions || potions.length === 0) {
+        container.innerHTML = "<p>هیچ معجونی در فروشگاه موجود نیست.</p>";
+        return;
+      }
+      container.innerHTML = "";
+      potions.forEach((potion) => {
+        const item = document.createElement("div");
+        item.className = "selection-item";
+        item.innerHTML = `
+                <img src="${potion.imagePath}" alt="${potion.name}">
+                <p>${potion.name}</p>
+                <span class="price">${potion.price} سکه</span>
+                <button class="buy-btn menu-btn">خرید</button>
+            `;
+        item
+          .querySelector(".buy-btn")
+          .addEventListener("click", () =>
+            this.buyPotion(potion._id, potion.name, potion.price)
+          );
+        container.appendChild(item);
+      });
     } catch (error) {
-      console.error("Error loading shop items:", error);
-      this.showNotification("خطا در بارگذاری معجون‌ها", "error");
+      container.innerHTML = "<p>خطا در بارگذاری فروشگاه.</p>";
     }
   }
+
+  // تابع buyPotion را با این کد جایگزین کنید
 
   // در فایل menu.js - بهبود متد renderPotions
   // در فایل menu.js - متد renderPotions را با این کد جایگزین کنید
@@ -465,54 +821,47 @@ class MenuManager {
 
   // در menu.js این تنها نسخه buyPotion باشد
 
-  async buyPotion(potionId) {
+  async buyPotion(potionId, potionName, potionPrice) {
     try {
-      const potion = this.allPotions.find((p) => p._id === potionId);
-      if (!potion) {
-        this.showNotification("معجون مورد نظر یافت نشد!", "error");
-        return;
-      }
-      if (this.userData.coins < potion.price) {
-        this.showNotification("سکه کافی برای خرید این معجون ندارید!", "error");
+      if (this.userData.coins < potionPrice) {
+        this.showNotification("سکه شما کافی نیست!", "error");
+        window.soundManager.play("error");
         return;
       }
 
-      const result = await this.apiRequest(`/api/shop/buy-potion`, {
+      const result = await this.apiRequest("/api/shop/buy-potion", {
         method: "POST",
         body: JSON.stringify({ potionId, quantity: 1 }),
       });
 
-      this.showNotification(
-        `معجون ${potion.name} با موفقیت خریداری شد!`,
-        "success"
-      );
-
-      // آپدیت اطلاعات کاربر و نمایش در UI
+      // آپدیت اطلاعات کاربر
       this.userData.coins = result.coins;
       localStorage.setItem("userData", JSON.stringify(this.userData));
-      this.loadUserData(); // این تابع UI را هم آپدیت می‌کند
+      this.updateUI();
 
-      // فروشگاه را مجدد بارگذاری کنید تا دکمه‌های خرید آپدیت شوند
-      await this.loadShopItems();
+      this.showNotification(`معجون ${potionName} خریداری شد`, "success");
+      window.soundManager.play("purchase");
     } catch (error) {
-      console.error("Error buying potion:", error);
-      this.showNotification(error.message || "خطا در ارتباط با سرور", "error");
+      const errorData = await error.response?.json();
+      this.showNotification(errorData?.error || "خطا در هنگام خرید", "error");
+      window.soundManager.play("error");
     }
   }
   // اضافه کردن متد کمکی برای نمایش نوتیفیکیشن
+  // در فایل js/menu.js -> کلاس MenuManager
   showNotification(message, type = "info") {
-    // ایجاد یا استفاده از سیستم نوتیفیکیشن موجود
+    const container = document.getElementById("notification-container");
+    if (!container) return;
+
     const notification = document.createElement("div");
     notification.className = `notification ${type}`;
     notification.textContent = message;
 
-    // اضافه کردن به DOM
-    document.body.appendChild(notification);
+    container.appendChild(notification);
 
-    // حذف خودکار پس از چند ثانیه
     setTimeout(() => {
       notification.remove();
-    }, 3000);
+    }, 3900); // کمی کمتر از زمان انیمیشن
   }
 
   // اضافه کردن متد کمکی برای پیدا کردن معجون بر اساس ID
@@ -522,17 +871,26 @@ class MenuManager {
     return potions.find((p) => p._id === potionId);
   }
   switchShopTab(clickedTab) {
-    document.querySelectorAll(".tab-btn").forEach((tab) => {
+    // 1. Remove active class from all tab buttons
+    document.querySelectorAll(".shop-tabs .tab-btn").forEach((tab) => {
       tab.classList.remove("active");
     });
-
-    document.querySelectorAll(".tab-content").forEach((content) => {
-      content.classList.remove("active");
-    });
-
+    // 2. Add active class to the clicked button
     clickedTab.classList.add("active");
-    const tabName = clickedTab.dataset.tab;
-    document.getElementById(`${tabName}-tab`).classList.add("active");
+
+    // 3. Hide all tab content
+    document
+      .querySelectorAll(".shop-content .tab-content")
+      .forEach((content) => {
+        content.classList.remove("active");
+      });
+
+    // 4. Show the corresponding tab content
+    const tabId = clickedTab.getAttribute("data-tab");
+    const activeContent = document.getElementById(`${tabId}-tab`);
+    if (activeContent) {
+      activeContent.classList.add("active");
+    }
   }
 
   async upgradeFeature(featureType) {

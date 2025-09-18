@@ -7,10 +7,17 @@ import { AirplaneWingman } from "./wingman.js";
 import { Bullet } from "./bullet.js";
 
 export class WarScene {
-  constructor(CONFIG, networkManager, playerAssets = {}, selectedPotion) {
+  constructor(
+    CONFIG,
+    networkManager,
+    playerAssets = {},
+    selectedPotion,
+    userData
+  ) {
     this.CONFIG = CONFIG;
     this.networkManager = networkManager;
     this.playerAssets = playerAssets;
+    this.userData = userData; // <<<< جدید
     this.opponent = null;
     this.opponentAirplane = null;
     this.opponentBullets = [];
@@ -22,13 +29,10 @@ export class WarScene {
 
     this.isShielded = false;
     this.originalBulletSpeed = this.CONFIG.bullets.speed;
-
-    // <<<< این خط جدید را اضافه کنید >>>>
     this.originalShootingInterval = this.CONFIG.bullets.interval;
-    // قرار دادن networkManager در scope全局 برای دسترسی از airplane.js
+
     window.networkManager = networkManager;
 
-    // ذخیره ابعاد صفحه برای محاسبات حرکت معکوس
     this.screenWidth = window.innerWidth;
     this.screenHeight = window.innerHeight;
   }
@@ -45,12 +49,26 @@ export class WarScene {
   }
   setupPotionButton() {
     const potionBtn = document.getElementById("use-potion-btn");
+
+    // <<<< این بررسی جدید از متوقف شدن بازی جلوگیری می‌کند >>>>
+    if (!potionBtn) {
+      console.warn(
+        'Potion button with id "use-potion-btn" not found in the DOM.'
+      );
+      return; // اگر دکمه پیدا نشد، از تابع خارج شو
+    }
+
     if (this.selectedPotion) {
       potionBtn.classList.remove("hidden");
       potionBtn.innerHTML = `<img src="${this.selectedPotion.imagePath}" alt="${this.selectedPotion.name}">`;
-      potionBtn.addEventListener("click", () => this.activatePotion(), {
+
+      // برای جلوگیری از اضافه شدن چندباره event listener، دکمه را کلون می‌کنیم
+      const newPotionBtn = potionBtn.cloneNode(true);
+      potionBtn.parentNode.replaceChild(newPotionBtn, potionBtn);
+
+      newPotionBtn.addEventListener("click", () => this.activatePotion(), {
         once: true,
-      }); // فقط یک بار قابل کلیک باشد
+      });
     } else {
       potionBtn.classList.add("hidden");
     }
@@ -336,6 +354,9 @@ export class WarScene {
   }
 
   createHealthDisplays() {
+    const gameContainer = document.getElementById("game-container");
+    if (!gameContainer) return;
+
     // ایجاد نمایش سلامت کاربر
     this.playerHealthDisplay = document.createElement("div");
     this.playerHealthDisplay.id = "player-health";
@@ -350,7 +371,7 @@ export class WarScene {
     this.playerHealthDisplay.style.fontSize = "16px";
     this.playerHealthDisplay.style.zIndex = "100";
     this.playerHealthDisplay.innerHTML = `Your Health: ${this.health}%`;
-    document.body.appendChild(this.playerHealthDisplay);
+    gameContainer.appendChild(this.playerHealthDisplay);
 
     // ایجاد نمایش سلامت حریف
     this.opponentHealthDisplay = document.createElement("div");
@@ -368,7 +389,7 @@ export class WarScene {
     this.opponentHealthDisplay.innerHTML = `${
       this.opponent?.username || "Opponent"
     } Health: ${this.opponentHealth}%`;
-    document.body.appendChild(this.opponentHealthDisplay);
+    gameContainer.appendChild(this.opponentHealthDisplay);
   }
 
   updateHealthDisplay() {
@@ -424,17 +445,24 @@ export class WarScene {
   }
   // در تابع setupEventListeners، interval شلیک حریف را حذف کنید
   setupEventListeners() {
-    // Setup shooting intervals - فقط برای بازیکن اصلی
+    // محاسبه سرعت شلیک بر اساس سطح کاربر
+    const baseInterval = this.CONFIG.bullets.interval;
+    const userSpeedLevel = this.userData.speedLevel || 1;
+    // به ازای هر سطح، ۱۰٪ سرعت شلیک افزایش می‌یابد
+    const actualInterval = baseInterval / (1 + (userSpeedLevel - 1) * 0.1);
+
+    if (this.shootingInterval) {
+      clearInterval(this.shootingInterval);
+    }
+
     this.shootingInterval = setInterval(() => {
-      // <<<< تغییر اصلی اینجاست: از this.playerAssets.bullets استفاده می‌کنیم >>>>
-      // به جای استفاده از مسیر ثابت در CONFIG، از مسیری که از GameManager آمده استفاده می‌کنیم
       const bulletImage = this.getBulletImage(
         this.playerAssets.bullets || this.CONFIG.assets.bullet
       );
 
       this.CONFIG.bullets.angles.forEach((angle) => {
         const bullet = this.airplane.shoot(
-          bulletImage, // <--- متغیر جدید اینجا استفاده می‌شود
+          bulletImage,
           this.CONFIG.bullets.size,
           this.CONFIG.bullets.speed,
           angle
@@ -443,17 +471,14 @@ export class WarScene {
       });
       this.playSound(this.CONFIG.assets.sound);
 
-      // اطلاع به سرور از شلیک با موقعیت درصدی
       if (this.networkManager && this.networkManager.sendShoot) {
         const pos = this.airplane.getPosition();
         const percentX = pos.x / window.innerWidth;
         const percentY = pos.y / window.innerHeight;
-
         this.networkManager.sendShoot(percentX, percentY, 180);
       }
-    }, this.CONFIG.bullets.interval);
+    }, actualInterval); // استفاده از سرعت شلیک محاسبه شده
   }
-
   startGameLoop() {
     const gameLoop = () => {
       this.roadManager.update();
@@ -546,35 +571,29 @@ export class WarScene {
   // این تابع را به طور کامل جایگزین تابع قبلی کنید.
 
   checkCollisions() {
-    // آسیب بر اساس فعال بودن معجون قدرت تعیین می‌شود
-    const damageToSend =
-      this.isPotionActive && this.selectedPotion.name === "معجون قدرت"
-        ? 13
-        : 10;
-
-    // ... (بخش مربوط به برخورد گلوله‌های من به حریف بدون تغییر باقی می‌ماند) ...
+    // برخورد گلوله‌های من به حریف
     for (let i = this.bullets.length - 1; i >= 0; i--) {
       const bullet = this.bullets[i];
       if (
         this.opponentAirplane &&
         this.isColliding(bullet, this.opponentAirplane)
       ) {
+        // پیام برخورد به سرور ارسال می‌شود و سرور خودش damage را محاسبه می‌کند
         if (this.networkManager && this.networkManager.sendHit) {
-          this.networkManager.sendHit(damageToSend);
+          this.networkManager.sendHit();
         }
         bullet.remove();
         this.bullets.splice(i, 1);
       }
     }
 
-    // <<<< تغییر اصلی اینجاست >>>>
-    // بررسی برخورد گلوله‌های حریف با هواپیمای من
+    // برخورد گلوله‌های حریف با هواپیمای من
     for (let i = this.opponentBullets.length - 1; i >= 0; i--) {
       const bullet = this.opponentBullets[i];
 
       // اگر سپر فعال نباشد و برخورد رخ دهد
       if (!this.isShielded && this.isColliding(bullet, this.airplane)) {
-        // چون سرور مسئول جان ماست، در کلاینت کاری انجام نمی‌دهیم
+        // سرور مسئول کم کردن جان است، کلاینت فقط گلوله را حذف می‌کند
         bullet.remove();
         this.opponentBullets.splice(i, 1);
       }

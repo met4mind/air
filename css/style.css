@@ -1,689 +1,608 @@
 /* =================================================================
-   SHEET CSS یکپارچه برای بازی جنگنده های هوایی
+   Military-Tech UI v2.1 - Bug Fixes & Refinements
    ================================================================= */
 
-/* استایل‌های عمومی و ریست */
+/* 1. Global Setup & Variables
+/* ================================================================= */
+@import url("https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap");
+
+:root {
+  --font-primary: "Orbitron", sans-serif;
+  --color-bg-dark: #0a0e13;
+  --color-border: rgba(118, 255, 128, 0.4);
+  --color-glow: rgba(118, 255, 128, 0.7);
+  --color-accent: #76ff80;
+  --color-primary-text: #e0f2f1;
+  --color-secondary-text: #b0bec5;
+  --color-gold: #ffd700;
+  --color-silver: #c0c0c0;
+  --color-bronze: #cd7f32;
+  --transition-fast: 0.2s ease-out;
+}
+
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
   -webkit-tap-highlight-color: transparent;
-  -webkit-touch-callout: none;
-  -webkit-user-select: none;
   user-select: none;
 }
 
-html,
 body {
-  margin: 0;
-  height: 100vh;
+  font-family: var(--font-primary);
+  background-color: var(--color-bg-dark);
+  color: var(--color-primary-text);
   width: 100vw;
+  height: 100vh;
   overflow: hidden;
-  touch-action: none;
   position: fixed;
-  font-family: Arial, sans-serif;
 }
 
-body {
-  background-color: #003000 !important;
+.app-container {
+  width: 100%;
+  height: 100%;
+  background: url("https://www.transparenttextures.com/patterns/carbon-fibre.png"),
+    var(--color-bg-dark);
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 15px;
+}
+
+.app-container::after {
+  content: "";
+  position: absolute;
+  width: 200%;
+  height: 200%;
+  top: -50%;
+  left: -50%;
+  background: conic-gradient(
+    transparent,
+    transparent,
+    transparent,
+    rgba(118, 255, 128, 0.15)
+  );
+  animation: radar-sweep 8s linear infinite;
+  z-index: 0;
+}
+@keyframes radar-sweep {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* 2. Menu Container
+/* ================================================================= */
+.menu-container {
+  position: relative;
+  z-index: 10;
+  width: 100%;
+  max-width: 450px;
+  background: rgba(10, 14, 19, 0.85);
+  border: 1px solid var(--color-border);
+  padding: 25px;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow: 0 0 30px rgba(118, 255, 128, 0.2);
+  clip-path: polygon(
+    0 5%,
+    5% 0,
+    95% 0,
+    100% 5%,
+    100% 95%,
+    95% 100%,
+    5% 100%,
+    0 95%
+  );
+  animation: menu-fade-in 0.6s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+  display: flex;
+  flex-direction: column;
+  max-height: 95vh;
+  text-align: center; /* <<<< تضمین تقارن محتوای داخلی >>>> */
+}
+@keyframes menu-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(30px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 .hidden {
   display: none !important;
 }
 
-/* استایل‌های صفحه لاگین */
-#login-screen {
-  position: fixed;
+.menu-header {
+  text-align: center;
+  margin-bottom: 25px;
+  flex-shrink: 0;
+}
+.menu-header h1,
+.menu-header h2 {
+  font-weight: 700;
+  font-size: 1.8em;
+  color: var(--color-accent);
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  text-shadow: 0 0 10px var(--color-glow), 0 0 20px var(--color-glow);
+}
+
+.user-info {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--color-border);
+  padding: 8px 12px;
+  margin-top: 15px;
+  display: inline-flex;
+  gap: 20px;
+  font-size: 0.9em;
+  clip-path: polygon(10% 0%, 90% 0%, 100% 50%, 90% 100%, 10% 100%, 0% 50%);
+}
+
+/* 3. Buttons
+/* ================================================================= */
+.menu-options {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.menu-btn {
+  background: transparent;
+  border: 1px solid var(--color-border);
+  color: var(--color-primary-text);
+  font-family: var(--font-primary);
+  font-size: 1em;
+  padding: 12px;
+  text-transform: uppercase;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  transition: color var(--transition-fast),
+    background-color var(--transition-fast);
+  clip-path: polygon(
+    95% 0,
+    100% 25%,
+    100% 75%,
+    95% 100%,
+    5% 100%,
+    0 75%,
+    0 25%,
+    5% 0
+  );
+}
+.menu-btn::before {
+  content: "";
+  position: absolute;
   top: 0;
-  left: 0;
+  left: -100%;
   width: 100%;
   height: 100%;
-  background: rgba(0, 0, 0, 0.8);
-  z-index: 10000;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--color-glow),
+    transparent
+  );
+  transition: left 0.4s ease-in-out;
+}
+.menu-btn:hover {
+  color: var(--color-bg-dark);
+  background-color: var(--color-accent);
+  box-shadow: 0 0 20px var(--color-glow);
+}
+.menu-btn:hover::before {
+  left: 100%;
+}
+.menu-btn:active {
+  transform: scale(0.98);
+}
+
+.menu-btn.primary {
+  background-color: rgba(118, 255, 128, 0.2);
+  color: var(--color-accent);
+  font-weight: 700;
+  font-size: 1.2em;
+  padding: 15px;
+}
+.back-btn {
+  margin-top: 25px;
+  background-color: rgba(255, 100, 100, 0.15);
+  border-color: rgba(255, 100, 100, 0.4);
+  flex-shrink: 0;
+}
+.back-btn:hover {
+  background-color: rgba(255, 100, 100, 0.8);
+  color: #fff;
+  box-shadow: 0 0 20px rgba(255, 100, 100, 0.5);
+}
+
+/* 4. Leaderboard & Lists
+/* ================================================================= */
+.prize-image img {
+  max-width: 80px; /* <<<< اندازه کاپ اصلاح شد >>>> */
+  height: auto;
+  margin-bottom: 15px;
+  filter: drop-shadow(0 0 10px var(--color-gold));
+}
+
+.leaderboard-content,
+.shop-content,
+.upgrade-options,
+.free-options,
+.selection-section {
+  overflow-y: auto;
+  padding-right: 8px;
+  margin-bottom: 10px;
+}
+::-webkit-scrollbar {
+  width: 4px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-accent);
+}
+
+.leaderboard-item {
   display: flex;
-  justify-content: center;
   align-items: center;
+  background: rgba(0, 0, 0, 0.3);
+  margin-bottom: 8px;
+  padding: 10px;
+  border-left: 3px solid transparent;
+  transition: background-color var(--transition-fast),
+    border-left-color var(--transition-fast);
 }
-
-.login-container {
-  background: white;
-  padding: 20px;
-  border-radius: 10px;
-  width: 300px;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+.leaderboard-item:hover {
+  background-color: rgba(118, 255, 128, 0.1);
+}
+.leaderboard-rank {
+  font-size: 1.2em;
+  font-weight: 700;
+  width: 40px;
   text-align: center;
+  margin-right: 15px;
+}
+.leaderboard-user {
+  flex-grow: 1;
+  text-align: right;
+} /* <<<< ترازبندی متن به راست >>>> */
+.leaderboard-stars {
+  color: var(--color-gold);
+}
+.leaderboard-item.rank-1 {
+  border-left-color: var(--color-gold);
+}
+.leaderboard-item.rank-1 .leaderboard-rank {
+  color: var(--color-gold);
+}
+.leaderboard-item.rank-2 {
+  border-left-color: var(--color-silver);
+}
+.leaderboard-item.rank-2 .leaderboard-rank {
+  color: var(--color-silver);
+}
+.leaderboard-item.rank-3 {
+  border-left-color: var(--color-bronze);
+}
+.leaderboard-item.rank-3 .leaderboard-rank {
+  color: var(--color-bronze);
+}
+#user-rank-display {
+  margin-top: 20px;
+  border-top: 1px solid var(--color-border);
+  padding-top: 15px;
+  flex-shrink: 0;
 }
 
-.login-container h2 {
+/* 5. Shop & Free Coins
+/* ================================================================= */
+.shop-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--color-border);
   margin-bottom: 20px;
-  color: #333;
+  flex-shrink: 0;
 }
-
-.login-input {
-  width: 100%;
-  margin: 10px 0;
-  padding: 10px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  box-sizing: border-box;
-}
-
-.login-button {
-  width: 100%;
-  padding: 10px;
-  margin: 5px 0;
-  background-color: #4caf50;
-  color: white;
+.tab-btn {
+  background: none;
   border: none;
-  border-radius: 4px;
+  color: var(--color-secondary-text);
+  padding: 10px 15px;
   cursor: pointer;
-  transition: background-color 0.3s;
+  flex-grow: 1;
+  position: relative;
+  transition: color var(--transition-fast);
+}
+.tab-btn.active {
+  color: var(--color-accent);
+}
+.tab-btn.active::after {
+  content: "";
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background: var(--color-accent);
+  box-shadow: 0 0 10px var(--color-glow);
 }
 
-.login-button:hover {
-  background-color: #45a049;
+/* <<<< حل مشکل قاطی شدن تب‌ها >>>> */
+.tab-content {
+  display: none;
+}
+.tab-content.active {
+  display: grid; /* استفاده از گرید برای محتوای فعال */
 }
 
-.login-button.secondary {
-  background-color: #2196f3;
+.selection-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: 15px;
 }
 
-.login-button.secondary:hover {
-  background-color: #0b7dda;
-}
-
-/* استایل پیام انتظار */
-#waiting-message {
-  position: fixed;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  background: rgba(0, 0, 0, 0.8);
-  color: white;
-  padding: 20px;
-  border-radius: 8px;
-  z-index: 101;
+.selection-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid var(--color-border);
+  padding: 10px;
   text-align: center;
+  cursor: pointer;
+  transition: transform var(--transition-fast),
+    box-shadow var(--transition-fast);
+}
+.selection-item img {
+  width: 100%;
+  max-width: 50px; /* <<<< اندازه عکس اصلاح شد >>>> */
+  height: 50px;
+  object-fit: contain;
+  margin-bottom: 8px;
+}
+.selection-item p {
+  font-size: 0.8em;
+  color: var(--color-secondary-text);
+  line-height: 1.4;
+  height: 3.2em;
+  overflow: hidden; /* <<<< کنترل متن طولانی >>>> */
+}
+.selection-item:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 0 15px var(--color-glow);
+}
+.selection-item.selected {
+  border: 2px solid var(--color-accent);
+  box-shadow: 0 0 15px var(--color-glow);
+  background-color: rgba(118, 255, 128, 0.1);
+}
+.selection-item .buy-btn {
+  width: 100%;
+  margin-top: 10px;
+  padding: 8px;
+  font-size: 0.9em;
 }
 
-/* استایل نوتیفیکیشن */
-.notification {
+.exchange-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 15px;
+  padding: 10px;
+}
+.login-input {
+  /* <<<< استایل فیلد ورودی >>>> */
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid var(--color-border);
+  color: var(--color-primary-text);
+  font-family: var(--font-primary);
+  padding: 12px;
+  text-align: center;
+  width: 100%;
+}
+.login-input:focus {
+  outline: none;
+  border-color: var(--color-accent);
+  box-shadow: 0 0 10px var(--color-glow);
+}
+
+.free-options {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.free-item {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  background: rgba(0, 0, 0, 0.3);
+  padding: 10px;
+  border: 1px solid var(--color-border);
+}
+.free-item img {
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+}
+.free-item-info {
+  flex-grow: 1;
+  text-align: right;
+}
+.free-item h3 {
+  margin: 0 0 5px;
+  font-size: 0.9em;
+  color: var(--color-primary-text);
+}
+.free-item p {
+  margin: 0;
+  font-size: 0.75em;
+  color: var(--color-secondary-text);
+}
+.offer-btn {
+  padding: 10px !important;
+  font-size: 0.9em !important;
+  margin: 0 !important;
+  flex-shrink: 0;
+}
+
+/* 6. Notification Styles */
+#notification-container {
   position: fixed;
   top: 20px;
-  right: 20px;
-  padding: 15px 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.notification {
+  padding: 12px 20px;
+  font-family: var(--font-primary);
+  color: #fff;
   border-radius: 5px;
-  color: white;
-  z-index: 10000;
-  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
-  animation: slideIn 0.3s ease;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+  opacity: 0;
+  transform: translateY(-20px);
+  animation: fadeInOut 4s ease-in-out forwards;
+  min-width: 280px;
+  text-align: center;
 }
 
 .notification.success {
-  background: #4caf50;
+  background-color: #2e7d32; /* Green */
+  border: 1px solid #66bb6a;
 }
 
 .notification.error {
-  background: #f44336;
+  background-color: #c62828; /* Red */
+  border: 1px solid #ef5350;
 }
 
-.notification.info {
-  background: #2196f3;
-}
-
-@keyframes slideIn {
-  from {
-    transform: translateX(100%);
+@keyframes fadeInOut {
+  0% {
     opacity: 0;
+    transform: translateY(-20px);
   }
-  to {
-    transform: translateX(0);
+  15% {
     opacity: 1;
+    transform: translateY(0);
+  }
+  85% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(20px);
   }
 }
 
-/* =================================================================
-   تم چریکی نظامی (Military Theme)
-   ================================================================= */
-
-:root {
-  --military-dark-green: #2a4a2a;
-  --military-green: #3a5c3a;
-  --military-light-green: #4a6e4a;
-  --military-sand: #a08c65;
-  --military-black: #1a1a1a;
-  --military-gold: #b8860b;
-}
-
-.military-theme {
-  background: linear-gradient(to bottom, #1a2a1a, #2a3a2a);
-  color: #e0e0e0;
-}
-
-.military-theme .menu-container {
-  background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><rect width="100" height="100" fill="%232a4a2a" opacity="0.8"/><path d="M0 0L100 100" stroke="%233a5c3a" stroke-width="1"/><path d="M100 0L0 100" stroke="%233a5c3a" stroke-width="1"/></svg>')
-    repeat;
-  border: 2px solid var(--military-sand);
-  box-shadow: 0 0 15px rgba(0, 0, 0, 0.7);
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
+/* در فایل css/style.css */
+.menu-container {
+  /* ...سایر استایل‌ها... */
   display: flex;
   flex-direction: column;
-  align-items: center;
-  padding: 20px;
-  z-index: 1000;
-  overflow-y: auto;
-}
-
-.military-theme .menu-header {
-  min-width: 250px;
-  max-width: 250px;
+  max-height: 95vh; /* <<<< این خط را چک کنید که وجود داشته باشد */
   text-align: center;
-  margin-bottom: 30px;
+}
+#selection-menu {
+  overflow-y: auto; /* اسکرول اصلی به خود منو اضافه می‌شود */
+}
+/* در فایل css/style.css */
+.selections-wrapper {
+  /* غیرفعال کردن اسکرول داخلی و ارتفاع خودکار */
+  flex-grow: 0;
+  overflow-y: visible;
+  min-height: initial;
 }
 
-.military-theme .menu-header h1,
-.military-theme .menu-header h2 {
-  color: var(--military-gold);
-  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.7);
-  font-weight: bold;
-}
-
-.military-theme .user-info {
-  background: rgba(42, 58, 42, 0.7);
-  border: 1px solid var(--military-sand);
-  border-radius: 5px;
-  padding: 8px 15px;
-  margin-top: 10px;
-  display: flex;
-  justify-content: center;
-  gap: 20px;
-}
-
-.military-theme .menu-options {
-  display: flex;
-  flex-direction: column;
-  gap: 15px;
-  width: 80%;
-  max-width: 400px;
-}
-
-.military-theme .menu-btn {
-  background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="200" height="50" viewBox="0 0 200 50"><rect width="200" height="50" fill="%233a5c3a" rx="5" ry="5"/><path d="M5,5 L195,5 L195,45 L5,45 Z" fill="none" stroke="%23a08c65" stroke-width="1"/></svg>')
-    center/cover no-repeat;
-  border: none;
-  color: #e0e0e0;
-  font-weight: bold;
-  font-size: 18px;
-  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
-  padding: 15px 25px;
-  margin: 8px 0;
-  transition: all 0.3s ease;
-  position: relative;
-  overflow: hidden;
-  border-radius: 5px;
-  cursor: pointer;
-}
-
-.military-theme .menu-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
-  color: var(--military-gold);
-}
-
-/* --- استایل سایر دکمه ها --- */
-.military-theme .back-btn,
-.military-theme .upgrade-btn,
-.military-theme .offer-btn,
-.military-theme .buy-btn {
-  background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="120" height="40" viewBox="0 0 120 40"><rect width="120" height="40" fill="%233a5c3a" rx="3" ry="3"/><path d="M5,5 L115,5 L115,35 L5,35 Z" fill="none" stroke="%23a08c65" stroke-width="1"/></svg>')
-    center/cover no-repeat;
-  border: none;
-  color: #e0e0e0;
-  padding: 10px 20px;
-  border-radius: 3px;
-  font-weight: bold;
-  transition: all 0.3s ease;
-  cursor: pointer;
-}
-
-.military-theme .back-btn:hover,
-.military-theme .upgrade-btn:hover,
-.military-theme .offer-btn:hover,
-.military-theme .buy-btn:hover {
-  background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="120" height="40" viewBox="0 0 120 40"><rect width="120" height="40" fill="%234a6e4a" rx="3" ry="3"/><path d="M5,5 L115,5 L115,35 L5,35 Z" fill="none" stroke="%23b8860b" stroke-width="1"/></svg>')
-    center/cover no-repeat;
-  color: var(--military-gold);
-}
-
-.military-theme .back-btn {
-  margin-top: 20px;
-}
-
-/* --- استایل جدول رتبه بندی (Leaderboard) --- */
-.military-theme .leaderboard-content {
-  background: rgba(32, 42, 32, 0.7);
-  border: 1px solid var(--military-sand);
+.selection-section {
+  /* حذف کدهای مربوط به ارتفاع ثابت و flex-basis */
+  background: rgba(0, 0, 0, 0.25);
   border-radius: 5px;
   padding: 15px;
-  width: 100%;
-  max-width: 500px;
-  margin: 20px 0;
+  border-top: 1px solid var(--color-border);
 }
 
-.military-theme .leaderboard-item {
-  background: rgba(58, 74, 58, 0.7);
-  border-bottom: 1px solid var(--military-sand);
-  margin: 0;
-  padding: 12px;
-  transition: all 0.3s ease;
+.selection-section {
+  /* حذف ارتفاع ثابت تا محتوا به اندازه نیاز جا بگیرد */
+  flex-basis: auto;
+  min-height: initial;
+}
+
+/* اسکرول داخلی گریدها را حذف می‌کنیم */
+.selection-section .selection-grid {
+  overflow-y: visible;
+  flex-grow: 0;
+}
+
+/* رفع مشکل دکمه بازگشت در منوی ارتقا */
+
+#upgrade-menu {
+  /* ساختار این منو را به فلکس تغییر می‌دهیم */
   display: flex;
-  align-items: center;
-  border-radius: 0;
+  flex-direction: column;
 }
-.military-theme .leaderboard-item:last-child {
-  border-bottom: none;
+
+#upgrade-content {
+  /* این بخش اصلی‌ترین فضا را اشغال کرده و اسکرول می‌خورد */
+  flex-grow: 1;
+  overflow-y: auto;
+  margin-bottom: 15px; /* فاصله از دکمه بازگشت */
 }
-.military-theme .leaderboard-item:hover {
-  background: rgba(58, 74, 58, 0.9);
-  transform: translateX(5px);
-}
-.military-theme .leaderboard-rank {
-  background-color: var(--military-green);
-  color: var(--military-gold);
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: bold;
-  margin-right: 15px; /* Changed from margin-left for RTL */
+
+#upgrade-menu .back-btn {
+  /* دکمه بازگشت دیگر رشد نمی‌کند و در جای خود ثابت است */
   flex-shrink: 0;
 }
-.military-theme .rank-1 {
-  background-color: var(--military-gold);
-  color: #000;
-}
-.military-theme .rank-2 {
-  background-color: #c0c0c0;
-  color: #000;
-}
-.military-theme .rank-3 {
-  background-color: #cd7f32;
-  color: #000;
-}
-.military-theme .leaderboard-user {
-  flex-grow: 1;
-}
-.military-theme .leaderboard-stars {
-  color: var(--military-gold);
-  font-size: 14px;
-}
 
-/* --- استایل سایر بخش های منو --- */
-.military-theme .timer {
-  background: rgba(42, 58, 42, 0.7);
-  border: 1px solid var(--military-sand);
-  border-radius: 20px;
-  padding: 8px 15px;
-  color: var(--military-gold);
-  font-weight: bold;
-  margin-top: 10px;
-}
-.military-theme .prize-image img {
-  border: 2px solid var(--military-gold);
-  border-radius: 50%;
-  padding: 5px;
-  background: rgba(42, 58, 42, 0.7);
-  box-shadow: 0 0 10px rgba(184, 134, 11, 0.5);
-  max-width: 100px;
-  margin: 15px 0;
-}
-.military-theme .upgrade-options,
-.military-theme .free-options {
-  width: 100%;
-  max-width: 500px;
-}
-.military-theme .upgrade-item,
-.military-theme .free-item {
-  background: rgba(42, 58, 42, 0.8);
-  border: 1px solid var(--military-sand);
-  border-radius: 5px;
-  padding: 15px;
-  margin: 10px 0;
-  transition: all 0.3s ease;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-}
-.military-theme .upgrade-item:hover,
-.military-theme .free-item:hover {
-  background: rgba(42, 58, 42, 0.95);
-  transform: translateY(-3px);
-}
-.military-theme .upgrade-item img,
-.military-theme .free-item img {
-  width: 80px;
-  height: 80px;
-  margin-bottom: 10px;
-  object-fit: contain;
-}
-.military-theme .shop-tabs {
-  display: flex;
-  gap: 10px;
-  margin-bottom: 20px;
-}
-.military-theme .tab-btn {
-  background: rgba(58, 74, 58, 0.7);
-  border: 1px solid var(--military-sand);
-  color: #e0e0e0;
-  padding: 8px 15px;
-  border-radius: 5px;
-  transition: all 0.3s ease;
-  cursor: pointer;
-}
-.military-theme .tab-btn.active {
-  background: rgba(184, 134, 11, 0.3);
-  border-color: var(--military-gold);
-  color: var(--military-gold);
-}
-.military-theme .tab-content {
-  display: none;
-  width: 100%;
-}
-.military-theme .tab-content.active {
-  display: block;
-}
-.military-theme .potions-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-  gap: 15px;
-  width: 100%;
-}
-.military-theme .shop-item {
-  display: flex;
-  flex-direction: column;
-  background: rgba(42, 58, 42, 0.7);
-  border: 1px solid var(--military-sand);
-  border-radius: 10px;
-  padding: 15px;
-  transition: all 0.3s ease;
-}
-.military-theme .shop-item:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
-}
-.military-theme .shop-item img {
-  width: 100%;
-  height: 100px;
-  object-fit: contain;
-  margin-bottom: 10px;
-  border-radius: 5px;
-}
-.military-theme .shop-item-info {
-  flex-grow: 1;
-  margin-bottom: 15px;
-}
-.military-theme .shop-item-info h4 {
-  color: var(--military-gold);
-  margin-bottom: 8px;
-  font-size: 16px;
-}
-.military-theme .shop-item-info p {
-  margin-bottom: 5px;
-  font-size: 14px;
-  line-height: 1.4;
-}
-.military-theme .potion-effect {
-  color: #a0e7a0 !important;
-  font-style: italic;
-}
-.military-theme .shop-item-price {
-  color: gold !important;
-  font-weight: bold;
-  margin-top: 10px;
-}
+/* 7. Game Scene Styles */
 
-/* --- استایل منوی انتخاب دارایی (Selection Menu) --- */
-.military-theme .selection-section {
-  width: 90%;
-  max-width: 500px;
-  margin-bottom: 25px;
-  padding: 15px;
-  background: rgba(42, 58, 42, 0.5);
-  border-radius: 8px;
-  border: 1px solid var(--military-sand);
-}
-.military-theme .selection-section h2 {
-  color: var(--military-gold);
-  text-align: center;
-  margin-bottom: 15px;
-  border-bottom: 1px solid var(--military-sand);
-  padding-bottom: 8px;
-}
-.military-theme .selection-grid {
-  display: flex;
-  justify-content: center;
-  flex-wrap: wrap;
-  gap: 15px;
-  margin-top: 15px;
-}
-.military-theme .selection-item {
-  background: rgba(42, 58, 42, 0.7);
-  border: 2px solid var(--military-sand);
-  border-radius: 8px;
-  padding: 10px;
-  text-align: center;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  min-width: 90px;
-}
-.military-theme .selection-item:hover {
-  transform: scale(1.05);
-  border-color: var(--military-gold);
-}
-.military-theme .selection-item.selected {
-  border-color: var(--military-gold);
-  box-shadow: 0 0 10px var(--military-gold);
-  background-color: rgba(184, 134, 11, 0.2);
-}
-.military-theme .selection-item img {
-  width: 60px;
-  height: 60px;
-  object-fit: contain;
-  margin-bottom: 8px;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 5px;
-  padding: 5px;
-}
-.military-theme .selection-item p {
-  color: #e0e0e0;
-  font-size: 12px;
-  margin: 0;
-}
-
-/* =================================================================
-   استایل های عناصر داخل بازی
-   ================================================================= */
-.road {
+#game-container {
   position: fixed;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
-  z-index: 1;
+  background-color: #0d120d; /* رنگ پس‌زمینه آسمان شب */
+  overflow: hidden;
+  z-index: 1; /* پایین‌تر از منوها */
+}
+
+.road {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 2;
 }
 
 .cloud {
   position: absolute;
   background-size: contain;
   background-repeat: no-repeat;
-  background-position: center;
-  z-index: 2;
-  pointer-events: none;
-}
-
-.bullet {
-  z-index: 5;
-  position: absolute;
-  background-size: contain;
-  background-repeat: no-repeat;
-  background-position: center;
+  z-index: 3;
 }
 
 .airplane,
-.opponent-airplane {
-  z-index: 10;
-  position: absolute;
-  background-size: contain;
-  background-repeat: no-repeat;
-  background-position: center;
+.opponent-airplane,
+.wingman {
+  z-index: 4;
 }
 
-/* =================================================================
-   استایل ریسپانسیو
-   ================================================================= */
-@media (max-width: 768px) {
-  .military-theme .menu-container {
-    padding: 10px;
-  }
-  .military-theme .menu-btn {
-    padding: 12px 20px;
-    font-size: 14px;
-    margin: 5px 0;
-  }
-  .military-theme .menu-header h1 {
-    font-size: 24px;
-  }
-  .military-theme .menu-header h2 {
-    font-size: 20px;
-  }
-}
-
-@media (max-width: 480px) {
-  .military-theme .menu-btn {
-    padding: 10px 15px;
-    font-size: 13px;
-  }
-  .military-theme .menu-header h1 {
-    font-size: 20px;
-  }
-  .military-theme .menu-header h2 {
-    font-size: 18px;
-  }
-  .military-theme .user-info {
-    font-size: 14px;
-    padding: 5px 10px;
-  }
-  .military-theme .back-btn {
-    padding: 8px 15px;
-    font-size: 14px;
-  }
-}
-
-/* =================================================================
-   استایل های افکت معجون (Potion Effects)
-   ================================================================= */
-
-/* افکت عمومی برای همه معجون ها */
-.potion-effect-active {
-  animation-duration: 0.5s;
-  animation-iteration-count: infinite;
-  animation-direction: alternate;
-}
-
-/* افکت برای معجون قدرت (قرمز درخشان) */
-.power-effect {
-  animation-name: pulse-red;
-  box-shadow: 0 0 15px 5px rgba(255, 0, 0, 0.7);
-}
-
-@keyframes pulse-red {
-  from {
-    filter: drop-shadow(0 0 5px #ff4d4d);
-  }
-  to {
-    filter: drop-shadow(0 0 15px #ff0000);
-  }
-}
-
-/* افکت برای معجون سرعت (آبی درخشان) */
-.speed-effect {
-  border-radius: 50%;
-  animation-name: pulse-blue;
-  box-shadow: 0 0 15px 5px rgba(0, 172, 230, 0.7);
-}
-
-@keyframes pulse-blue {
-  from {
-    filter: drop-shadow(0 0 5px #4dffff);
-  }
-  to {
-    filter: drop-shadow(0 0 15px #00ace6);
-  }
-}
-
-/* افکت برای معجون محافظ (سپر طلایی) */
-.shield-effect {
-  position: relative;
-}
-.shield-effect::after {
-  content: "";
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-
-  /* <<<< تغییر اصلی اینجاست >>>> */
-  height: 150%; /* ارتفاع را کمی بزرگتر می‌کنیم */
-  aspect-ratio: 1 / 1; /* این خط تضمین می‌کند که عرض و ارتفاع همیشه برابر باشند (مربع) */
-
-  background-image: radial-gradient(
-    circle,
-    rgba(255, 215, 0, 0.1) 20%,
-    rgba(255, 215, 0, 0.4) 100%
-  );
-  border: 2px solid gold;
-  border-radius: 50%; /* یک مربع با این ویژگی همیشه به دایره تبدیل می‌شود */
-  animation: pulse-gold 1s infinite alternate;
-}
-
-@keyframes pulse-gold {
-  from {
-    opacity: 0.7;
-    transform: translate(-50%, -50%) scale(0.95);
-  }
-  to {
-    opacity: 1;
-    transform: translate(-50%, -50%) scale(1.05);
-  }
-}
-
-/* افکت برای معجون درمان (ذرات سبز) */
-.heal-particle {
-  position: absolute;
-  width: 8px;
-  height: 8px;
-  background-color: #00ff00;
-  border-radius: 50%;
-  opacity: 0.8;
-  animation: float-up 1.5s ease-out forwards;
-  pointer-events: none; /* برای جلوگیری از تداخل با کلیک */
-}
-
-@keyframes float-up {
-  0% {
-    transform: translateY(0) scale(1);
-    opacity: 0.8;
-  }
-  100% {
-    transform: translateY(-80px) scale(0);
-    opacity: 0;
-  }
+.bullet {
+  z-index: 4;
 }

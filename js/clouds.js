@@ -41,7 +41,7 @@ export class Cloud {
     };
     this.setPosition(this.position.x, this.position.y);
 
-    document.body.appendChild(this.element);
+    document.getElementById("game-container").appendChild(this.element);
     this.animate();
   }
   setPosition(x, y) {

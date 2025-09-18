@@ -38,6 +38,20 @@ const auth = async (req, res, next) => {
 // این مسیر جدید را قبل از module.exports = router; اضافه کنید
 
 // مسیر داخلی برای ساختن/به‌روزرسانی لیدربورد
+router.get("/leaderboard", auth, async (req, res) => {
+  try {
+    const leaderboard = await Leaderboard.findOne({
+      endDate: { $gt: new Date() },
+    }).populate("rankings.user", "username"); // Populate برای نمایش نام کاربری
+
+    if (!leaderboard) {
+      return res.json({ rankings: [], endDate: new Date() }); // اگر لیدربوردی وجود نداشت، پاسخ خالی بفرست
+    }
+    res.json(leaderboard);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
 router.post("/leaderboard/generate", async (req, res) => {
   try {
     // ۱. همه کاربران را پیدا کرده و بر اساس ستاره مرتب کن
@@ -637,15 +651,36 @@ router.post("/upgrade", auth, async (req, res) => {
         user.healthLevel += 1;
         break;
 
+      // در فایل routes/api.js، داخل مسیر POST /upgrade
+
       case "airplane":
-        cost = user.airplaneTier * 100;
+        // تعریف تعداد لول (استایل) برای هر تایر
+        const maxStylesPerTier = { 1: 14, 2: 20, 3: 19, 4: 9 };
+
+        const currentTier = user.airplaneTier;
+        const currentStyle = user.airplaneStyle;
+
+        // بررسی اینکه آیا کاربر در بالاترین سطح ممکن است یا خیر
+        if (currentTier >= 4 && currentStyle >= maxStylesPerTier[4]) {
+          return res
+            .status(400)
+            .json({ error: "You are at the maximum level" });
+        }
+
+        cost = currentTier * 100 + currentStyle * 20; // فرمول جدید هزینه
         if (user.coins < cost) {
           return res.status(400).json({ error: "Not enough coins" });
         }
         user.coins -= cost;
-        user.airplaneTier += 1;
-        break;
 
+        // منطق ارتقا لول و تایر
+        if (currentStyle < maxStylesPerTier[currentTier]) {
+          user.airplaneStyle += 1; // ارتقا لول در تایر فعلی
+        } else {
+          user.airplaneTier += 1; // رفتن به تایر بعدی
+          user.airplaneStyle = 1; // ریست شدن لول به ۱
+        }
+        break;
       default:
         return res.status(400).json({ error: "Invalid upgrade type" });
     }
@@ -693,12 +728,10 @@ router.post("/leaderboard/generate", async (req, res) => {
       }
     );
 
-    res
-      .status(200)
-      .json({
-        message: "Leaderboard generated/updated successfully.",
-        leaderboard: updatedLeaderboard,
-      });
+    res.status(200).json({
+      message: "Leaderboard generated/updated successfully.",
+      leaderboard: updatedLeaderboard,
+    });
   } catch (error) {
     res
       .status(500)
@@ -706,7 +739,37 @@ router.post("/leaderboard/generate", async (req, res) => {
   }
 });
 
-// دعوت دوستان
+// جدید: مسیر برای تبدیل ستاره به سکه
+router.post("/shop/exchange-stars", auth, async (req, res) => {
+  try {
+    const { starsToSpend } = req.body;
+    const user = req.user;
+
+    if (!starsToSpend || starsToSpend <= 0) {
+      return res.status(400).json({ error: "تعداد ستاره نامعتبر است" });
+    }
+
+    if (user.stars < starsToSpend) {
+      return res.status(400).json({ error: "تعداد ستاره‌های شما کافی نیست" });
+    }
+
+    // هر ستاره معادل ۱۰ سکه است (می‌توانید این نرخ را تغییر دهید)
+    const coinsGained = starsToSpend * 10;
+
+    user.stars -= starsToSpend;
+    user.coins += coinsGained;
+
+    await user.save();
+
+    res.json({
+      message: "تبدیل با موفقیت انجام شد",
+      stars: user.stars,
+      coins: user.coins,
+    });
+  } catch (error) {
+    res.status(500).json({ error: "خطا در پردازش درخواست: " + error.message });
+  }
+});
 router.post("/referral", auth, async (req, res) => {
   try {
     const { referredTgid } = req.body;

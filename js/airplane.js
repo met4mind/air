@@ -29,7 +29,7 @@ export class Airplane {
     this.element.style.transformOrigin = "center center";
 
     this.setImage(imageUrl);
-    document.body.appendChild(this.element);
+    document.getElementById("game-container").appendChild(this.element);
     this.setupEvents();
   }
 

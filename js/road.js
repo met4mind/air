@@ -39,7 +39,7 @@ export class RoadManager {
     };
     img.src = imageUrl;
 
-    document.body.appendChild(this.roadElement);
+    document.getElementById("game-container").appendChild(this.roadElement);
   }
 
   startRoadRotation() {

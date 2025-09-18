@@ -13,6 +13,8 @@ const userSchema = new mongoose.Schema({
   healthLevel: { type: Number, default: 1 },
   airplaneTier: { type: Number, default: 1 },
   airplaneStyle: { type: Number, default: 1 },
+  wins: { type: Number, default: 0 }, // <<<< جدید
+  losses: { type: Number, default: 0 }, // <<<< جدید
   ownedPotions: [
     {
       potion: { type: mongoose.Schema.Types.ObjectId, ref: "Potion" },
