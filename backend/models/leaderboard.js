@@ -1,24 +1,26 @@
+// در فایل backend/models/leaderboard.js
+
 const mongoose = require("mongoose");
 
 const leaderboardSchema = new mongoose.Schema({
-  season: { type: Number, default: 1 },
-  startDate: { type: Date, default: Date.now },
-  endDate: {
-    type: Date,
-    default: () => new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-  }, // 1 week
+  type: {
+    type: String,
+    enum: ["daily", "weekly", "monthly"],
+    required: true,
+  },
+  startDate: { type: Date, required: true },
+  endDate: { type: Date, required: true },
   rankings: [
     {
-      user: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "User",
-        required: true,
-      },
-      stars: { type: Number, default: 0 },
-      position: { type: Number, required: true },
+      user: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+      // <<<< تغییر اصلی: ذخیره برد و باخت به جای استارز >>>>
+      wins: { type: Number, default: 0 },
+      losses: { type: Number, default: 0 },
     },
   ],
   rewardsDistributed: { type: Boolean, default: false },
 });
+
+leaderboardSchema.index({ type: 1, endDate: -1 });
 
 module.exports = mongoose.model("Leaderboard", leaderboardSchema);

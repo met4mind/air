@@ -12,11 +12,63 @@ const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 const PORT = process.env.PORT || 3000;
+const Leaderboard = require("./models/leaderboard");
 
 // Middleware
 app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
+
+async function ensureActiveLeaderboards() {
+  const now = new Date();
+  const leaderboardTypes = ["daily", "weekly", "monthly"];
+
+  for (const type of leaderboardTypes) {
+    const existing = await Leaderboard.findOne({
+      type: type,
+      endDate: { $gt: now },
+    });
+
+    if (!existing) {
+      console.log(`No active ${type} leaderboard found. Creating a new one...`);
+      let startDate, endDate;
+
+      if (type === "daily") {
+        startDate = new Date(now.setHours(0, 0, 0, 0));
+        endDate = new Date(now.setHours(23, 59, 59, 999));
+      } else if (type === "weekly") {
+        const firstDayOfWeek = new Date(
+          now.setDate(
+            now.getDate() - now.getDay() + (now.getDay() === 0 ? -6 : 1)
+          )
+        ); // Monday
+        startDate = new Date(firstDayOfWeek.setHours(0, 0, 0, 0));
+        const lastDayOfWeek = new Date(startDate);
+        lastDayOfWeek.setDate(startDate.getDate() + 6);
+        endDate = new Date(lastDayOfWeek.setHours(23, 59, 59, 999)); // Sunday
+      } else {
+        // monthly
+        startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+        endDate = new Date(
+          now.getFullYear(),
+          now.getMonth() + 1,
+          0,
+          23,
+          59,
+          59,
+          999
+        );
+      }
+
+      await Leaderboard.create({
+        type: type,
+        startDate: startDate,
+        endDate: endDate,
+        rankings: [],
+      });
+    }
+  }
+}
 
 // اتصال به MongoDB
 mongoose
@@ -136,21 +188,25 @@ wss.on("connection", (ws) => {
             const timeSinceLastShot =
               Date.now() - (hittingPlayer.lastShotTime || 0);
 
+            // یک بررسی امنیتی ساده برای جلوگیری از شلیک‌های خیلی سریع
             if (timeSinceLastShot < 1500) {
               const roomId = hittingPlayer.roomId;
               const room = gameRooms[roomId];
 
-              if (room) {
+              if (room && !room.gameOver) {
+                // بررسی می‌کنیم که بازی قبلاً تمام نشده باشد
                 const targetPlayerId = hittingPlayer.opponent;
 
-                // محاسبه Damage در سرور بر اساس سطح کاربر
                 (async () => {
                   try {
                     const User = require("./models/user");
+                    const Leaderboard = require("./models/leaderboard");
+
+                    // محاسبه Damage در سمت سرور
                     const user = await User.findById(message.userId);
                     const damageLevel = user.damageLevel || 1;
                     const baseDamage = 10;
-                    const damage = baseDamage + (damageLevel - 1) * 2; // +2 damage per level
+                    const damage = baseDamage + (damageLevel - 1) * 2;
 
                     // کاهش جان بازیکن هدف
                     const target =
@@ -160,12 +216,6 @@ wss.on("connection", (ws) => {
                     target.health = Math.max(0, target.health - damage);
 
                     // ارسال وضعیت جدید سلامتی به هر دو بازیکن
-                    const healthUpdatePayload = {
-                      type: "health_update",
-                      player1Health: room.player1.health,
-                      player2Health: room.player2.health,
-                    };
-
                     if (players[room.player1.id]) {
                       players[room.player1.id].ws.send(
                         JSON.stringify({
@@ -187,6 +237,8 @@ wss.on("connection", (ws) => {
 
                     // بررسی پایان بازی
                     if (room.player1.health <= 0 || room.player2.health <= 0) {
+                      room.gameOver = true; // جلوگیری از اجرای دوباره این بلوک
+
                       const winnerId =
                         room.player1.health > 0
                           ? room.player1.id
@@ -196,18 +248,60 @@ wss.on("connection", (ws) => {
                           ? room.player1.id
                           : room.player2.id;
 
-                      // اهدای سکه به جای ستاره
-                      const winnerReward = 20; // جایزه برنده
-                      const loserReward = 5; // جایزه بازنده
-
+                      // ۱. آپدیت آمار کلی و سکه کاربران (بدون اهدای استارز)
                       await User.findByIdAndUpdate(winnerId, {
-                        $inc: { wins: 1, coins: winnerReward },
+                        $inc: { wins: 1, coins: 20 },
                       });
                       await User.findByIdAndUpdate(loserId, {
-                        $inc: { losses: 1, coins: loserReward },
+                        $inc: { losses: 1, coins: 5 },
                       });
 
-                      // ارسال پیام پایان بازی
+                      // ۲. آپدیت آمار برد و باخت در لیدربوردهای فعال
+                      const leaderboardTypes = ["daily", "weekly", "monthly"];
+                      const now = new Date();
+
+                      for (const type of leaderboardTypes) {
+                        const activeLeaderboard = {
+                          type: type,
+                          endDate: { $gt: now },
+                        };
+
+                        // آپدیت برنده: اگر در لیست بود، برد اضافه کن؛ اگر نبود، با ۱ برد اضافه کن
+                        await Leaderboard.updateOne(
+                          { ...activeLeaderboard, "rankings.user": winnerId },
+                          { $inc: { "rankings.$.wins": 1 } }
+                        );
+                        await Leaderboard.updateOne(
+                          {
+                            ...activeLeaderboard,
+                            "rankings.user": { $ne: winnerId },
+                          },
+                          {
+                            $push: {
+                              rankings: { user: winnerId, wins: 1, losses: 0 },
+                            },
+                          }
+                        );
+
+                        // آپدیت بازنده: اگر در لیست بود، باخت اضافه کن؛ اگر نبود، با ۱ باخت اضافه کن
+                        await Leaderboard.updateOne(
+                          { ...activeLeaderboard, "rankings.user": loserId },
+                          { $inc: { "rankings.$.losses": 1 } }
+                        );
+                        await Leaderboard.updateOne(
+                          {
+                            ...activeLeaderboard,
+                            "rankings.user": { $ne: loserId },
+                          },
+                          {
+                            $push: {
+                              rankings: { user: loserId, wins: 0, losses: 1 },
+                            },
+                          }
+                        );
+                      }
+
+                      // ۳. ارسال پیام پایان بازی و پاکسازی
                       if (players[winnerId])
                         players[winnerId].ws.send(
                           JSON.stringify({ type: "game_over", result: "win" })
@@ -217,20 +311,15 @@ wss.on("connection", (ws) => {
                           JSON.stringify({ type: "game_over", result: "lose" })
                         );
 
-                      // پاکسازی
                       delete gameRooms[roomId];
-                      delete players[winnerId];
-                      delete players[loserId];
+                      if (players[winnerId]) delete players[winnerId];
+                      if (players[loserId]) delete players[loserId];
                     }
                   } catch (error) {
                     console.error("Error processing hit:", error);
                   }
                 })();
               }
-            } else {
-              console.log(
-                `Invalid hit from ${message.userId}. No recent shot.`
-              );
             }
           }
           break;
@@ -391,49 +480,74 @@ wss.on("connection", (ws) => {
 
 async function startGame(player1Id, player2Id) {
   const User = require("./models/user");
+  const today = new Date().setHours(0, 0, 0, 0); // تاریخ امروز بدون ساعت
 
   try {
-    // اطلاعات هر دو بازیکن را برای بررسی موجودی و سطح‌ها دریافت کن
     const player1 = await User.findById(player1Id);
     const player2 = await User.findById(player2Id);
 
-    // بررسی موجودی سکه برای شروع بازی
+    // بخش ۱: بررسی محدودیت بازی روزانه
+    for (const player of [player1, player2]) {
+      const lastReset = player.dailyPlay.lastReset.setHours(0, 0, 0, 0);
+      if (lastReset < today) {
+        player.dailyPlay.count = 0;
+        player.dailyPlay.lastReset = new Date();
+      }
+      if (player.dailyPlay.count >= 25) {
+        // به هر دو بازیکن اطلاع بده که بازی به دلیل محدودیت لغو شد
+        if (players[player1Id])
+          players[player1Id].ws.send(
+            JSON.stringify({
+              type: "game_cancelled",
+              message: `Player ${player.username} has reached the daily limit.`,
+            })
+          );
+        if (players[player2Id])
+          players[player2Id].ws.send(
+            JSON.stringify({
+              type: "game_cancelled",
+              message: `Player ${player.username} has reached the daily limit.`,
+            })
+          );
+        return; // شروع بازی را متوقف کن
+      }
+    }
+
+    // بخش ۲: بررسی و کسر هزینه بازی
     const gameCost = 10;
     if (player1.coins < gameCost || player2.coins < gameCost) {
-      // به هر دو بازیکن اطلاع بده که بازی به دلیل کمبود سکه لغو شد
-      if (players[player1Id]) {
+      if (players[player1Id])
         players[player1Id].ws.send(
           JSON.stringify({
             type: "game_cancelled",
             message: "Not enough coins",
           })
         );
-      }
-      if (players[player2Id]) {
+      if (players[player2Id])
         players[player2Id].ws.send(
           JSON.stringify({
             type: "game_cancelled",
             message: "Not enough coins",
           })
         );
-      }
-      // بازیکنان را از لیست انتظار حذف کن
       delete players[player1Id];
       delete players[player2Id];
       return;
     }
 
-    // کسر هزینه بازی از هر دو بازیکن
-    await User.findByIdAndUpdate(player1Id, { $inc: { coins: -gameCost } });
-    await User.findByIdAndUpdate(player2Id, { $inc: { coins: -gameCost } });
+    // کسر هزینه و افزایش شمارنده بازی
+    player1.coins -= gameCost;
+    player2.coins -= gameCost;
+    player1.dailyPlay.count++;
+    player2.dailyPlay.count++;
+    await player1.save();
+    await player2.save();
 
+    // بخش ۳: ایجاد اتاق بازی و ارسال اطلاعات
     const roomId = `${player1Id}_${player2Id}`;
-
-    // محاسبه سلامتی اولیه بر اساس سطح Health کاربر
     const player1InitialHealth = 100 + ((player1.healthLevel || 1) - 1) * 20;
     const player2InitialHealth = 100 + ((player2.healthLevel || 1) - 1) * 20;
 
-    // ایجاد اتاق بازی با وضعیت سلامت
     gameRooms[roomId] = {
       player1: {
         id: player1Id,
@@ -452,7 +566,6 @@ async function startGame(player1Id, player2Id) {
     players[player2Id].opponent = player1Id;
     players[player2Id].roomId = roomId;
 
-    // ارسال اطلاعات شروع بازی
     players[player1Id].ws.send(
       JSON.stringify({
         type: "game_start",
@@ -498,5 +611,6 @@ app.use((req, res) => {
 });
 
 server.listen(PORT, () => {
+  ensureActiveLeaderboards().catch(console.error);
   console.log(`Server is running on port ${PORT}`);
 });

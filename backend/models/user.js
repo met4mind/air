@@ -30,6 +30,10 @@ const userSchema = new mongoose.Schema({
   referrals: [String],
   completedOffers: [String],
   createdAt: { type: Date, default: Date.now },
+  dailyPlay: {
+    count: { type: Number, default: 0 },
+    lastReset: { type: Date, default: () => new Date() },
+  },
 });
 
 module.exports = mongoose.model("User", userSchema);

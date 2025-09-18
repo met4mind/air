@@ -38,16 +38,74 @@ const auth = async (req, res, next) => {
 // این مسیر جدید را قبل از module.exports = router; اضافه کنید
 
 // مسیر داخلی برای ساختن/به‌روزرسانی لیدربورد
+// در فایل backend/routes/api.js
+
+// در فایل backend/routes/api.js
+
 router.get("/leaderboard", auth, async (req, res) => {
   try {
-    const leaderboard = await Leaderboard.findOne({
-      endDate: { $gt: new Date() },
-    }).populate("rankings.user", "username"); // Populate برای نمایش نام کاربری
+    const { type = "daily" } = req.query;
 
+    // <<<< بخش جدید: قبل از جستجو، از وجود لیدربورد اطمینان حاصل کن >>>>
+    const Leaderboard = require("../models/leaderboard"); // اطمینان از دسترسی به مدل
+    const now = new Date();
+    let leaderboard = await Leaderboard.findOne({
+      type: type,
+      endDate: { $gt: now },
+    });
+
+    // اگر لیدربورد فعال پیدا نشد، یکی بساز
     if (!leaderboard) {
-      return res.json({ rankings: [], endDate: new Date() }); // اگر لیدربوردی وجود نداشت، پاسخ خالی بفرست
+      // این بخش کد از server.js کپی شده تا در لحظه لیدربورد را بسازد
+      let startDate, endDate;
+      if (type === "daily") {
+        startDate = new Date(now.setHours(0, 0, 0, 0));
+        endDate = new Date(now.setHours(23, 59, 59, 999));
+      } else if (type === "weekly") {
+        const firstDayOfWeek = new Date(
+          now.setDate(
+            now.getDate() - now.getDay() + (now.getDay() === 0 ? -6 : 1)
+          )
+        );
+        startDate = new Date(firstDayOfWeek.setHours(0, 0, 0, 0));
+        const lastDayOfWeek = new Date(startDate);
+        lastDayOfWeek.setDate(startDate.getDate() + 6);
+        endDate = new Date(lastDayOfWeek.setHours(23, 59, 59, 999));
+      } else {
+        startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+        endDate = new Date(
+          now.getFullYear(),
+          now.getMonth() + 1,
+          0,
+          23,
+          59,
+          59,
+          999
+        );
+      }
+      leaderboard = await Leaderboard.create({
+        type,
+        startDate,
+        endDate,
+        rankings: [],
+      });
     }
-    res.json(leaderboard);
+    // <<<< پایان بخش جدید >>>>
+
+    // حالا با اطمینان، لیدربورد را با اطلاعات کاربران populate کن
+    const populatedLeaderboard = await Leaderboard.findById(leaderboard._id)
+      .populate("rankings.user", "username")
+      .lean();
+
+    if (populatedLeaderboard && populatedLeaderboard.rankings) {
+      populatedLeaderboard.rankings.sort((a, b) => {
+        const scoreA = (a.wins || 0) - (a.losses || 0);
+        const scoreB = (b.wins || 0) - (b.losses || 0);
+        return scoreB - scoreA;
+      });
+    }
+
+    res.json(populatedLeaderboard);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

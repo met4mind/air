@@ -87,6 +87,13 @@ class MenuManager {
       btn.addEventListener("click", () => this.showMenu("main-menu"));
     });
 
+    // در فایل frontend/js/menu.js -> متد bindEvents
+
+    // ... (بعد از event listener دکمه‌های بازگشت)
+    document.querySelectorAll(".leaderboard-tabs .tab-btn").forEach((tab) => {
+      tab.addEventListener("click", (e) => this.switchLeaderboardTab(e.target));
+    });
+
     // Event listeners for shop tabs
     document.querySelectorAll(".shop-tabs .tab-btn").forEach((tab) => {
       tab.addEventListener("click", (e) => this.switchShopTab(e.target));
@@ -99,6 +106,18 @@ class MenuManager {
   // در فایل js/menu.js -> داخل کلاس MenuManager
 
   // در فایل js/menu.js -> داخل کلاس MenuManager
+
+  async switchLeaderboardTab(clickedTab) {
+    // حذف کلاس active از همه تب‌ها
+    document.querySelectorAll(".leaderboard-tabs .tab-btn").forEach((tab) => {
+      tab.classList.remove("active");
+    });
+    // اضافه کردن کلاس active به تب کلیک‌شده
+    clickedTab.classList.add("active");
+
+    const type = clickedTab.dataset.type;
+    await this.loadLeaderboard(type);
+  }
   async showSelectionMenu() {
     this.showMenu("selection-menu");
 
@@ -343,7 +362,7 @@ class MenuManager {
       mainMenuStars.textContent = `${this.userData.stars} ★`;
     }
     if (mainMenuCoins) {
-      mainMenuCoins.textContent = `${this.userData.coins} سکه`;
+      mainMenuCoins.textContent = `${this.userData.coins} ⛁`;
     }
 
     // به روزرسانی منوی انتخاب دارایی
@@ -358,7 +377,7 @@ class MenuManager {
       selectionMenuStars.textContent = `${this.userData.stars} ★`;
     }
     if (selectionMenuCoins) {
-      selectionMenuCoins.textContent = `${this.userData.coins} سکه`;
+      selectionMenuCoins.textContent = `${this.userData.coins} ⛁`;
     }
   }
 
@@ -510,8 +529,12 @@ class MenuManager {
     // this.displayOwnedAirplanes(); // <<<< این خط را حذف یا کامنت کنید
     // this.displayOwnedBullets(); // <<<< این خط را حذف یا کامنت کنید
   }
-  showLeaderboard() {
+  // در فایل js/menu.js -> داخل کلاس MenuManager
+
+  async showLeaderboard() {
     this.showMenu("leaderboard-menu");
+    // به صورت پیش‌فرض لیدربورد روزانه را بارگذاری کن
+    await this.loadLeaderboard("daily");
   }
 
   async showUpgradeMenu() {
@@ -638,65 +661,85 @@ class MenuManager {
     }
   }
 
-  async loadLeaderboard() {
+  async loadLeaderboard(type = "daily") {
     try {
-      const leaderboard = await this.apiRequest(`/api/leaderboard`); // تغییر: await مستقیم
+      const leaderboard = await this.apiRequest(
+        `/api/leaderboard?type=${type}`
+      );
       this.renderLeaderboard(leaderboard);
-      this.updateResetTimer(leaderboard.endDate);
+      if (leaderboard) {
+        this.updateResetTimer(leaderboard.endDate);
+      }
     } catch (error) {
-      console.error("Error loading leaderboard:", error);
+      console.error(`Error loading ${type} leaderboard:`, error);
+      document.getElementById("leaderboard-content").innerHTML =
+        "<p>خطا در بارگذاری</p>";
     }
   }
 
   // در فایل js/menu.js -> کلاس MenuManager
+  // در فایل frontend/js/menu.js
+
   renderLeaderboard(leaderboard) {
     const container = document.getElementById("leaderboard-content");
     const userRankContainer = document.getElementById("user-rank-display");
     container.innerHTML = "";
-    userRankContainer.innerHTML = "شما در رتبه‌بندی حضور ندارید.";
+    userRankContainer.innerHTML = "شما در این رتبه‌بندی حضور ندارید.";
 
-    if (!this.userData) return; // اگر اطلاعات کاربر لود نشده، خارج شو
+    if (!this.userData || !leaderboard || !leaderboard.rankings) return;
 
     let userFound = false;
 
-    // <<<< اطمینان از وجود rankings در آبجکت leaderboard >>>>
-    if (leaderboard && leaderboard.rankings) {
-      leaderboard.rankings.forEach((item, index) => {
-        const rankItem = document.createElement("div");
-        const rankClass = index < 3 ? `rank-${index + 1}` : "";
-        rankItem.className = `leaderboard-item ${rankClass}`;
+    leaderboard.rankings.forEach((item, index) => {
+      const rankItem = document.createElement("div");
+      const rankClass = index < 3 ? `rank-${index + 1}` : "";
+      rankItem.className = `leaderboard-item ${rankClass}`;
 
-        rankItem.innerHTML = `
-                <div class="leaderboard-rank">${index + 1}</div>
-                <div class="leaderboard-user">
-                    <strong>${item.user?.username || "Unknown"}</strong>
-                    <span class="leaderboard-stars">${item.stars} ★</span>
-                </div>
-            `;
-        container.appendChild(rankItem);
+      // <<<< بخش جدید برای نمایش امتیاز، برد و باخت >>>>
+      const wins = item.wins || 0;
+      const losses = item.losses || 0;
+      const score = wins - losses;
 
-        // <<<< مقایسه صحیح شناسه‌ها >>>>
-        if (item.user && item.user._id === this.userData._id) {
-          userFound = true;
-          userRankContainer.innerHTML = `
-                    <div class="leaderboard-rank">${index + 1}</div>
-                    <div class="leaderboard-user">
-                        <strong>(شما) ${this.userData.username}</strong>
-                        <span class="leaderboard-stars">${item.stars} ★</span>
-                    </div>
-                `;
-        }
-      });
-    }
-
-    if (!userFound) {
-      userRankContainer.innerHTML = `
-            <div class="leaderboard-rank">--</div>
+      rankItem.innerHTML = `
+            <div class="leaderboard-rank">${index + 1}</div>
             <div class="leaderboard-user">
-                <strong>(شما) ${this.userData.username}</strong>
-                <span class="leaderboard-stars">${this.userData.stars} ★</span>
+                <strong>${item.user?.username || "Unknown"}</strong>
+                <div class="leaderboard-score">
+                    <span>امتیاز: ${score}</span>
+                    <small>(برد: ${wins} / باخت: ${losses})</small>
+                </div>
             </div>
         `;
+      container.appendChild(rankItem);
+
+      if (item.user && item.user._id === this.userData._id) {
+        userFound = true;
+        userRankContainer.innerHTML = `
+                <div class="leaderboard-rank">${index + 1}</div>
+                <div class="leaderboard-user">
+                    <strong>(شما) ${this.userData.username}</strong>
+                    <div class="leaderboard-score">
+                       <span>امتیاز: ${score}</span>
+                       <small>(برد: ${wins} / باخت: ${losses})</small>
+                    </div>
+                </div>
+            `;
+      }
+    });
+
+    if (!userFound) {
+      // اگر کاربر در لیست نبود، آمار کلی او را نمایش بده (اختیاری)
+      const totalScore =
+        (this.userData.wins || 0) - (this.userData.losses || 0);
+      userRankContainer.innerHTML = `
+          <div class="leaderboard-rank">--</div>
+          <div class="leaderboard-user">
+              <strong>(شما) ${this.userData.username}</strong>
+              <div class="leaderboard-score">
+                 <span>امتیاز کل: ${totalScore}</span>
+              </div>
+          </div>
+      `;
     }
   }
 
