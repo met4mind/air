@@ -509,6 +509,9 @@ class MenuManager {
     }
   }
 
+  // در فایل js/menu.js -> داخل کلاس MenuManager
+  // در فایل js/menu.js -> داخل کلاس MenuManager
+
   async showShopMenu() {
     this.showMenu("shop-menu");
     await this.loadShopItems();
@@ -620,10 +623,6 @@ class MenuManager {
     } catch (error) {
       container.innerHTML = "<p>خطا در دریافت اطلاعات ارتقا.</p>";
     }
-  }
-
-  showShopMenu() {
-    this.showMenu("shop-menu");
   }
 
   showFreeCoinsMenu() {
@@ -828,17 +827,21 @@ class MenuManager {
   // در فایل js/menu.js -> کلاس MenuManager
 
   // تابع loadShopItems را با این کد جایگزین کنید
+  // در فایل js/menu.js -> داخل کلاس MenuManager
   async loadShopItems() {
     const container = document.getElementById("potions-tab");
     if (!container) return;
-    container.innerHTML = "در حال بارگذاری...";
+
+    container.innerHTML = '<p class="loading-text">در حال بارگذاری...</p>';
     try {
       const potions = await this.apiRequest("/api/potions");
+
       if (!potions || potions.length === 0) {
         container.innerHTML = "<p>هیچ معجونی در فروشگاه موجود نیست.</p>";
         return;
       }
-      container.innerHTML = "";
+
+      container.innerHTML = ""; // پاک کردن پیام "در حال بارگذاری"
       potions.forEach((potion) => {
         const item = document.createElement("div");
         item.className = "selection-item";
@@ -848,6 +851,7 @@ class MenuManager {
                 <span class="price">${potion.price} سکه</span>
                 <button class="buy-btn menu-btn">خرید</button>
             `;
+        // اضافه کردن رویداد کلیک برای دکمه خرید
         item
           .querySelector(".buy-btn")
           .addEventListener("click", () =>
@@ -856,7 +860,9 @@ class MenuManager {
         container.appendChild(item);
       });
     } catch (error) {
-      container.innerHTML = "<p>خطا در بارگذاری فروشگاه.</p>";
+      console.error("Error loading shop items:", error);
+      container.innerHTML =
+        '<p class="error-text">خطا در بارگذاری فروشگاه.</p>';
     }
   }
 
@@ -917,8 +923,12 @@ class MenuManager {
 
   // در menu.js این تنها نسخه buyPotion باشد
 
+  // در فایل js/menu.js -> داخل کلاس MenuManager
   async buyPotion(potionId, potionName, potionPrice) {
     try {
+      // ابتدا اطلاعات کاربر را آپدیت می‌کنیم تا موجودی سکه دقیق باشد
+      this.userData = await this.apiRequest("/api/user");
+
       if (this.userData.coins < potionPrice) {
         this.showNotification("سکه شما کافی نیست!", "error");
         window.soundManager.play("error");
@@ -930,17 +940,20 @@ class MenuManager {
         body: JSON.stringify({ potionId, quantity: 1 }),
       });
 
-      // آپدیت اطلاعات کاربر
+      // آپدیت اطلاعات کاربر در کلاینت
       this.userData.coins = result.coins;
       localStorage.setItem("userData", JSON.stringify(this.userData));
       this.updateUI();
 
-      this.showNotification(`معجون ${potionName} خریداری شد`, "success");
+      this.showNotification(
+        `معجون ${potionName} با موفقیت خریداری شد`,
+        "success"
+      );
       window.soundManager.play("purchase");
     } catch (error) {
-      const errorData = await error.response?.json();
-      this.showNotification(errorData?.error || "خطا در هنگام خرید", "error");
+      this.showNotification("خطا در هنگام خرید", "error");
       window.soundManager.play("error");
+      console.error("Error buying potion:", error);
     }
   }
   // اضافه کردن متد کمکی برای نمایش نوتیفیکیشن
@@ -966,29 +979,32 @@ class MenuManager {
     const potions = this.getAvailablePotions(); // باید پیاده‌سازی شود
     return potions.find((p) => p._id === potionId);
   }
+  // در فایل js/menu.js -> داخل کلاس MenuManager
+
+  // در فایل js/menu.js -> داخل کلاس MenuManager
+
   switchShopTab(clickedTab) {
-    // 1. Remove active class from all tab buttons
+    // ۱. کلاس 'active' را از همه دکمه‌های تب حذف کن
     document.querySelectorAll(".shop-tabs .tab-btn").forEach((tab) => {
       tab.classList.remove("active");
     });
-    // 2. Add active class to the clicked button
+    // ۲. کلاس 'active' را به دکمه کلیک‌شده اضافه کن
     clickedTab.classList.add("active");
 
-    // 3. Hide all tab content
+    // ۳. کلاس 'active' را از همه پنل‌های محتوا حذف کن (مهم‌ترین بخش)
     document
       .querySelectorAll(".shop-content .tab-content")
       .forEach((content) => {
         content.classList.remove("active");
       });
 
-    // 4. Show the corresponding tab content
+    // ۴. پنل محتوای مربوط به تب کلیک‌شده را پیدا کرده و آن را نمایش بده
     const tabId = clickedTab.getAttribute("data-tab");
     const activeContent = document.getElementById(`${tabId}-tab`);
     if (activeContent) {
       activeContent.classList.add("active");
     }
   }
-
   async upgradeFeature(featureType) {
     try {
       const response = await this.apiRequest(`/api/upgrade`, {
