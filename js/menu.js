@@ -1,10 +1,12 @@
 const BASEURL = "http://localhost:3000";
 
 class MenuManager {
+  // در فایل js/menu.js -> داخل کلاس MenuManager
   constructor() {
     this.currentMenu = "main-menu";
     this.userData = null;
     this.allPotions = [];
+    this.leaderboardTimer = null; // <<<< این خط جدید را اضافه کنید
     this.init();
   }
 
@@ -680,71 +682,110 @@ class MenuManager {
   // در فایل js/menu.js -> کلاس MenuManager
   // در فایل frontend/js/menu.js
 
+  // در فایل js/menu.js -> داخل کلاس MenuManager
+
   renderLeaderboard(leaderboard) {
-    const container = document.getElementById("leaderboard-content");
+    const podiumContainer = document.getElementById("leaderboard-podium");
+    const listContainer = document.getElementById("leaderboard-content");
     const userRankContainer = document.getElementById("user-rank-display");
-    container.innerHTML = "";
+
+    // پاک کردن محتوای قبلی
+    podiumContainer.innerHTML = "";
+    listContainer.innerHTML = "";
     userRankContainer.innerHTML = "شما در این رتبه‌بندی حضور ندارید.";
 
-    if (!this.userData || !leaderboard || !leaderboard.rankings) return;
+    if (
+      !this.userData ||
+      !leaderboard ||
+      !leaderboard.rankings ||
+      leaderboard.rankings.length === 0
+    ) {
+      podiumContainer.innerHTML = "<p>هنوز رتبه‌ای ثبت نشده است.</p>";
+      return;
+    }
 
-    let userFound = false;
+    // ۱. آپدیت تایمر با زمان باقی‌مانده صحیح
+    this.updateResetTimer(leaderboard.endDate);
 
-    leaderboard.rankings.forEach((item, index) => {
-      const rankItem = document.createElement("div");
-      const rankClass = index < 3 ? `rank-${index + 1}` : "";
-      rankItem.className = `leaderboard-item ${rankClass}`;
+    const rankings = leaderboard.rankings;
+    let userRank = null;
 
-      // <<<< بخش جدید برای نمایش امتیاز، برد و باخت >>>>
-      const wins = item.wins || 0;
-      const losses = item.losses || 0;
+    // ۲. ساخت سکوی قهرمانی برای نفرات اول تا سوم
+    const podiumPlayers = rankings.slice(0, 3);
+    podiumPlayers.forEach((player, index) => {
+      const rank = index + 1;
+      const podiumItem = document.createElement("div");
+      podiumItem.className = `podium-item rank-${rank}`;
+
+      const score = (player.wins || 0) - (player.losses || 0);
+
+      podiumItem.innerHTML = `
+            <div class="podium-name">${player.user?.username || "Unknown"}</div>
+            <div class="podium-score">امتیاز: ${score}</div>
+        `;
+      podiumContainer.appendChild(podiumItem);
+    });
+
+    // ۳. ساخت لیست برای نفرات چهارم به بعد
+    const otherPlayers = rankings.slice(3);
+    otherPlayers.forEach((player, index) => {
+      const rank = index + 4;
+      const listItem = document.createElement("div");
+      listItem.className = "leaderboard-item";
+
+      const wins = player.wins || 0;
+      const losses = player.losses || 0;
       const score = wins - losses;
 
-      rankItem.innerHTML = `
-            <div class="leaderboard-rank">${index + 1}</div>
+      listItem.innerHTML = `
+            <div class="leaderboard-rank">${rank}</div>
             <div class="leaderboard-user">
-                <strong>${item.user?.username || "Unknown"}</strong>
+                <strong>${player.user?.username || "Unknown"}</strong>
                 <div class="leaderboard-score">
                     <span>امتیاز: ${score}</span>
                     <small>(برد: ${wins} / باخت: ${losses})</small>
                 </div>
             </div>
         `;
-      container.appendChild(rankItem);
-
-      if (item.user && item.user._id === this.userData._id) {
-        userFound = true;
-        userRankContainer.innerHTML = `
-                <div class="leaderboard-rank">${index + 1}</div>
-                <div class="leaderboard-user">
-                    <strong>(شما) ${this.userData.username}</strong>
-                    <div class="leaderboard-score">
-                       <span>امتیاز: ${score}</span>
-                       <small>(برد: ${wins} / باخت: ${losses})</small>
-                    </div>
-                </div>
-            `;
-      }
+      listContainer.appendChild(listItem);
     });
 
-    if (!userFound) {
-      // اگر کاربر در لیست نبود، آمار کلی او را نمایش بده (اختیاری)
-      const totalScore =
-        (this.userData.wins || 0) - (this.userData.losses || 0);
+    // ۴. پیدا کردن و نمایش رتبه کاربر فعلی
+    const userIndex = rankings.findIndex(
+      (p) => p.user && p.user._id === this.userData._id
+    );
+    if (userIndex !== -1) {
+      const userRankData = rankings[userIndex];
+      const rank = userIndex + 1;
+      const wins = userRankData.wins || 0;
+      const losses = userRankData.losses || 0;
+      const score = wins - losses;
+
       userRankContainer.innerHTML = `
-          <div class="leaderboard-rank">--</div>
-          <div class="leaderboard-user">
-              <strong>(شما) ${this.userData.username}</strong>
-              <div class="leaderboard-score">
-                 <span>امتیاز کل: ${totalScore}</span>
-              </div>
-          </div>
-      `;
+            <div class="leaderboard-rank">${rank}</div>
+            <div class="leaderboard-user">
+                <strong>(شما) ${this.userData.username}</strong>
+                <div class="leaderboard-score">
+                   <span>امتیاز: ${score}</span>
+                   <small>(برد: ${wins} / باخت: ${losses})</small>
+                </div>
+            </div>
+        `;
     }
   }
 
+  // در فایل js/menu.js -> داخل کلاس MenuManager
+
   updateResetTimer(endDate) {
     const timerElement = document.getElementById("reset-timer");
+    if (!timerElement) return; // اگر عنصر تایمر وجود نداشت، خارج شو
+
+    // <<<< بخش اصلاح‌شده: پاک کردن تایمر قبلی >>>>
+    if (this.leaderboardTimer) {
+      clearInterval(this.leaderboardTimer);
+    }
+    // <<<< پایان بخش اصلاح‌شده >>>>
+
     const endTime = new Date(endDate).getTime();
 
     const updateTimer = () => {
@@ -753,24 +794,36 @@ class MenuManager {
 
       if (distance < 0) {
         timerElement.textContent = "۰۰:۰۰:۰۰";
+        clearInterval(this.leaderboardTimer); // تایمر را متوقف کن
         return;
       }
 
+      // محاسبه زمان باقی‌مانده (روز، ساعت، دقیقه، ثانیه)
+      const days = Math.floor(distance / (1000 * 60 * 60 * 24));
       const hours = Math.floor(
         (distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)
       );
       const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
       const seconds = Math.floor((distance % (1000 * 60)) / 1000);
 
-      timerElement.textContent = `${hours.toString().padStart(2, "0")}:${minutes
-        .toString()
-        .padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
+      // نمایش زمان بر اساس مقدار آن
+      if (days > 0) {
+        timerElement.textContent = `${days} روز و ${hours
+          .toString()
+          .padStart(2, "0")} ساعت`;
+      } else {
+        timerElement.textContent = `${hours
+          .toString()
+          .padStart(2, "0")}:${minutes.toString().padStart(2, "0")}:${seconds
+          .toString()
+          .padStart(2, "0")}`;
+      }
     };
 
-    updateTimer();
-    setInterval(updateTimer, 1000);
+    updateTimer(); // اجرای اولیه
+    // ذخیره تایمر جدید در متغیر کلاس
+    this.leaderboardTimer = setInterval(updateTimer, 1000);
   }
-
   // در فایل menu.js - متد loadShopItems را با این کد جایگزین کنید
   // در فایل js/menu.js -> کلاس MenuManager
 
