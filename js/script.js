@@ -63,7 +63,7 @@ class GameManager {
     }
 
     this.setupLoginListeners();
-    this.setupMenuListeners();
+
     this.fetchAllAssets(); // <<<< این خط را اضافه کنید
   }
   async fetchAllAssets() {
@@ -72,14 +72,6 @@ class GameManager {
     } catch (e) {
       console.error("Failed to fetch all airplanes list.");
     }
-  }
-  setupMenuListeners() {
-    document
-      .getElementById("play-btn")
-      .addEventListener("click", () => this.initiateGameConnection());
-    document
-      .getElementById("selection-btn")
-      .addEventListener("click", () => this.showSelectionMenu()); // اضافه کردن این خط
   }
 
   async displayOwnedAssets() {
@@ -394,19 +386,6 @@ class GameManager {
     if (waitingDiv) waitingDiv.style.display = "none";
   }
 
-  setupMenuListeners() {
-    // js/script.js -> GameManager
-
-    document
-      .getElementById("play-btn")
-      .addEventListener("click", () => this.initiateGameConnection());
-
-    // اضافه کردن event listener برای دکمه بازگشت
-    document.querySelectorAll(".back-btn").forEach((btn) => {
-      btn.addEventListener("click", () => this.showMainMenu());
-    });
-  }
-
   // اضافه کردن متد showMainMenu
   showMainMenu() {
     this.hideScreen("selection-menu");
@@ -495,18 +474,48 @@ class GameManager {
 
   async initiateGameConnection() {
     try {
+      // --- شروع بخش جدید: بررسی محدودیت در سمت کلاینت ---
+      const userData = JSON.parse(localStorage.getItem("userData"));
+      if (!userData) {
+        throw new Error("اطلاعات کاربر یافت نشد. لطفاً دوباره وارد شوید.");
+      }
+
+      const today = new Date().setHours(0, 0, 0, 0);
+      const lastReset = new Date(userData.dailyPlay.lastReset).setHours(
+        0,
+        0,
+        0,
+        0
+      );
+      const dailyCount = lastReset < today ? 0 : userData.dailyPlay.count || 0;
+
+      if (dailyCount >= 25) {
+        // اگر محدودیت پر شده باشد، به کاربر اطلاع داده و از تابع خارج می‌شویم
+        alert(
+          "شما به سقف مجاز ۲۵ بازی روزانه خود رسیده‌اید. لطفاً فردا دوباره تلاش کنید."
+        );
+        return; // <<<< مهم: از ادامه اجرای تابع جلوگیری می‌کند
+      }
+      // --- پایان بخش جدید ---
+
       this.showWaitingMessage("در حال اتصال به سرور بازی...");
       this.networkManager.connect();
+
+      // تعریف event handler ها
       this.networkManager.onGameStart = (opponent) => this.startGame(opponent);
       this.networkManager.onWaiting = (message) =>
         this.showWaitingMessage(message);
 
-      // منتظر بمانید تا اتصال وب‌سوکت برقرار شود
+      // event handler جدید برای پیام لغو بازی از سمت سرور
+      this.networkManager.onGameCancelled = (message) => {
+        this.hideWaitingMessage();
+        alert(message); // نمایش پیام خطا از سرور
+      };
+
       await new Promise((resolve, reject) => {
         const checkConnection = () => {
-          if (this.networkManager.connected) {
-            resolve();
-          } else if (
+          if (this.networkManager.connected) resolve();
+          else if (
             this.networkManager.socket &&
             this.networkManager.socket.readyState === WebSocket.CLOSED
           ) {
@@ -518,18 +527,12 @@ class GameManager {
         checkConnection();
       });
 
-      // ================= START: کد اصلاح شده =================
-      const userData = JSON.parse(localStorage.getItem("userData"));
-
-      // استفاده از دارایی‌های انتخاب شده، همراه با مقادیر پیش‌فرض برای اطمینان
       const airplanePath =
         this.selectedAirplane?.image || "assets/images/airplanes/Tier 1/1.png";
       const airplaneName = this.selectedAirplane?.name || "Default Fighter";
-      const bulletPath =
-        this.selectedBullet?.image || "assets/images/bullets/lvl1.png";
-      const bulletName = this.selectedBullet?.name || "Standard Bullet";
+      const bulletPath = "assets/images/bullets/lvl1.png"; // همیشه یک مقدار پیش‌فرض
+      const bulletName = "Standard Bullet";
 
-      // ارسال اطلاعات ورود به سرور همراه با دارایی‌های انتخاب شده
       this.networkManager.sendLogin(
         userData.username,
         airplanePath,
@@ -538,9 +541,10 @@ class GameManager {
         bulletName,
         window.innerWidth,
         window.innerHeight,
-        this.selectedPotion ? this.selectedPotion._id : null // ارسال ID معجون
+        this.selectedPotion ? this.selectedPotion._id : null,
+        this.selectedAirplane.tier,
+        this.selectedAirplane.style
       );
-      // ================== END: کد اصلاح شده ==================
 
       this.showWaitingMessage("در انتظار حریف...");
     } catch (error) {
@@ -624,13 +628,17 @@ class GameManager {
     try {
       this.showWaitingMessage("Connecting to game server...");
       this.networkManager.sendLogin(
-        this.username,
-        selectedAirplane.value,
-        selectedAirplane.dataset.name,
-        selectedBullet.value,
-        selectedBullet.dataset.name,
+        userData.username,
+        airplanePath,
+        airplaneName,
+        bulletPath,
+        bulletName,
         window.innerWidth,
-        window.innerHeight
+        window.innerHeight,
+        this.selectedPotion ? this.selectedPotion._id : null,
+        // <<<< این دو خط جدید هستند >>>>
+        this.selectedAirplane.tier,
+        this.selectedAirplane.style
       );
       this.showWaitingMessage("Waiting for an opponent...");
     } catch (error) {
@@ -709,10 +717,12 @@ class GameManager {
         bullets: this.selectedBullet?.image || "assets/images/bullets/lvl1.png",
       };
 
+      // ارسال آبجکت‌های کامل به جای playerAssets
       this.scenes.war = new WarScene(
         CONFIG,
         this.networkManager,
-        playerAssets,
+        this.selectedAirplane, // آبجکت کامل هواپیما
+        this.selectedBullet, // آبجکت کامل گلوله
         this.selectedPotion,
         this.userData
       );
@@ -740,5 +750,5 @@ class GameManager {
 
 document.addEventListener("DOMContentLoaded", () => {
   window.gameManager = new GameManager();
-  window.gameManager.init();
+  // window.gameManager.init();
 });

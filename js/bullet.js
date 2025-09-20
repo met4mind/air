@@ -2,6 +2,8 @@ export class Bullet {
   // در فایل: js/bullet.js
   // این تابع را به طور کامل جایگزین تابع قبلی کنید.
 
+  // در فایل js/bullet.js
+  // در فایل js/bullet.js
   constructor(
     imageUrl,
     x,
@@ -9,7 +11,8 @@ export class Bullet {
     size = 20,
     speed = 5,
     rotationDeg = 0,
-    isOpponent = false
+    isOpponent = false,
+    filter = "none"
   ) {
     this.size = size;
     this.speed = speed;
@@ -24,6 +27,7 @@ export class Bullet {
     this.element.style.height = `${size}px`;
     this.element.style.position = "absolute";
     this.element.style.transformOrigin = "center center";
+    this.element.style.filter = filter; // اعمال فیلتر رنگ
 
     if (isOpponent) {
       this.element.classList.add("opponent-bullet");
@@ -34,9 +38,6 @@ export class Bullet {
       this.element.style.backgroundSize = "contain";
       this.element.style.backgroundRepeat = "no-repeat";
       this.element.style.backgroundPosition = "center";
-
-      // <<<< تغییر اصلی اینجاست: اضافه کردن 90 درجه به چرخش ظاهری >>>>
-      // این کار فقط ظاهر تیر را می‌چرخاند و مسیر حرکت آن را تغییر نمی‌دهد
       this.element.style.transform = `rotate(${rotationDeg + -90}deg)`;
     } else {
       this.element.style.backgroundColor = isOpponent ? "red" : "yellow";

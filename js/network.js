@@ -22,6 +22,7 @@ export class NetworkManager {
     this.onGameOver = null;
     this.onOpponentDisconnected = null;
     this.onOpponentPotionActivate = null;
+    this.onGameCancelled = null;
   }
   setTgid(tgid) {
     this.tgid = tgid;
@@ -119,19 +120,24 @@ export class NetworkManager {
         this.opponent = message.opponent;
         if (this.onGameStart) this.onGameStart(message.opponent);
         break;
-
+      case "game_cancelled":
+        if (this.onGameCancelled) this.onGameCancelled(message.message);
+        break;
       case "opponent_move":
         if (this.onOpponentMove)
           this.onOpponentMove(message.percentX, message.percentY);
         break;
 
+      // در فایل js/network.js -> داخل تابع handleMessage
       case "opponent_shoot":
         if (this.onOpponentShoot)
+          // FIX: ارسال کل آبجکت bulletSpec
           this.onOpponentShoot(
             message.percentX,
             message.percentY,
             message.rotation,
-            message.isWingman
+            message.isWingman,
+            message.bulletSpec
           );
         break;
 
@@ -177,7 +183,9 @@ export class NetworkManager {
     bulletName,
     screenWidth,
     screenHeight,
-    potionId // جدید
+    potionId,
+    airplaneTier,
+    airplaneStyle
   ) {
     if (this.connected) {
       this.socket.send(
@@ -189,8 +197,12 @@ export class NetworkManager {
           airplaneName: airplaneName,
           bullets: bullets,
           bulletName: bulletName,
+          airplaneTier: airplaneTier,
+          airplaneStyle: airplaneStyle,
           screenWidth: screenWidth,
           screenHeight: screenHeight,
+          airplaneTier: airplaneTier,
+          airplaneStyle: airplaneStyle,
           potionId: potionId || null, // جدید
         })
       );
@@ -213,7 +225,9 @@ export class NetworkManager {
   }
 
   // در network.js - تابع sendShoot
-  sendShoot(percentX, percentY, rotation, isWingman = false) {
+  // در فایل js/network.js
+  sendShoot(percentX, percentY, rotation, isWingman = false, size, filter) {
+    // size و filter اضافه شدند
     if (this.connected) {
       this.socket.send(
         JSON.stringify({
@@ -223,6 +237,11 @@ export class NetworkManager {
           percentY: percentY,
           rotation: rotation,
           isWingman: isWingman,
+          // FIX: ارسال مشخصات گلوله در پیام
+          bulletSpec: {
+            size: size,
+            filter: filter,
+          },
         })
       );
     }

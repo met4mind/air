@@ -120,61 +120,68 @@ class MenuManager {
     const type = clickedTab.dataset.type;
     await this.loadLeaderboard(type);
   }
+  // در فایل js/menu.js -> داخل کلاس MenuManager
+  // در فایل js/menu.js -> داخل کلاس MenuManager
   async showSelectionMenu() {
     this.showMenu("selection-menu");
 
     const airplaneContainer = document.getElementById(
       "airplane-selection-container"
     );
-    const bulletContainer = document.getElementById(
-      "bullet-selection-container"
-    );
     const potionContainer = document.getElementById(
       "potion-selection-container"
     );
 
-    if (!airplaneContainer || !bulletContainer || !potionContainer) return;
+    if (!airplaneContainer || !potionContainer) return;
 
     airplaneContainer.innerHTML =
-      '<p class="loading-text">در حال بارگذاری...</p>';
-    bulletContainer.innerHTML =
       '<p class="loading-text">در حال بارگذاری...</p>';
     potionContainer.innerHTML =
       '<p class="loading-text">در حال بارگذاری...</p>';
 
     try {
-      const [userData, allPlanes, allBullets, allPotions] = await Promise.all([
+      let [userData, allPlanes, allPotions] = await Promise.all([
         this.apiRequest("/api/user"),
         this.apiRequest("/api/assets/airplanes"),
-        this.apiRequest("/api/assets/bullets"),
         this.apiRequest("/api/potions"),
       ]);
 
       this.userData = userData;
 
+      // --- شروع بخش اصلاح شده ---
+      // FIX: نام هواپیما را تجزیه کرده و tier و style را به آبجکت اضافه می‌کنیم
+      allPlanes = allPlanes.map((plane) => {
+        const nameMatch = plane.name.match(/Tier (\d+) - Model (\d+)/);
+        if (nameMatch) {
+          plane.tier = parseInt(nameMatch[1]);
+          plane.style = parseInt(nameMatch[2]);
+        }
+        return plane;
+      });
+      // --- پایان بخش اصلاح شده ---
+
       // ---- نمایش هواپیماها ----
       airplaneContainer.innerHTML = "";
       const userTier = userData.airplaneTier || 1;
-      const availablePlanes = allPlanes.filter((plane) => {
-        const planeTierMatch = plane.name.match(/Tier (\d+)/);
-        return planeTierMatch && parseInt(planeTierMatch[1]) <= userTier;
-      });
-      availablePlanes.forEach((plane) =>
-        airplaneContainer.appendChild(this.createSelectItem(plane, "airplane"))
+      const userStyle = userData.airplaneStyle || 1;
+
+      const availablePlanes = allPlanes.filter(
+        (plane) =>
+          plane.tier &&
+          (plane.tier < userTier ||
+            (plane.tier === userTier && plane.style <= userStyle))
       );
 
-      // ---- نمایش گلوله‌ها ----
-      bulletContainer.innerHTML = "";
-      allBullets.forEach((bullet) =>
-        bulletContainer.appendChild(this.createSelectItem(bullet, "bullet"))
+      availablePlanes.forEach((plane) =>
+        airplaneContainer.appendChild(this.createSelectItem(plane, "airplane"))
       );
 
       // ---- نمایش معجون‌ها ----
       potionContainer.innerHTML = "";
       const nonePotion = {
-        id: "none",
+        _id: "none",
         name: "هیچکدام",
-        image: "assets/images/potions/none.png",
+        imagePath: "assets/images/potions/none.png",
       };
       potionContainer.appendChild(this.createSelectItem(nonePotion, "potion"));
       if (userData.ownedPotions) {
@@ -189,25 +196,25 @@ class MenuManager {
         });
       }
 
-      // <<<< اعمال انتخاب‌های ذخیره شده >>>>
-      this.applySavedSelections({ allBullets, allPotions });
+      this.applySavedSelections({ allPotions });
     } catch (error) {
       console.error("Failed to load equipment:", error);
-      // ... (بخش مدیریت خطا)
+      airplaneContainer.innerHTML = "<p>خطا در بارگذاری.</p>";
+      potionContainer.innerHTML = "<p>خطا در بارگذاری.</p>";
     }
   }
-
   // <<<< این تابع کمکی جدید را هم به کلاس MenuManager اضافه کنید >>>>
   // در فایل js/menu.js -> داخل کلاس MenuManager
 
-  applySavedSelections({ allBullets, allPotions }) {
+  // در فایل js/menu.js -> داخل کلاس MenuManager
+  applySavedSelections({ allPotions }) {
+    // allBullets از پارامترها حذف شد
     if (!window.gameManager) return;
 
     // --- ۱. اعمال انتخاب برای هواپیما ---
     const airplaneContainer = document.getElementById(
       "airplane-selection-container"
     );
-    // <<<< حل مشکل اول: همیشه قبل از انتخاب، همه گزینه‌ها را از حالت انتخاب خارج کن >>>>
     airplaneContainer
       .querySelectorAll(".selection-item")
       .forEach((el) => el.classList.remove("selected"));
@@ -223,39 +230,9 @@ class MenuManager {
       }
     }
 
-    // --- ۲. اعمال انتخاب برای گلوله (با انتخاب پیش‌فرض) ---
-    const bulletContainer = document.getElementById(
-      "bullet-selection-container"
-    );
-    bulletContainer
-      .querySelectorAll(".selection-item")
-      .forEach((el) => el.classList.remove("selected"));
+    // --- ۲. بخش مربوط به گلوله کاملا حذف شد ---
 
-    let savedBullet = JSON.parse(localStorage.getItem("selectedBullet"));
-    let selectedBulletElement = savedBullet
-      ? bulletContainer.querySelector(
-          `.selection-item[data-asset-id="${savedBullet.id}"]`
-        )
-      : null;
-
-    // <<<< حل مشکل دوم: اگر هیچ گلوله‌ای انتخاب نشده بود، اولین گزینه را به عنوان پیش‌فرض انتخاب کن >>>>
-    if (!selectedBulletElement && allBullets.length > 0) {
-      selectedBulletElement = bulletContainer.querySelector(".selection-item"); // اولین آیتم
-      const defaultBullet = allBullets.find(
-        (b) => b.id == selectedBulletElement.dataset.assetId
-      );
-      if (defaultBullet) {
-        savedBullet = defaultBullet;
-        localStorage.setItem("selectedBullet", JSON.stringify(defaultBullet));
-      }
-    }
-
-    if (selectedBulletElement) {
-      selectedBulletElement.classList.add("selected");
-      window.gameManager.selectedBullet = savedBullet;
-    }
-
-    // --- ۳. اعمال انتخاب برای معجون (با پیش‌فرض "هیچکدام") ---
+    // --- ۳. اعمال انتخاب برای معجون ---
     const potionContainer = document.getElementById(
       "potion-selection-container"
     );
@@ -264,6 +241,7 @@ class MenuManager {
       .forEach((el) => el.classList.remove("selected"));
 
     let savedPotion = JSON.parse(localStorage.getItem("selectedPotion"));
+    // برای معجون از _id استفاده می‌کنیم
     let selectedPotionElement = savedPotion
       ? potionContainer.querySelector(
           `.selection-item[data-asset-id="${savedPotion._id}"]`
@@ -546,115 +524,186 @@ class MenuManager {
     this.showMenu("upgrade-menu");
     const container = document.getElementById("upgrade-content");
     if (!container) return;
-    container.innerHTML = "در حال بارگذاری اطلاعات...";
+
+    // ایجاد ساختار تب‌ها
+    container.innerHTML = `
+      <div class="shop-tabs">
+        <button class="tab-btn active" data-tab="airplane-upgrade">هواپیما</button>
+        <button class="tab-btn" data-tab="bullet-upgrade">گلوله</button>
+      </div>
+      <div class="upgrade-tabs-content">
+        <div id="airplane-upgrade-tab" class="tab-content active">
+          در حال بارگذاری...
+        </div>
+        <div id="bullet-upgrade-tab" class="tab-content">
+          در حال بارگذاری...
+        </div>
+      </div>
+    `;
+
+    // افزودن Event Listener برای تب‌ها
+    container.querySelectorAll(".tab-btn").forEach((tab) => {
+      tab.addEventListener("click", (e) => {
+        container
+          .querySelectorAll(".tab-btn")
+          .forEach((t) => t.classList.remove("active"));
+        container
+          .querySelectorAll(".tab-content")
+          .forEach((c) => c.classList.remove("active"));
+        e.target.classList.add("active");
+        const tabName = e.target.dataset.tab;
+        document.getElementById(`${tabName}-tab`).classList.add("active");
+      });
+    });
+
+    // بارگذاری محتوای هر دو تب
+    this.renderAirplaneUpgradeTab();
+    this.renderBulletUpgradeTab();
+  }
+
+  // در فایل js/menu.js -> داخل کلاس MenuManager
+  async renderBulletUpgradeTab() {
+    const container = document.getElementById("bullet-upgrade-tab");
+    if (!container) return;
+
+    const selectedAirplane = window.gameManager.selectedAirplane;
+
+    if (!selectedAirplane) {
+      container.innerHTML =
+        "<p>ابتدا یک هواپیما از منوی 'انتخاب تجهیزات' انتخاب کنید.</p>";
+      return;
+    }
 
     try {
-      // دریافت همزمان اطلاعات کاربر و لیست تمام هواپیماها
       const userData = await this.apiRequest("/api/user");
-      // window.gameManager.allPlanes باید از قبل بارگذاری شده باشد
-      const allPlanes = window.gameManager.allPlanes;
-
       this.userData = userData;
 
-      const currentTier = userData.airplaneTier || 1;
-      const currentStyle = userData.airplaneStyle || 1;
+      const airplaneKey = `${selectedAirplane.tier}_${selectedAirplane.style}`;
+      const currentLevel =
+        (userData.airplaneBulletLevels &&
+          userData.airplaneBulletLevels[airplaneKey]) ||
+        1;
 
-      // تعریف تعداد مدل‌ها برای هر تایر (باید با بک‌اند یکسان باشد)
-      const maxStylesPerTier = { 1: 14, 2: 20, 3: 19, 4: 9 };
+      const bulletSpecs = {
+        1: {
+          size: 20,
+          filter: "saturate(3) hue-rotate(200deg)",
+          name: "آبی (سطح ۱)",
+        },
+        2: {
+          size: 25,
+          filter: "saturate(5) hue-rotate(15deg)",
+          name: "نارنجی (سطح ۲)",
+        },
+        3: {
+          size: 30,
+          filter: "saturate(4) hue-rotate(320deg)",
+          name: "قرمز (سطح ۳)",
+        },
+        4: {
+          size: 40,
+          filter: "saturate(3) hue-rotate(250deg)",
+          name: "بنفش (سطح ۴)",
+        },
+      };
 
-      // پیدا کردن هواپیمای فعلی
-      const currentPlane = allPlanes.find((plane) => {
-        const name = plane.name.toLowerCase();
-        return (
-          name.includes(`tier ${currentTier}`) &&
-          name.includes(`model ${currentStyle}`)
+      const currentSpec = bulletSpecs[currentLevel];
+      const nextSpec = currentLevel < 4 ? bulletSpecs[currentLevel + 1] : null;
+
+      let visualHTML = `
+            <div class="upgrade-info" style="display: flex; justify-content: space-around; align-items: center; margin-bottom: 20px; min-height: 120px;">
+                <div class="bullet-display" style="text-align: center;">
+                    <h4>فعلی</h4>
+                    <div id="current-bullet-preview" style="width: 60px; height: 60px; display: flex; align-items: center; justify-content: center; margin: 0 auto;"></div>
+                    <p>${currentSpec.name}</p>
+                </div>
+        `;
+
+      if (nextSpec) {
+        visualHTML += `
+                <div class="upgrade-arrow" style="font-size: 2.5em;">→</div>
+                <div class="bullet-display" style="text-align: center;">
+                    <h4>بعدی</h4>
+                    <div id="next-bullet-preview" style="width: 60px; height: 60px; display: flex; align-items: center; justify-content: center; margin: 0 auto;"></div>
+                    <p>${nextSpec.name}</p>
+                </div>
+            `;
+      }
+
+      visualHTML += `</div>`;
+
+      let actionHTML = "";
+      if (nextSpec) {
+        const BaseValue = 1000;
+        const cost = Math.ceil(
+          BaseValue * 0.06 * Math.pow(1.12, currentLevel - 1)
         );
-      });
-
-      let nextPlane = null;
-      let nextTier = currentTier;
-      let nextStyle = currentStyle;
-
-      // پیدا کردن هواپیمای بعدی برای ارتقا
-      if (currentStyle < maxStylesPerTier[currentTier]) {
-        // ارتقا به مدل بعدی در همین تایر
-        nextStyle++;
-      } else if (currentTier < 4) {
-        // ارتقا به تایر بعدی، مدل ۱
-        nextTier++;
-        nextStyle = 1;
-      }
-
-      if (nextTier !== currentTier || nextStyle !== currentStyle) {
-        nextPlane = allPlanes.find((plane) => {
-          const name = plane.name.toLowerCase();
-          return (
-            name.includes(`tier ${nextTier}`) &&
-            name.includes(`model ${nextStyle}`)
-          );
-        });
-      }
-
-      let upgradeHTML = "";
-
-      if (nextPlane && currentPlane) {
-        const cost = currentTier * 100 + currentStyle * 20; // فرمول هزینه مطابق با بک‌اند
         const canAfford = userData.coins >= cost;
-        upgradeHTML = `
-          <div class="upgrade-info">
-            <div class="plane-display">
-              <h3>هواپیمای فعلی</h3>
-              <img src="${currentPlane.image}" alt="${currentPlane.name}">
-              <p>${currentPlane.name}</p>
-            </div>
-            <div class="upgrade-arrow">→</div>
-            <div class="plane-display">
-              <h3>ارتقا به</h3>
-              <img src="${nextPlane.image}" alt="${nextPlane.name}">
-              <p>${nextPlane.name}</p>
-            </div>
-          </div>
-          <div class="upgrade-action">
-            <p class="cost">هزینه ارتقا: ${cost} سکه</p>
-            <button id="confirm-upgrade-btn" class="menu-btn primary" ${
-              !canAfford ? "disabled" : ""
-            }>
-              ${canAfford ? "ارتقا" : "سکه ناکافی"}
-            </button>
-          </div>
-        `;
-      } else if (currentPlane) {
-        // اگر هواپیمای بعدی وجود نداشت، یعنی به حداکثر سطح رسیده است
-        upgradeHTML = `
-          <div class="upgrade-info">
-            <div class="plane-display">
-              <h3>هواپیمای شما</h3>
-              <img src="${currentPlane.image}" alt="${currentPlane.name}">
-              <p>${currentPlane.name}</p>
-            </div>
-          </div>
-          <p class="max-level">شما به آخرین لول هواپیما رسیدید!</p>
-        `;
+        actionHTML = `
+                <div class="upgrade-action">
+                    <p class="cost">هزینه ارتقا: ${cost} سکه</p>
+                    <button id="confirm-bullet-upgrade-btn" class="menu-btn primary" ${
+                      !canAfford ? "disabled" : ""
+                    }>
+                        ${canAfford ? "ارتقا" : "سکه ناکافی"}
+                    </button>
+                </div>
+            `;
       } else {
-        upgradeHTML = "<p>خطا: هواپیمای فعلی یافت نشد.</p>";
+        actionHTML = `<p class="max-level">این هواپیما به حداکثر سطح ارتقا گلوله رسیده‌ است.</p>`;
       }
 
-      container.innerHTML = upgradeHTML;
+      container.innerHTML = `
+            <div class="upgrade-item">
+                <h3>ارتقا گلوله برای: <span style="color: var(--color-accent);">${selectedAirplane.name}</span></h3>
+            </div>
+            ${visualHTML}
+            ${actionHTML}
+        `;
 
-      // افزودن Event Listener فقط در صورتی که دکمه ارتقا وجود داشته باشد
-      if (nextPlane) {
+      const createBulletPreview = (spec) => {
+        const bulletDiv = document.createElement("div");
+        bulletDiv.style.backgroundImage =
+          "url('./assets/images/bullets/lvl1.png')";
+        bulletDiv.style.backgroundColor = "rgba(255, 255, 255, 0.1)";
+        bulletDiv.style.backgroundSize = "contain";
+        bulletDiv.style.backgroundRepeat = "no-repeat";
+        bulletDiv.style.backgroundPosition = "center";
+        bulletDiv.style.width = `${spec.size}px`;
+        bulletDiv.style.height = `${spec.size}px`;
+        bulletDiv.style.filter = spec.filter;
+        bulletDiv.style.transform = "rotate(-90deg)";
+        return bulletDiv;
+      };
+
+      document
+        .getElementById("current-bullet-preview")
+        .appendChild(createBulletPreview(currentSpec));
+
+      if (nextSpec) {
         document
-          .getElementById("confirm-upgrade-btn")
+          .getElementById("next-bullet-preview")
+          .appendChild(createBulletPreview(nextSpec));
+        document
+          .getElementById("confirm-bullet-upgrade-btn")
           .addEventListener("click", async () => {
             try {
               const result = await this.apiRequest("/api/upgrade", {
                 method: "POST",
-                body: JSON.stringify({ type: "airplane" }),
+                body: JSON.stringify({
+                  type: "bullet",
+                  airplaneTier: selectedAirplane.tier,
+                  airplaneStyle: selectedAirplane.style,
+                }),
               });
-              // آپدیت اطلاعات کاربر و نمایش مجدد صفحه ارتقا
-              this.userData = result.user;
-              this.showNotification("ارتقا با موفقیت انجام شد!", "success");
-              this.showUpgradeMenu();
+
+              if (result && result.user) {
+                this.userData = result.user;
+                localStorage.setItem("userData", JSON.stringify(result.user));
+              }
+
+              this.showNotification("گلوله با موفقیت ارتقا یافت!", "success");
+              this.renderBulletUpgradeTab();
             } catch (error) {
               const errorData = await error.response.json();
               this.showNotification(
@@ -665,10 +714,110 @@ class MenuManager {
           });
       }
     } catch (error) {
-      container.innerHTML = "<p>خطا در دریافت اطلاعات ارتقا.</p>";
-      console.error("Error showing upgrade menu:", error);
+      container.innerHTML = "<p>خطا در بارگذاری اطلاعات.</p>";
+      console.error("Error rendering bullet upgrade tab:", error);
     }
   }
+
+  async renderAirplaneUpgradeTab() {
+    const container = document.getElementById("airplane-upgrade-tab");
+    if (!container) return;
+
+    try {
+      const userData = await this.apiRequest("/api/user");
+      const allPlanes = window.gameManager.allPlanes;
+      this.userData = userData;
+
+      const currentTier = userData.airplaneTier || 1;
+      const currentStyle = userData.airplaneStyle || 1;
+      const maxStylesPerTier = { 1: 14, 2: 20, 3: 19, 4: 9 };
+
+      const currentPlane = allPlanes.find(
+        (p) =>
+          p.name.includes(`Tier ${currentTier}`) &&
+          p.name.includes(`Model ${currentStyle}`)
+      );
+
+      let nextPlane = null;
+      let nextTier = currentTier;
+      let nextStyle = currentStyle;
+
+      if (currentStyle < maxStylesPerTier[currentTier]) {
+        nextStyle++;
+      } else if (currentTier < 4) {
+        nextTier++;
+        nextStyle = 1;
+      }
+
+      if (nextTier !== currentTier || nextStyle !== currentStyle) {
+        nextPlane = allPlanes.find(
+          (p) =>
+            p.name.includes(`Tier ${nextTier}`) &&
+            p.name.includes(`Model ${nextStyle}`)
+        );
+      }
+
+      let upgradeHTML = "";
+      if (nextPlane && currentPlane) {
+        const cost = currentTier * 100 + currentStyle * 20;
+        const canAfford = userData.coins >= cost;
+        upgradeHTML = `
+                <div class="upgrade-info">
+                    <div class="plane-display"><h3>هواپیمای فعلی</h3><img src="${
+                      currentPlane.image
+                    }" alt="${currentPlane.name}"><p>${
+          currentPlane.name
+        }</p></div>
+                    <div class="upgrade-arrow">→</div>
+                    <div class="plane-display"><h3>ارتقا به</h3><img src="${
+                      nextPlane.image
+                    }" alt="${nextPlane.name}"><p>${nextPlane.name}</p></div>
+                </div>
+                <div class="upgrade-action">
+                    <p class="cost">هزینه ارتقا: ${cost} سکه</p>
+                    <button id="confirm-plane-upgrade-btn" class="menu-btn primary" ${
+                      !canAfford ? "disabled" : ""
+                    }>${canAfford ? "ارتقا" : "سکه ناکافی"}</button>
+                </div>`;
+      } else if (currentPlane) {
+        upgradeHTML = `<div class="upgrade-info"><div class="plane-display"><h3>هواپیمای شما</h3><img src="${currentPlane.image}" alt="${currentPlane.name}"><p>${currentPlane.name}</p></div></div><p class="max-level">شما به آخرین لول هواپیما رسیدید!</p>`;
+      }
+
+      container.innerHTML = upgradeHTML;
+
+      if (nextPlane) {
+        document
+          .getElementById("confirm-plane-upgrade-btn")
+          .addEventListener("click", async () => {
+            try {
+              const result = await this.apiRequest("/api/upgrade", {
+                method: "POST",
+                body: JSON.stringify({ type: "airplane" }),
+              });
+
+              if (result && result.user) {
+                this.userData = result.user;
+                localStorage.setItem("userData", JSON.stringify(result.user));
+              }
+
+              this.showNotification("هواپیما با موفقیت ارتقا یافت!", "success");
+              this.renderAirplaneUpgradeTab();
+            } catch (error) {
+              const errorData = await error.response.json();
+              this.showNotification(
+                errorData.error || "ارتقا ناموفق بود.",
+                "error"
+              );
+            }
+          });
+      }
+    } catch (error) {
+      container.innerHTML = "<p>خطا در بارگذاری اطلاعات.</p>";
+      console.error("Error rendering airplane upgrade tab:", error);
+    }
+  }
+
+  // در js/menu.js -> داخل کلاس MenuManager
 
   showFreeCoinsMenu() {
     this.showMenu("free-coins-menu");

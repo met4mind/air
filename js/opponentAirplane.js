@@ -55,27 +55,31 @@ export class OpponentAirplane {
   }
 
   // تغییر تابع shoot برای پذیرش rotation دلخواه
-  shoot(bulletImage, size, speed, rotation = 180) {
+  // در فایل js/opponentAirplane.js
+  shoot(bulletImage, speed, rotation = 180, bulletSpec = {}) {
+    // bulletSpec اضافه شد
     const pos = this.getPosition();
-    // Calculate center position with proper offsets
     const bulletX = pos.x + pos.width / 2;
     const bulletY = pos.y + pos.height;
 
-    // گلوله‌های حریف با rotation مشخص شده شلیک می‌شوند
+    // اگر مشخصاتی ارسال نشده بود، از مقادیر پیش‌فرض استفاده کن
+    const size = bulletSpec.size || this.CONFIG.bullets.size;
+    const filter = bulletSpec.filter || "none";
+
     const bullet = new Bullet(
       bulletImage,
       bulletX,
       bulletY,
-      size,
+      size, // استفاده از اندازه دریافتی
       speed,
-      rotation, // استفاده از rotation ارسال شده
-      true // isOpponent
+      rotation,
+      true, // isOpponent
+      filter // استفاده از فیلتر دریافتی
     );
 
     this.bullets.push(bullet);
     return bullet;
   }
-
   remove() {
     this.element.remove();
     this.bullets.forEach((bullet) => bullet.remove());

@@ -13,6 +13,11 @@ const userSchema = new mongoose.Schema({
   healthLevel: { type: Number, default: 1 },
   airplaneTier: { type: Number, default: 1 },
   airplaneStyle: { type: Number, default: 1 },
+  airplaneBulletLevels: {
+    type: Map,
+    of: Number, // سطح گلوله (e.g., 1, 2, 3, 4)
+    default: {}, // مقدار پیش‌فرض یک آبجکت خالی است
+  },
   wins: { type: Number, default: 0 }, // <<<< جدید
   losses: { type: Number, default: 0 }, // <<<< جدید
   ownedPotions: [

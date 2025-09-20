@@ -145,7 +145,8 @@ export class Airplane {
     };
   }
 
-  shoot(bulletImage, size, speed, rotation = 0) {
+  // در فایل js/airplane.js
+  shoot(bulletImage, size, speed, rotation = 0, filter = "none") {
     const pos = this.getPosition();
     const bulletX = pos.x + pos.width / 2;
     const bulletY = pos.y;
@@ -156,7 +157,9 @@ export class Airplane {
       bulletY,
       size,
       speed,
-      rotation
+      rotation,
+      false, // isOpponent
+      filter // پاس دادن فیلتر به سازنده گلوله
     );
 
     this.bullets.push(bullet);

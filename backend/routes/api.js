@@ -683,6 +683,43 @@ router.post("/upgrade", auth, async (req, res) => {
 
     switch (type) {
       // ... (case های دیگر)
+      // <<<< بازنویسی کامل منطق ارتقا گلوله >>>>
+      case "bullet":
+        const { airplaneTier, airplaneStyle } = req.body;
+        if (!airplaneTier || !airplaneStyle) {
+          return res
+            .status(400)
+            .json({ error: "اطلاعات هواپیما برای ارتقا ارسال نشده است" });
+        }
+
+        // ایجاد یک کلید منحصر به فرد برای هر هواپیما
+        const airplaneKey = `${airplaneTier}_${airplaneStyle}`;
+
+        // دریافت سطح فعلی گلوله برای این هواپیما (اگر وجود نداشت، سطح ۱ است)
+        const currentLevel = user.airplaneBulletLevels.get(airplaneKey) || 1;
+
+        if (currentLevel >= 4) {
+          return res
+            .status(400)
+            .json({ error: "این هواپیما به حداکثر سطح گلوله رسیده‌ است" });
+        }
+
+        const BaseValue = 1000;
+        const costFormula = BaseValue * 0.06 * Math.pow(1.12, currentLevel - 1);
+        cost = Math.ceil(costFormula);
+
+        if (user.coins < cost) {
+          return res.status(400).json({ error: "سکه کافی نیست" });
+        }
+
+        user.coins -= cost;
+        // آپدیت سطح گلوله برای هواپیمای مشخص شده در Map
+        user.airplaneBulletLevels.set(airplaneKey, currentLevel + 1);
+
+        // علامت‌گذاری برای ذخیره تغییرات در Map
+        user.markModified("airplaneBulletLevels");
+        break;
+      // <<<< پایان بخش بازنویسی شده >>>>
 
       case "airplane":
         // تعریف تعداد مدل‌ها برای هر تایر

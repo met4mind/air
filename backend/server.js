@@ -100,11 +100,30 @@ wss.on("connection", (ws) => {
 
       switch (message.type) {
         case "login":
+          // --- اضافه کردن لاگ برای دیباگ ---
+          console.log(`\n--- [LOGIN] Message Received ---`);
+          console.log(`> User ID attempting to log in: ${message.userId}`);
+          console.log(
+            `> Current waitingPlayers list (before logic): [${waitingPlayers.join(
+              ", "
+            )}]`
+          );
+
+          const alreadyWaitingIndex = waitingPlayers.indexOf(message.userId);
+          if (alreadyWaitingIndex > -1) {
+            console.log(
+              `> This user (${message.userId}) was already in the waiting list. Removing old entry.`
+            );
+            waitingPlayers.splice(alreadyWaitingIndex, 1);
+          }
+
           players[message.userId] = {
             ws,
             userId: message.userId,
             username: message.username,
             airplane: message.airplane,
+            airplaneTier: message.airplaneTier,
+            airplaneStyle: message.airplaneStyle,
             bullets: message.bullets,
             screenSize: {
               width: message.screenWidth || 1920,
@@ -113,37 +132,39 @@ wss.on("connection", (ws) => {
             airplaneWidth: 100,
             airplaneHeight: 100,
             position: { x: 0, y: 0 },
-            lastShotTime: 0, // <<<< این خط برای امنیت اضافه شده است
+            lastShotTime: 0,
           };
 
-          // <<<< بخش اصلاح‌شده برای جلوگیری از بازی با خود >>>>
-          if (waitingPlayers.length > 0) {
-            const opponentId = waitingPlayers.pop();
-            if (opponentId === message.userId) {
-              // اگر حریف پیدا شده، خود بازیکن بود، او را به لیست انتظار برگردان
-              waitingPlayers.push(opponentId);
-              ws.send(
-                JSON.stringify({
-                  type: "waiting",
-                  message: "Waiting for another player...",
-                })
-              );
-            } else {
-              // اگر حریف معتبر بود، بازی را شروع کن
-              startGame(message.userId, opponentId);
-            }
+          const opponentIndex = waitingPlayers.findIndex(
+            (id) => id !== message.userId
+          );
+
+          if (opponentIndex !== -1) {
+            console.log(`> Opponent found! Index: ${opponentIndex}`);
+            const opponentId = waitingPlayers.splice(opponentIndex, 1)[0];
+            console.log(`> Match found: ${message.userId} vs ${opponentId}`);
+            console.log(`> Calling startGame...`);
+            startGame(message.userId, opponentId);
           } else {
-            // اگر کسی در لیست انتظار نبود، این بازیکن را اضافه کن
+            console.log(
+              `> No opponent found. Adding user ${message.userId} to the waiting list.`
+            );
             waitingPlayers.push(message.userId);
             ws.send(
               JSON.stringify({
                 type: "waiting",
-                message: "Waiting for an opponent...",
+                message: "در انتظار حریف...",
               })
             );
           }
+          console.log(
+            `> Final waitingPlayers list (after logic): [${waitingPlayers.join(
+              ", "
+            )}]`
+          );
+          console.log(`--- [LOGIN] End of processing ---\n`);
+          // --- پایان بخش لاگ ---
           break;
-
         case "move":
           if (players[message.userId] && players[message.userId].opponent) {
             const opponentId = players[message.userId].opponent;
@@ -159,13 +180,11 @@ wss.on("connection", (ws) => {
           }
           break;
 
+        // در فایل backend/server.js
         case "shoot":
-          // زمان شلیک را برای بررسی امنیتی ثبت کنید
           if (players[message.userId]) {
             players[message.userId].lastShotTime = Date.now();
           }
-
-          // ارسال پیام شلیک به حریف
           if (players[message.userId] && players[message.userId].opponent) {
             const opponentId = players[message.userId].opponent;
             if (players[opponentId]) {
@@ -176,6 +195,8 @@ wss.on("connection", (ws) => {
                   percentY: message.percentY,
                   rotation: message.rotation,
                   isWingman: message.isWingman || false,
+                  // FIX: مشخصات گلوله را برای حریف هم ارسال می‌کنیم
+                  bulletSpec: message.bulletSpec,
                 })
               );
             }
@@ -202,11 +223,27 @@ wss.on("connection", (ws) => {
                     const User = require("./models/user");
                     const Leaderboard = require("./models/leaderboard");
 
-                    // محاسبه Damage در سمت سرور
+                    const hittingPlayerInfo = players[message.userId];
+                    if (!hittingPlayerInfo) return;
+
                     const user = await User.findById(message.userId);
-                    const damageLevel = user.damageLevel || 1;
+                    if (!user) return;
+
+                    // ۱. کلید هواپیمای در حال استفاده را بساز
+                    const airplaneKey = `${hittingPlayerInfo.airplaneTier}_${hittingPlayerInfo.airplaneStyle}`;
+
+                    // ۲. سطح گلوله را از Map بخوان (اگر تعریف نشده بود، پیش‌فرض ۱ است)
+                    const bulletLevel =
+                      user.airplaneBulletLevels.get(airplaneKey) || 1;
+
+                    const bulletSizeMultipliers = { 1: 1, 2: 2, 3: 3, 4: 5 };
+                    const bulletMultiplier =
+                      bulletSizeMultipliers[bulletLevel] || 1;
+
                     const baseDamage = 10;
-                    const damage = baseDamage + (damageLevel - 1) * 2;
+                    const upgradeDamage = (user.damageLevel - 1) * 2;
+                    const damage =
+                      (baseDamage + upgradeDamage) * bulletMultiplier;
 
                     // کاهش جان بازیکن هدف
                     const target =
@@ -248,7 +285,7 @@ wss.on("connection", (ws) => {
                           ? room.player1.id
                           : room.player2.id;
 
-                      // ۱. آپدیت آمار کلی و سکه کاربران (بدون اهدای استارز)
+                      // ۱. آپدیت آمار کلی و سکه کاربران
                       await User.findByIdAndUpdate(winnerId, {
                         $inc: { wins: 1, coins: 20 },
                       });
@@ -266,7 +303,7 @@ wss.on("connection", (ws) => {
                           endDate: { $gt: now },
                         };
 
-                        // آپدیت برنده: اگر در لیست بود، برد اضافه کن؛ اگر نبود، با ۱ برد اضافه کن
+                        // آپدیت برنده
                         await Leaderboard.updateOne(
                           { ...activeLeaderboard, "rankings.user": winnerId },
                           { $inc: { "rankings.$.wins": 1 } }
@@ -283,7 +320,7 @@ wss.on("connection", (ws) => {
                           }
                         );
 
-                        // آپدیت بازنده: اگر در لیست بود، باخت اضافه کن؛ اگر نبود، با ۱ باخت اضافه کن
+                        // آپدیت بازنده
                         await Leaderboard.updateOne(
                           { ...activeLeaderboard, "rankings.user": loserId },
                           { $inc: { "rankings.$.losses": 1 } }
@@ -442,106 +479,92 @@ wss.on("connection", (ws) => {
     // مدیریت قطع ارتباط
     for (const userId in players) {
       if (players[userId].ws === ws) {
-        const opponentId = players[userId].opponent;
-        if (opponentId && players[opponentId]) {
-          players[opponentId].ws.send(
+        // --- شروع بخش اصلاح شده ---
+        const playerInfo = players[userId]; // اطلاعات بازیکن را قبل از حذف ذخیره می‌کنیم
+
+        // اگر حریفی وجود داشت، به او اطلاع می‌دهیم
+        if (playerInfo.opponent && players[playerInfo.opponent]) {
+          players[playerInfo.opponent].ws.send(
             JSON.stringify({
               type: "opponent_disconnected",
             })
           );
-
-          // حذف حریف نیز از لیست
-          delete players[opponentId];
-
-          // حذف از لیست انتظار در صورت وجود
-          const opponentIndex = waitingPlayers.indexOf(opponentId);
-          if (opponentIndex > -1) waitingPlayers.splice(opponentIndex, 1);
+          // حذف حریف
+          delete players[playerInfo.opponent];
         }
 
-        // حذف بازیکن اصلی
+        // حذف بازیکن اصلی از لیست بازیکنان آنلاین
         delete players[userId];
 
-        // حذف از لیست انتظار
+        // حذف بازیکن از صف انتظار (اگر در صف بود)
         const index = waitingPlayers.indexOf(userId);
         if (index > -1) {
           waitingPlayers.splice(index, 1);
         }
 
-        // حذف اتاق بازی اگر وجود دارد
-        if (players[userId] && players[userId].roomId) {
-          delete gameRooms[players[userId].roomId];
+        // حذف اتاق بازی (اگر در بازی بود)
+        if (playerInfo.roomId) {
+          delete gameRooms[playerInfo.roomId];
         }
 
-        break;
+        console.log(`Player ${userId} disconnected and cleaned up.`);
+        // --- پایان بخش اصلاح شده ---
+
+        break; // از حلقه خارج می‌شویم چون بازیکن پیدا و حذف شد
       }
     }
   });
 });
 
+// در فایل backend/server.js
+
 async function startGame(player1Id, player2Id) {
+  console.log(
+    `[startGame] Attempting to start game between ${player1Id} and ${player2Id}`
+  );
   const User = require("./models/user");
-  const today = new Date().setHours(0, 0, 0, 0); // تاریخ امروز بدون ساعت
+  const today = new Date().setHours(0, 0, 0, 0);
 
   try {
     const player1 = await User.findById(player1Id);
     const player2 = await User.findById(player2Id);
 
+    if (!player1 || !player2) {
+      throw new Error("One or both players not found in database.");
+    }
+    console.log(`[startGame] Both players found in DB.`);
+
     // بخش ۱: بررسی محدودیت بازی روزانه
-    for (const player of [player1, player2]) {
-      const lastReset = player.dailyPlay.lastReset.setHours(0, 0, 0, 0);
+    for (const p of [
+      { user: player1, id: player1Id },
+      { user: player2, id: player2Id },
+    ]) {
+      const lastReset = p.user.dailyPlay.lastReset.setHours(0, 0, 0, 0);
       if (lastReset < today) {
-        player.dailyPlay.count = 0;
-        player.dailyPlay.lastReset = new Date();
+        p.user.dailyPlay.count = 0;
+        p.user.dailyPlay.lastReset = new Date();
       }
-      if (player.dailyPlay.count >= 25) {
-        // به هر دو بازیکن اطلاع بده که بازی به دلیل محدودیت لغو شد
-        if (players[player1Id])
-          players[player1Id].ws.send(
-            JSON.stringify({
-              type: "game_cancelled",
-              message: `Player ${player.username} has reached the daily limit.`,
-            })
-          );
-        if (players[player2Id])
-          players[player2Id].ws.send(
-            JSON.stringify({
-              type: "game_cancelled",
-              message: `Player ${player.username} has reached the daily limit.`,
-            })
-          );
-        return; // شروع بازی را متوقف کن
+      if (p.user.dailyPlay.count >= 25) {
+        throw new Error(
+          `Player ${p.user.username} has reached the daily limit.`
+        );
       }
     }
+    console.log(`[startGame] Daily play limit check passed.`);
 
     // بخش ۲: بررسی و کسر هزینه بازی
     const gameCost = 10;
     if (player1.coins < gameCost || player2.coins < gameCost) {
-      if (players[player1Id])
-        players[player1Id].ws.send(
-          JSON.stringify({
-            type: "game_cancelled",
-            message: "Not enough coins",
-          })
-        );
-      if (players[player2Id])
-        players[player2Id].ws.send(
-          JSON.stringify({
-            type: "game_cancelled",
-            message: "Not enough coins",
-          })
-        );
-      delete players[player1Id];
-      delete players[player2Id];
-      return;
+      throw new Error("Not enough coins for one or both players.");
     }
 
-    // کسر هزینه و افزایش شمارنده بازی
     player1.coins -= gameCost;
     player2.coins -= gameCost;
     player1.dailyPlay.count++;
     player2.dailyPlay.count++;
     await player1.save();
     await player2.save();
+    console.log(`[startGame] Coin cost deducted successfully.`);
 
     // بخش ۳: ایجاد اتاق بازی و ارسال اطلاعات
     const roomId = `${player1Id}_${player2Id}`;
@@ -565,38 +588,73 @@ async function startGame(player1Id, player2Id) {
     players[player1Id].roomId = roomId;
     players[player2Id].opponent = player1Id;
     players[player2Id].roomId = roomId;
+    console.log(`[startGame] Game room ${roomId} created.`);
 
-    players[player1Id].ws.send(
-      JSON.stringify({
-        type: "game_start",
-        opponent: {
-          username: players[player2Id].username,
-          airplane: players[player2Id].airplane,
-          bullets: players[player2Id].bullets,
-        },
-        health: player1InitialHealth,
-        maxHealth: player1InitialHealth,
-        opponentHealth: player2InitialHealth,
-        opponentMaxHealth: player2InitialHealth,
-      })
-    );
+    // اطمینان از اینکه هر دو بازیکن هنوز متصل هستند قبل از ارسال پیام
+    if (players[player1Id] && players[player2Id]) {
+      players[player1Id].ws.send(
+        JSON.stringify({
+          type: "game_start",
+          opponent: {
+            username: players[player2Id].username,
+            airplane: players[player2Id].airplane,
+            bullets: players[player2Id].bullets,
+          },
+          health: player1InitialHealth,
+          maxHealth: player1InitialHealth,
+          opponentHealth: player2InitialHealth,
+          opponentMaxHealth: player2InitialHealth,
+        })
+      );
 
-    players[player2Id].ws.send(
-      JSON.stringify({
-        type: "game_start",
-        opponent: {
-          username: players[player1Id].username,
-          airplane: players[player1Id].airplane,
-          bullets: players[player1Id].bullets,
-        },
-        health: player2InitialHealth,
-        maxHealth: player2InitialHealth,
-        opponentHealth: player1InitialHealth,
-        opponentMaxHealth: player1InitialHealth,
-      })
-    );
+      players[player2Id].ws.send(
+        JSON.stringify({
+          type: "game_start",
+          opponent: {
+            username: players[player1Id].username,
+            airplane: players[player1Id].airplane,
+            bullets: players[player1Id].bullets,
+          },
+          health: player2InitialHealth,
+          maxHealth: player2InitialHealth,
+          opponentHealth: player1InitialHealth,
+          opponentMaxHealth: player1InitialHealth,
+        })
+      );
+      console.log(
+        `[startGame] 'game_start' messages sent to both players. Game is ON!`
+      );
+    } else {
+      throw new Error(
+        "One of the players disconnected before game could start."
+      );
+    }
   } catch (error) {
-    console.error("Error starting game:", error);
+    // --- بخش حیاتی برای مدیریت خطا ---
+    console.error("!!! [startGame] FAILED:", error.message);
+
+    // به هر دو بازیکن (اگر هنوز متصل هستند) اطلاع بده که بازی لغو شد
+    if (players[player1Id]) {
+      players[player1Id].ws.send(
+        JSON.stringify({
+          type: "game_cancelled",
+          message: `بازی به دلیل خطا لغو شد: ${error.message}`,
+        })
+      );
+    }
+    if (players[player2Id]) {
+      players[player2Id].ws.send(
+        JSON.stringify({
+          type: "game_cancelled",
+          message: `بازی به دلیل خطا لغو شد: ${error.message}`,
+        })
+      );
+    }
+
+    // بازیکنان را از حافظه پاک کن تا بتوانند دوباره تلاش کنند
+    delete players[player1Id];
+    delete players[player2Id];
+    console.log(`[startGame] Cleaned up players due to failure.`);
   }
 }
 // Error handling middleware

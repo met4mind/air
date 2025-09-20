@@ -10,21 +10,25 @@ export class WarScene {
   constructor(
     CONFIG,
     networkManager,
-    playerAssets = {},
+    selectedAirplane,
+    selectedBullet,
     selectedPotion,
     userData
   ) {
     this.CONFIG = CONFIG;
     this.networkManager = networkManager;
-    this.playerAssets = playerAssets;
-    this.userData = userData; // <<<< جدید
+    // Store the selected asset objects directly
+    this.selectedAirplane = selectedAirplane;
+    this.selectedBullet = selectedBullet;
+    this.selectedPotion = selectedPotion || null;
+    this.userData = userData;
+
     this.opponent = null;
     this.opponentAirplane = null;
     this.opponentBullets = [];
     this.health = 100;
     this.opponentHealth = 100;
     this.bullets = [];
-    this.selectedPotion = selectedPotion || null;
     this.isPotionActive = false;
 
     this.isShielded = false;
@@ -36,7 +40,6 @@ export class WarScene {
     this.screenWidth = window.innerWidth;
     this.screenHeight = window.innerHeight;
   }
-
   async init() {
     this.setupScene();
     this.createGameObjects();
@@ -236,18 +239,15 @@ export class WarScene {
         percentX,
         percentY,
         rotation,
-        isWingman
+        isWingman,
+        bulletSpec
       ) => {
         if (!this.opponentAirplane) return;
-
-        // موقعیت هواپیمای حریف
         const airplanePos = this.opponentAirplane.getPosition();
         const noseX = airplanePos.x + airplanePos.width / 2;
         const noseY = airplanePos.y + airplanePos.height;
-
-        // ایجاد گلوله مستقیماً از دماغه هواپیما
-        // (نادیده گرفتن موقعیت درصدی برای رفع مشکل)
-        this.createOpponentBullet(noseX, noseY, 180);
+        // FIX: ارسال bulletSpec به تابع ساخت گلوله
+        this.createOpponentBullet(noseX, noseY, 180, bulletSpec);
       };
       this.networkManager.onYouHit = (damage) => {
         this.applyDamage(damage);
@@ -294,24 +294,21 @@ export class WarScene {
     this.opponentAirplane.setPosition(initialX, initialY);
   }
 
-  createOpponentBullet(x, y, rotation = 180) {
+  createOpponentBullet(x, y, rotation = 180, bulletSpec) {
     if (!this.opponentAirplane) return;
 
+    // FIX: ارسال bulletSpec به تابع shoot هواپیمای حریف
     const bullet = this.opponentAirplane.shoot(
       this.getBulletImage(this.opponent.bullets),
-      this.CONFIG.bullets.size,
       this.CONFIG.bullets.speed,
-      rotation
+      rotation,
+      bulletSpec // ارسال مشخصات
     );
 
-    // تنظیم موقعیت گلوله حریف اگر مختصات مشخص شده باشد
     if (x !== undefined && y !== undefined) {
       bullet.setPosition(x, y);
     }
-
     this.opponentBullets.push(bullet);
-
-    // پخش صدای شلیک حریف
     this.playSound(this.CONFIG.assets.sound);
   }
   setupScene() {
@@ -321,21 +318,22 @@ export class WarScene {
   }
 
   createGameObjects() {
-    // ایجاد هواپیمای اصلی کاربر
+    // Create the player's main airplane
     this.airplane = new Airplane(
       this.getAirplaneImage(
-        this.playerAssets.airplane || this.CONFIG.assets.airplane
+        // FIX: Use this.selectedAirplane.image instead of this.playerAssets.airplane
+        this.selectedAirplane?.image || this.CONFIG.assets.airplane
       ),
       this.CONFIG.airplane.width,
       this.CONFIG.airplane.height
     );
 
-    // قرار دادن کاربر در پایین صفحه
+    // Position the player at the bottom of the screen
     const playerX = this.screenWidth / 2 - this.CONFIG.airplane.width / 2;
     const playerY = this.screenHeight - this.CONFIG.airplane.height - 50;
     this.airplane.setPosition(playerX, playerY);
 
-    // ایجاد wingman ها (اگر فعال باشند)
+    // Create wingmen (if enabled)
     if (this.CONFIG.wingmen.enabled) {
       this.wingman = new AirplaneWingman(this.airplane, {
         ...this.CONFIG.wingmen,
@@ -344,12 +342,13 @@ export class WarScene {
           right: this.getAirplaneImage(this.CONFIG.assets.wingmen.right),
         },
         bulletImage: this.getBulletImage(
-          this.playerAssets.bullets || this.CONFIG.assets.bullet
+          // FIX: Use this.selectedBullet.image instead of this.playerAssets.bullets
+          this.selectedBullet?.image || this.CONFIG.assets.bullet
         ),
       });
     }
 
-    // ایجاد ابرها
+    // Create clouds
     this.createClouds();
   }
 
@@ -444,11 +443,11 @@ export class WarScene {
     this.airplane.setPosition(newX, newY);
   }
   // در تابع setupEventListeners، interval شلیک حریف را حذف کنید
+  // در فایل js/warScene.js
+  // در فایل js/warScene.js
   setupEventListeners() {
-    // محاسبه سرعت شلیک بر اساس سطح کاربر
     const baseInterval = this.CONFIG.bullets.interval;
     const userSpeedLevel = this.userData.speedLevel || 1;
-    // به ازای هر سطح، ۱۰٪ سرعت شلیک افزایش می‌یابد
     const actualInterval = baseInterval / (1 + (userSpeedLevel - 1) * 0.1);
 
     if (this.shootingInterval) {
@@ -457,27 +456,50 @@ export class WarScene {
 
     this.shootingInterval = setInterval(() => {
       const bulletImage = this.getBulletImage(
-        this.playerAssets.bullets || this.CONFIG.assets.bullet
+        this.selectedBullet?.image || this.CONFIG.assets.bullet
       );
+
+      const airplaneKey = `${this.selectedAirplane.tier}_${this.selectedAirplane.style}`;
+      const bulletLevel =
+        (this.userData.airplaneBulletLevels &&
+          this.userData.airplaneBulletLevels[airplaneKey]) ||
+        1;
+
+      const bulletSpecs = {
+        1: { size: 20, filter: "saturate(3) hue-rotate(200deg)" }, // Blue
+        2: { size: 25, filter: "saturate(5) hue-rotate(15deg)" }, // Orange
+        3: { size: 30, filter: "saturate(4) hue-rotate(320deg)" }, // Red
+        4: { size: 40, filter: "saturate(3) hue-rotate(250deg)" }, // Purple
+      };
+      const spec = bulletSpecs[bulletLevel];
 
       this.CONFIG.bullets.angles.forEach((angle) => {
         const bullet = this.airplane.shoot(
           bulletImage,
-          this.CONFIG.bullets.size,
+          spec.size,
           this.CONFIG.bullets.speed,
-          angle
+          angle,
+          spec.filter // ارسال فیلتر رنگ
         );
         this.bullets.push(bullet);
       });
+
       this.playSound(this.CONFIG.assets.sound);
 
       if (this.networkManager && this.networkManager.sendShoot) {
         const pos = this.airplane.getPosition();
         const percentX = pos.x / window.innerWidth;
         const percentY = pos.y / window.innerHeight;
-        this.networkManager.sendShoot(percentX, percentY, 180);
+        this.networkManager.sendShoot(
+          percentX,
+          percentY,
+          180,
+          false,
+          spec.size,
+          spec.filter
+        );
       }
-    }, actualInterval); // استفاده از سرعت شلیک محاسبه شده
+    }, actualInterval);
   }
   startGameLoop() {
     const gameLoop = () => {
