@@ -1125,7 +1125,7 @@ class MenuManager {
 
       if (this.userData.coins < potionPrice) {
         this.showNotification("سکه شما کافی نیست!", "error");
-        window.soundManager.play("error");
+        window.militarySoundManager.play("error"); // FIX: Correct name
         return;
       }
 
@@ -1143,10 +1143,10 @@ class MenuManager {
         `معجون ${potionName} با موفقیت خریداری شد`,
         "success"
       );
-      window.soundManager.play("purchase");
+      window.militarySoundManager.play("purchase"); // FIX: Correct name
     } catch (error) {
       this.showNotification("خطا در هنگام خرید", "error");
-      window.soundManager.play("error");
+      window.militarySoundManager.play("error"); // FIX: Correct name
       console.error("Error buying potion:", error);
     }
   }
