@@ -182,21 +182,21 @@ wss.on("connection", (ws) => {
           break;
 
         // در فایل backend/server.js
+        // در فایل backend/server.js -> داخل wss.on("message", ...)
+
         case "shoot":
-          if (players[message.userId]) {
-            players[message.userId].lastShotTime = Date.now();
-          }
           if (players[message.userId] && players[message.userId].opponent) {
             const opponentId = players[message.userId].opponent;
             if (players[opponentId]) {
               players[opponentId].ws.send(
                 JSON.stringify({
                   type: "opponent_shoot",
-                  percentX: message.percentX,
-                  percentY: message.percentY,
+                  planePercentX: message.planePercentX,
+                  planePercentY: message.planePercentY,
+                  offsetX: message.offsetX,
+                  offsetY: message.offsetY,
                   rotation: message.rotation,
                   isWingman: message.isWingman || false,
-                  // FIX: مشخصات گلوله را برای حریف هم ارسال می‌کنیم
                   bulletSpec: message.bulletSpec,
                 })
               );

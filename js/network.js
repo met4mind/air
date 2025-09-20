@@ -131,18 +131,20 @@ export class NetworkManager {
         break;
 
       // در فایل js/network.js -> داخل تابع handleMessage
+      // در فایل js/network.js -> داخل تابع handleMessage
+
       case "opponent_shoot":
         if (this.onOpponentShoot)
-          // FIX: ارسال کل آبجکت bulletSpec
           this.onOpponentShoot(
-            message.percentX,
-            message.percentY,
+            message.planePercentX,
+            message.planePercentY,
+            message.offsetX,
+            message.offsetY,
             message.rotation,
             message.isWingman,
             message.bulletSpec
           );
         break;
-
       case "you_hit":
         if (this.onYouHit) this.onYouHit(message.damage);
         break;
@@ -228,18 +230,29 @@ export class NetworkManager {
 
   // در network.js - تابع sendShoot
   // در فایل js/network.js
-  sendShoot(percentX, percentY, rotation, isWingman = false, size, filter) {
-    // size و filter اضافه شدند
+  // در فایل js/network.js -> داخل کلاس NetworkManager
+
+  sendShoot(
+    planePercentX,
+    planePercentY,
+    offsetX,
+    offsetY,
+    rotation,
+    isWingman = false,
+    size,
+    filter
+  ) {
     if (this.connected) {
       this.socket.send(
         JSON.stringify({
           type: "shoot",
           userId: this.userId,
-          percentX: percentX,
-          percentY: percentY,
+          planePercentX: planePercentX,
+          planePercentY: planePercentY,
+          offsetX: offsetX,
+          offsetY: offsetY,
           rotation: rotation,
           isWingman: isWingman,
-          // FIX: ارسال مشخصات گلوله در پیام
           bulletSpec: {
             size: size,
             filter: filter,

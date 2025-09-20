@@ -1,11 +1,11 @@
 import { Bullet } from "./bullet.js";
 
 export class OpponentAirplane {
-  constructor(imageUrl, width = 100, height = 100) {
+  constructor(imageUrl, width = 100, height = 100, config) {
     this.width = width;
     this.height = height;
     this.bullets = [];
-
+    this.CONFIG = config;
     // Create opponent airplane element
     this.element = document.createElement("div");
     this.element.className = "opponent-airplane";
@@ -56,25 +56,27 @@ export class OpponentAirplane {
 
   // تغییر تابع shoot برای پذیرش rotation دلخواه
   // در فایل js/opponentAirplane.js
+  // تابع shoot را به طور کامل جایگزین کنید
   shoot(bulletImage, speed, rotation = 180, bulletSpec = {}) {
-    // bulletSpec اضافه شد
     const pos = this.getPosition();
     const bulletX = pos.x + pos.width / 2;
     const bulletY = pos.y + pos.height;
 
-    // اگر مشخصاتی ارسال نشده بود، از مقادیر پیش‌فرض استفاده کن
-    const size = bulletSpec.size || this.CONFIG.bullets.size;
+    // <<<< اصلاح اصلی اینجاست >>>>
+    // حالا به CONFIG دسترسی داریم و کد بدون خطا اجرا می‌شود
+    const size =
+      bulletSpec.size || (this.CONFIG ? this.CONFIG.bullets.size : 20);
     const filter = bulletSpec.filter || "none";
 
     const bullet = new Bullet(
       bulletImage,
       bulletX,
       bulletY,
-      size, // استفاده از اندازه دریافتی
+      size,
       speed,
       rotation,
       true, // isOpponent
-      filter // استفاده از فیلتر دریافتی
+      filter
     );
 
     this.bullets.push(bullet);

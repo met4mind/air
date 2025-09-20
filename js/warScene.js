@@ -53,6 +53,10 @@ export class WarScene {
     this.setupPotionButton(); // جدید
   }
 
+  // در فایل js/warScene.js
+
+  // در فایل js/warScene.js
+
   startShooting() {
     const planeData = window.gameManager.allPlanes.find(
       (p) =>
@@ -60,19 +64,17 @@ export class WarScene {
         p.style === this.selectedAirplane.style
     );
 
-    // FIX: شرط را کامل‌تر می‌کنیم تا آرایه خالی را هم مدیریت کند
     if (
       !planeData ||
       !planeData.projectiles ||
       planeData.projectiles.length === 0
     ) {
       console.error(
-        `Shooting data not found for plane: ${this.selectedAirplane.name}. The plane will not shoot.`
+        `Shooting data not found for plane: ${this.selectedAirplane.name}.`
       );
-      return; // از ادامه تابع جلوگیری کرده و بازی ادامه پیدا می‌کند (بدون شلیک)
+      return;
     }
 
-    // تعریف مشخصات بصری برای گلوله‌ها
     const bulletVisuals = {
       blue: { filter: "saturate(3) hue-rotate(200deg)" },
       orange: { filter: "saturate(5) hue-rotate(15deg)" },
@@ -81,14 +83,12 @@ export class WarScene {
     };
     const bulletSizeMap = { 1: 15, 2: 20, 3: 25, 5: 35 };
     const missileSizeMap = { 1: 20, 2: 25, 3: 30, 4: 40, 5: 50 };
-
     const totalProjectileCount = planeData.projectiles.reduce(
       (sum, p) => sum + p.count,
       0
     );
     const damagePerProjectile =
       totalProjectileCount > 0 ? planeData.damage / totalProjectileCount : 0;
-
     const shootingInterval = 1200;
 
     this.shootingInterval = setInterval(() => {
@@ -97,28 +97,31 @@ export class WarScene {
         return;
       }
       const planePos = this.airplane.getPosition();
+      const planeCenterX = planePos.x + planePos.width / 2;
+      const planeCenterY = planePos.y + planePos.height / 2;
 
       planeData.projectiles.forEach((proj) => {
         const count = proj.count;
-
         for (let i = 0; i < count; i++) {
           let startX,
             startY,
             angleDeg = -90;
+          let offsetX = 0,
+            offsetY = 0;
 
           if (proj.from === "nose") {
             const offsetFromCenter = count > 1 ? (i - (count - 1) / 2) * 15 : 0;
-            startX = planePos.x + planePos.width / 2 + offsetFromCenter;
+            startX = planeCenterX + offsetFromCenter;
             startY = planePos.y + 20;
+            offsetX = offsetFromCenter;
+            offsetY = startY - planeCenterY;
           } else {
-            // wings
             const offsetRatio = proj.offset === "near" ? 0.3 : 0.1;
-            const wing = i % 2 === 0 ? -1 : 1; // -1 for left, 1 for right
-            startX =
-              planePos.x +
-              planePos.width / 2 +
-              wing * planePos.width * offsetRatio;
+            const wing = i % 2 === 0 ? -1 : 1;
+            startX = planeCenterX + wing * planePos.width * offsetRatio;
             startY = planePos.y + planePos.height * 0.4;
+            offsetX = startX - planeCenterX;
+            offsetY = startY - planeCenterY;
           }
 
           if (proj.pattern === "angled" && count > 1) {
@@ -126,23 +129,26 @@ export class WarScene {
             angleDeg = -90 - spread / 2 + i * (spread / (count - 1));
           }
 
+          let specSize, specFilter;
           if (proj.type === "bullet") {
             const visual = bulletVisuals[proj.color] || {};
-            const size = bulletSizeMap[proj.size] || 20;
+            specSize = bulletSizeMap[proj.size] || 20;
+            specFilter = visual.filter;
             const bullet = new Bullet(
               "./assets/images/bullets/lvl1.png",
               startX,
               startY,
-              size,
+              specSize,
               planeData.bulletSpeed / 20,
               angleDeg,
               false,
-              visual.filter
+              specFilter
             );
             bullet.damage = damagePerProjectile;
             this.bullets.push(bullet);
           } else if (proj.type === "missile") {
-            const size = missileSizeMap[proj.size] || 30;
+            specSize = missileSizeMap[proj.size] || 30;
+            specFilter = "none";
             const missile = new Missile({
               x: startX,
               y: startY,
@@ -150,9 +156,24 @@ export class WarScene {
               missileType: proj.missileType,
               speed: planeData.bulletSpeed / 30,
               damage: damagePerProjectile,
-              size: size,
+              size: specSize,
             });
             this.missiles.push(missile);
+          }
+
+          if (this.networkManager) {
+            const planePercentX = planeCenterX / window.innerWidth;
+            const planePercentY = planeCenterY / window.innerHeight;
+            this.networkManager.sendShoot(
+              planePercentX,
+              planePercentY,
+              offsetX,
+              offsetY,
+              angleDeg,
+              false,
+              specSize,
+              specFilter || "none"
+            );
           }
         }
       });
@@ -345,19 +366,46 @@ export class WarScene {
 
       // در warScene.js - تابع onOpponentShoot
       // در warScene.js - تابع onOpponentShoot
+      // در فایل js/warScene.js -> داخل تابع setupNetworkHandlers
+
+      // در فایل js/warScene.js -> داخل تابع setupNetworkHandlers
+
+      // در فایل js/warScene.js -> داخل تابع setupNetworkHandlers
+
       this.networkManager.onOpponentShoot = (
-        percentX,
-        percentY,
+        planePercentX,
+        planePercentY,
+        offsetX,
+        offsetY,
         rotation,
         isWingman,
         bulletSpec
       ) => {
         if (!this.opponentAirplane) return;
-        const airplanePos = this.opponentAirplane.getPosition();
-        const noseX = airplanePos.x + airplanePos.width / 2;
-        const noseY = airplanePos.y + airplanePos.height;
-        // FIX: ارسال bulletSpec به تابع ساخت گلوله
-        this.createOpponentBullet(noseX, noseY, 180, bulletSpec);
+
+        // <<<< شروع بخش اصلاح‌شده نهایی >>>>
+
+        // ۱. موقعیت مرکز هواپیمای حریف را در صفحه ما بازسازی می‌کنیم
+        const opponentPlaneCenterX = (1 - planePercentX) * window.innerWidth;
+        const opponentPlaneCenterY = (1 - planePercentY) * window.innerHeight;
+
+        // ۲. آفست‌ها را برای مختصات معکوس حریف اعمال می‌کنیم
+        // offsetX منفی می‌شود تا جهت افقی درست باشد
+        // offsetY منفی می‌شود تا الگوی شلیک (جلوتر بودن تیر دماغه) درست باشد
+        const bulletX = opponentPlaneCenterX - offsetX;
+        const bulletY = opponentPlaneCenterY - offsetY;
+
+        // ۳. زاویه شلیک به سمت پایین را تنظیم می‌کنیم
+        const downwardRotation = 90;
+
+        // ۴. گلوله را با موقعیت و زاویه نهایی ایجاد می‌کنیم
+        this.createOpponentBullet(
+          bulletX,
+          bulletY,
+          downwardRotation,
+          bulletSpec
+        );
+        // <<<< پایان بخش اصلاح‌شده نهایی >>>>
       };
       this.networkManager.onYouHit = (damage) => {
         this.applyDamage(damage);
@@ -404,15 +452,30 @@ export class WarScene {
     this.opponentAirplane.setPosition(initialX, initialY);
   }
 
+  // در فایل js/warScene.js
+
   createOpponentBullet(x, y, rotation = 180, bulletSpec) {
     if (!this.opponentAirplane) return;
 
-    // FIX: ارسال bulletSpec به تابع shoot هواپیمای حریف
+    const opponentBulletImage = "./assets/images/bullets/lvl1.png";
+
+    // <<<< اصلاح سرعت >>>>
+    // سرعت گلوله حریف را بر اساس داده‌های هواپیمای خودمان تخمین می‌زنیم
+    // تا با سرعت گلوله‌های ما هماهنگ باشد.
+    const planeData = window.gameManager.allPlanes.find(
+      (p) =>
+        p.tier === this.selectedAirplane.tier &&
+        p.style === this.selectedAirplane.style
+    );
+    const bulletSpeed = planeData
+      ? planeData.bulletSpeed / 20
+      : this.CONFIG.bullets.speed;
+
     const bullet = this.opponentAirplane.shoot(
-      this.getBulletImage(this.opponent.bullets),
-      this.CONFIG.bullets.speed,
+      opponentBulletImage,
+      bulletSpeed, // استفاده از سرعت محاسبه‌شده
       rotation,
-      bulletSpec // ارسال مشخصات
+      bulletSpec
     );
 
     if (x !== undefined && y !== undefined) {

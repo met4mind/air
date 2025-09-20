@@ -4,6 +4,8 @@ export class Bullet {
 
   // در فایل js/bullet.js
   // در فایل js/bullet.js
+  // در فایل js/bullet.js
+
   constructor(
     imageUrl,
     x,
@@ -27,7 +29,7 @@ export class Bullet {
     this.element.style.height = `${size}px`;
     this.element.style.position = "absolute";
     this.element.style.transformOrigin = "center center";
-    this.element.style.filter = filter; // اعمال فیلتر رنگ
+    this.element.style.filter = filter;
 
     if (isOpponent) {
       this.element.classList.add("opponent-bullet");
@@ -38,13 +40,25 @@ export class Bullet {
       this.element.style.backgroundSize = "contain";
       this.element.style.backgroundRepeat = "no-repeat";
       this.element.style.backgroundPosition = "center";
-      this.element.style.transform = `rotate(${rotationDeg + -90}deg)`;
+
+      // <<<< اصلاح چرخش تصویر >>>>
+      // زاویه دریافتی برای حرکت صحیح است، اما برای نمایش بصری،
+      // تصویر گلوله حریف باید ۱۸0 درجه بچرخد تا سر و ته نباشد.
+      const visualRotation = isOpponent ? rotationDeg + 180 : rotationDeg;
+      this.element.style.transform = `rotate(${visualRotation}deg)`;
     } else {
       this.element.style.backgroundColor = isOpponent ? "red" : "yellow";
     }
 
     this.setPosition(x, y);
-    document.body.appendChild(this.element);
+
+    const gameContainer = document.getElementById("game-container");
+    if (gameContainer) {
+      gameContainer.appendChild(this.element);
+    } else {
+      document.body.appendChild(this.element);
+    }
+
     this.animate();
   }
 
@@ -58,24 +72,21 @@ export class Bullet {
   animate() {
     if (!this.active) return;
 
-    // حرکت گلوله بر اساس زاویه - اصلاح شده
+    // <<<< شروع بخش اصلاح‌شده با منطق صحیح ریاضی >>>>
     const angleRad = this.radians;
-    this.x += Math.sin(angleRad) * this.speed;
 
-    if (this.isOpponent) {
-      // گلوله حریف به سمت پایین حرکت می‌کند
-      this.y += Math.abs(Math.cos(angleRad)) * this.speed;
-    } else {
-      // گلوله کاربر به سمت بالا حرکت می‌کند
-      this.y -= Math.abs(Math.cos(angleRad)) * this.speed;
-    }
+    // محاسبه حرکت در محور X و Y با فرمول استاندارد
+    // Math.cos برای محور افقی (X) و Math.sin برای محور عمودی (Y)
+    this.x += this.speed * Math.cos(angleRad);
+    this.y += this.speed * Math.sin(angleRad);
 
     this.setPosition(this.x, this.y);
+    // <<<< پایان بخش اصلاح‌شده >>>>
 
-    // Remove if off screen
+    // حذف گلوله در صورت خروج از صفحه
     if (
       this.y < -this.size ||
-      this.y > window.innerHeight ||
+      this.y > window.innerHeight + this.size ||
       this.x < -this.size ||
       this.x > window.innerWidth + this.size
     ) {
