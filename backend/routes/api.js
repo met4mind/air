@@ -682,37 +682,10 @@ router.post("/upgrade", auth, async (req, res) => {
     let cost = 0;
 
     switch (type) {
-      case "damage":
-        cost = user.damageLevel * 50;
-        if (user.coins < cost) {
-          return res.status(400).json({ error: "Not enough coins" });
-        }
-        user.coins -= cost;
-        user.damageLevel += 1;
-        break;
-
-      case "speed":
-        cost = user.speedLevel * 40;
-        if (user.coins < cost) {
-          return res.status(400).json({ error: "Not enough coins" });
-        }
-        user.coins -= cost;
-        user.speedLevel += 1;
-        break;
-
-      case "health":
-        cost = user.healthLevel * 60;
-        if (user.coins < cost) {
-          return res.status(400).json({ error: "Not enough coins" });
-        }
-        user.coins -= cost;
-        user.healthLevel += 1;
-        break;
-
-      // در فایل routes/api.js، داخل مسیر POST /upgrade
+      // ... (case های دیگر)
 
       case "airplane":
-        // تعریف تعداد لول (استایل) برای هر تایر
+        // تعریف تعداد مدل‌ها برای هر تایر
         const maxStylesPerTier = { 1: 14, 2: 20, 3: 19, 4: 9 };
 
         const currentTier = user.airplaneTier;
@@ -722,29 +695,33 @@ router.post("/upgrade", auth, async (req, res) => {
         if (currentTier >= 4 && currentStyle >= maxStylesPerTier[4]) {
           return res
             .status(400)
-            .json({ error: "You are at the maximum level" });
+            .json({ error: "شما به آخرین لول هواپیما رسیدید" });
         }
 
-        cost = currentTier * 100 + currentStyle * 20; // فرمول جدید هزینه
+        // فرمول جدید برای هزینه ارتقا
+        cost = currentTier * 100 + currentStyle * 20;
         if (user.coins < cost) {
-          return res.status(400).json({ error: "Not enough coins" });
+          return res.status(400).json({ error: "سکه کافی نیست" });
         }
         user.coins -= cost;
 
-        // منطق ارتقا لول و تایر
+        // منطق اصلی ارتقا
         if (currentStyle < maxStylesPerTier[currentTier]) {
-          user.airplaneStyle += 1; // ارتقا لول در تایر فعلی
+          // ارتقا مدل در تایر فعلی
+          user.airplaneStyle += 1;
         } else {
-          user.airplaneTier += 1; // رفتن به تایر بعدی
-          user.airplaneStyle = 1; // ریست شدن لول به ۱
+          // رفتن به تایر بعدی و ریست شدن مدل به ۱
+          user.airplaneTier += 1;
+          user.airplaneStyle = 1;
         }
         break;
+
       default:
         return res.status(400).json({ error: "Invalid upgrade type" });
     }
 
     await user.save();
-    res.json({ message: "Upgrade successful", coins: user.coins });
+    res.json({ message: "Upgrade successful", user }); // ارسال کل اطلاعات کاربر برای آپدیت در فرانت
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

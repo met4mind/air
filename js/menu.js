@@ -549,79 +549,124 @@ class MenuManager {
     container.innerHTML = "در حال بارگذاری اطلاعات...";
 
     try {
-      const [userData, allPlanes] = await Promise.all([
-        this.apiRequest("/api/user"),
-        this.apiRequest("/api/assets/airplanes"),
-      ]);
+      // دریافت همزمان اطلاعات کاربر و لیست تمام هواپیماها
+      const userData = await this.apiRequest("/api/user");
+      // window.gameManager.allPlanes باید از قبل بارگذاری شده باشد
+      const allPlanes = window.gameManager.allPlanes;
+
       this.userData = userData;
 
       const currentTier = userData.airplaneTier || 1;
-      const currentPlane = allPlanes.find((p) =>
-        p.name.includes(`Tier ${currentTier}`)
-      );
-      const nextPlane = allPlanes.find((p) =>
-        p.name.includes(`Tier ${currentTier + 1}`)
-      );
+      const currentStyle = userData.airplaneStyle || 1;
+
+      // تعریف تعداد مدل‌ها برای هر تایر (باید با بک‌اند یکسان باشد)
+      const maxStylesPerTier = { 1: 14, 2: 20, 3: 19, 4: 9 };
+
+      // پیدا کردن هواپیمای فعلی
+      const currentPlane = allPlanes.find((plane) => {
+        const name = plane.name.toLowerCase();
+        return (
+          name.includes(`tier ${currentTier}`) &&
+          name.includes(`model ${currentStyle}`)
+        );
+      });
+
+      let nextPlane = null;
+      let nextTier = currentTier;
+      let nextStyle = currentStyle;
+
+      // پیدا کردن هواپیمای بعدی برای ارتقا
+      if (currentStyle < maxStylesPerTier[currentTier]) {
+        // ارتقا به مدل بعدی در همین تایر
+        nextStyle++;
+      } else if (currentTier < 4) {
+        // ارتقا به تایر بعدی، مدل ۱
+        nextTier++;
+        nextStyle = 1;
+      }
+
+      if (nextTier !== currentTier || nextStyle !== currentStyle) {
+        nextPlane = allPlanes.find((plane) => {
+          const name = plane.name.toLowerCase();
+          return (
+            name.includes(`tier ${nextTier}`) &&
+            name.includes(`model ${nextStyle}`)
+          );
+        });
+      }
 
       let upgradeHTML = "";
-      if (nextPlane) {
-        const cost = currentTier * 100;
+
+      if (nextPlane && currentPlane) {
+        const cost = currentTier * 100 + currentStyle * 20; // فرمول هزینه مطابق با بک‌اند
         const canAfford = userData.coins >= cost;
         upgradeHTML = `
-                    <div class="upgrade-info">
-                        <div class="plane-display">
-                            <h3>هواپیمای فعلی</h3>
-                            <img src="${
-                              currentPlane.image
-                            }" alt="Current Plane"><p>Tier ${currentTier}</p>
-                        </div>
-                        <div class="upgrade-arrow">→</div>
-                        <div class="plane-display">
-                            <h3>ارتقا به</h3>
-                            <img src="${
-                              nextPlane.image
-                            }" alt="Next Plane"><p>Tier ${currentTier + 1}</p>
-                        </div>
-                    </div>
-                    <div class="upgrade-action">
-                        <p class="cost">هزینه ارتقا: ${cost} سکه</p>
-                        <button id="confirm-upgrade-btn" class="menu-btn primary" ${
-                          !canAfford ? "disabled" : ""
-                        }>
-                            ${canAfford ? "ارتقا" : "سکه ناکافی"}
-                        </button>
-                    </div>
-                `;
-      } else {
+          <div class="upgrade-info">
+            <div class="plane-display">
+              <h3>هواپیمای فعلی</h3>
+              <img src="${currentPlane.image}" alt="${currentPlane.name}">
+              <p>${currentPlane.name}</p>
+            </div>
+            <div class="upgrade-arrow">→</div>
+            <div class="plane-display">
+              <h3>ارتقا به</h3>
+              <img src="${nextPlane.image}" alt="${nextPlane.name}">
+              <p>${nextPlane.name}</p>
+            </div>
+          </div>
+          <div class="upgrade-action">
+            <p class="cost">هزینه ارتقا: ${cost} سکه</p>
+            <button id="confirm-upgrade-btn" class="menu-btn primary" ${
+              !canAfford ? "disabled" : ""
+            }>
+              ${canAfford ? "ارتقا" : "سکه ناکافی"}
+            </button>
+          </div>
+        `;
+      } else if (currentPlane) {
+        // اگر هواپیمای بعدی وجود نداشت، یعنی به حداکثر سطح رسیده است
         upgradeHTML = `
-                    <div class="upgrade-info"><div class="plane-display">
-                        <h3>هواپیمای شما</h3><img src="${currentPlane.image}" alt="Current Plane"><p>Tier ${currentTier}</p>
-                    </div></div>
-                    <p class="max-level">شما به بالاترین سطح ارتقا رسیده‌اید!</p>
-                `;
+          <div class="upgrade-info">
+            <div class="plane-display">
+              <h3>هواپیمای شما</h3>
+              <img src="${currentPlane.image}" alt="${currentPlane.name}">
+              <p>${currentPlane.name}</p>
+            </div>
+          </div>
+          <p class="max-level">شما به آخرین لول هواپیما رسیدید!</p>
+        `;
+      } else {
+        upgradeHTML = "<p>خطا: هواپیمای فعلی یافت نشد.</p>";
       }
 
       container.innerHTML = upgradeHTML;
 
+      // افزودن Event Listener فقط در صورتی که دکمه ارتقا وجود داشته باشد
       if (nextPlane) {
         document
           .getElementById("confirm-upgrade-btn")
           .addEventListener("click", async () => {
             try {
-              await this.apiRequest("/api/upgrade", {
+              const result = await this.apiRequest("/api/upgrade", {
                 method: "POST",
                 body: JSON.stringify({ type: "airplane" }),
               });
-              window.soundManager.play("upgrade");
+              // آپدیت اطلاعات کاربر و نمایش مجدد صفحه ارتقا
+              this.userData = result.user;
+              this.showNotification("ارتقا با موفقیت انجام شد!", "success");
               this.showUpgradeMenu();
             } catch (error) {
-              window.soundManager.play("error");
-              alert("ارتقا ناموفق بود.");
+              const errorData = await error.response.json();
+              this.showNotification(
+                errorData.error || "ارتقا ناموفق بود.",
+                "error"
+              );
             }
           });
       }
     } catch (error) {
       container.innerHTML = "<p>خطا در دریافت اطلاعات ارتقا.</p>";
+      console.error("Error showing upgrade menu:", error);
     }
   }
 
