@@ -235,8 +235,16 @@ router.get("/game-data/airplanes", (req, res) => {
   res.json(airplanesData);
 });
 // دریافت لیست معجون‌ها
-router.get("/potions", auth, (req, res) => {
-  res.json(potionsData);
+// کد اصلاح‌شده
+router.get("/potions", auth, async (req, res) => {
+  try {
+    const allPotions = await Potion.find({});
+    res.json(allPotions);
+  } catch (error) {
+    res
+      .status(500)
+      .json({ error: "Failed to retrieve potions: " + error.message });
+  }
 });
 // ثبت کاربر جدید
 router.post("/register", async (req, res) => {
