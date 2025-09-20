@@ -18,10 +18,29 @@ class GameManager {
     this.init();
   }
   async init() {
-    this.selectedAirplane = JSON.parse(
+    // مرحله ۱: ابتدا لیست کامل و صحیح هواپیماها را از سرور می‌گیریم
+    await this.fetchAllAssets();
+
+    // مرحله ۲: حالا اطلاعات هواپیمای ذخیره شده در حافظه را می‌خوانیم
+    const savedAirplaneData = JSON.parse(
       localStorage.getItem("selectedAirplane")
     );
-    this.selectedBullet = JSON.parse(localStorage.getItem("selectedBullet"));
+
+    if (savedAirplaneData) {
+      // مرحله ۳: به جای استفاده مستقیم از دیتای ذخیره شده،
+      // آبجکت کامل و صحیح را از لیست اصلی پیدا می‌کنیم.
+      const correctAirplaneObject = this.allPlanes.find(
+        (p) => p.id === savedAirplaneData.id
+      );
+      if (correctAirplaneObject) {
+        this.selectedAirplane = correctAirplaneObject;
+        console.log(
+          "Loaded selected airplane from localStorage and verified with master list."
+        );
+      }
+    }
+
+    // بارگذاری معجون انتخاب شده
     try {
       const savedPotion = localStorage.getItem("selectedPotion");
       if (savedPotion && savedPotion !== "null") {
@@ -34,23 +53,20 @@ class GameManager {
       this.selectedPotion = null;
     }
 
+    // منطق ورود خودکار کاربر
     const tgid = localStorage.getItem("tgid");
-
     if (tgid) {
-      // <<<< تغییر ۱: tgid را قبل از ارسال درخواست در NetworkManager تنظیم می‌کنیم >>>>
       this.networkManager.setTgid(tgid);
-
       try {
         const userData = await this.networkManager.apiRequest("/api/user");
         if (userData && userData.username) {
           this.networkManager.userId = userData._id;
           this.username = userData.username;
+          this.userData = userData;
           localStorage.setItem("userData", JSON.stringify(userData));
-
           this.hideScreen("login-screen");
           this.showScreen("main-menu");
           this.startUserDataSync();
-          console.log("Auto-login successful. User:", userData.username);
         } else {
           this.showScreen("login-screen");
         }
@@ -61,16 +77,25 @@ class GameManager {
     } else {
       this.showScreen("login-screen");
     }
-
-    this.setupLoginListeners();
-
-    this.fetchAllAssets(); // <<<< این خط را اضافه کنید
   }
   async fetchAllAssets() {
     try {
-      this.allPlanes = await this.networkManager.getAirplanes();
+      let planes = await this.networkManager.apiRequest(
+        "/api/game-data/airplanes"
+      );
+      // منطق پردازش و افزودن tier و style را به اینجا منتقل می‌کنیم
+      this.allPlanes = planes.map((plane) => {
+        const nameMatch = plane.name.match(/Tier (\d+) - Model (\d+)/);
+        if (nameMatch) {
+          plane.tier = parseInt(nameMatch[1]);
+          plane.style = parseInt(nameMatch[2]);
+        }
+        return plane;
+      });
+      console.log("Master airplane list loaded and parsed successfully.");
     } catch (e) {
-      console.error("Failed to fetch all airplanes list.");
+      console.error("Failed to fetch all airplanes list.", e);
+      this.allPlanes = []; // در صورت خطا، لیست را خالی می‌کنیم
     }
   }
 
@@ -474,11 +499,25 @@ class GameManager {
 
   async initiateGameConnection() {
     try {
-      // --- شروع بخش جدید: بررسی محدودیت در سمت کلاینت ---
       const userData = JSON.parse(localStorage.getItem("userData"));
       if (!userData) {
         throw new Error("اطلاعات کاربر یافت نشد. لطفاً دوباره وارد شوید.");
       }
+
+      // --- شروع بخش اصلاح شده ---
+      // اگر هیچ هواپیمایی انتخاب نشده بود (مثلاً برای کاربر جدید)
+      // هواپیمای پیش‌فرض را برای او انتخاب می‌کنیم
+      if (!this.selectedAirplane) {
+        console.log("No airplane selected, defaulting to Tier 1, Model 1.");
+        this.selectedAirplane = window.gameManager.allPlanes.find(
+          (p) => p.tier === 1 && p.style === 1
+        );
+        if (!this.selectedAirplane) {
+          alert("خطا: اطلاعات هواپیمای پیش‌فرض یافت نشد!");
+          return;
+        }
+      }
+      // --- پایان بخش اصلاح شده ---
 
       const today = new Date().setHours(0, 0, 0, 0);
       const lastReset = new Date(userData.dailyPlay.lastReset).setHours(
@@ -490,26 +529,21 @@ class GameManager {
       const dailyCount = lastReset < today ? 0 : userData.dailyPlay.count || 0;
 
       if (dailyCount >= 25) {
-        // اگر محدودیت پر شده باشد، به کاربر اطلاع داده و از تابع خارج می‌شویم
         alert(
           "شما به سقف مجاز ۲۵ بازی روزانه خود رسیده‌اید. لطفاً فردا دوباره تلاش کنید."
         );
-        return; // <<<< مهم: از ادامه اجرای تابع جلوگیری می‌کند
+        return;
       }
-      // --- پایان بخش جدید ---
 
       this.showWaitingMessage("در حال اتصال به سرور بازی...");
       this.networkManager.connect();
 
-      // تعریف event handler ها
       this.networkManager.onGameStart = (opponent) => this.startGame(opponent);
       this.networkManager.onWaiting = (message) =>
         this.showWaitingMessage(message);
-
-      // event handler جدید برای پیام لغو بازی از سمت سرور
       this.networkManager.onGameCancelled = (message) => {
         this.hideWaitingMessage();
-        alert(message); // نمایش پیام خطا از سرور
+        alert(message);
       };
 
       await new Promise((resolve, reject) => {
@@ -527,10 +561,9 @@ class GameManager {
         checkConnection();
       });
 
-      const airplanePath =
-        this.selectedAirplane?.image || "assets/images/airplanes/Tier 1/1.png";
-      const airplaneName = this.selectedAirplane?.name || "Default Fighter";
-      const bulletPath = "assets/images/bullets/lvl1.png"; // همیشه یک مقدار پیش‌فرض
+      const airplanePath = this.selectedAirplane.image;
+      const airplaneName = this.selectedAirplane.name;
+      const bulletPath = "assets/images/bullets/lvl1.png";
       const bulletName = "Standard Bullet";
 
       this.networkManager.sendLogin(

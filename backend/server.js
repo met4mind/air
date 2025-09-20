@@ -5,6 +5,7 @@ const path = require("path");
 const http = require("http");
 const WebSocket = require("ws");
 const config = require("./config");
+const { airplanesData } = require("./gameData");
 
 const apiRoutes = require("./routes/api");
 
@@ -204,160 +205,132 @@ wss.on("connection", (ws) => {
           break;
 
         case "hit":
+          // اطمینان از اینکه بازیکن در یک اتاق معتبر قرار دارد
           const hittingPlayer = players[message.userId];
-          if (hittingPlayer && hittingPlayer.opponent) {
-            const timeSinceLastShot =
-              Date.now() - (hittingPlayer.lastShotTime || 0);
+          if (!hittingPlayer || !hittingPlayer.roomId) break;
 
-            // یک بررسی امنیتی ساده برای جلوگیری از شلیک‌های خیلی سریع
-            if (timeSinceLastShot < 1500) {
-              const roomId = hittingPlayer.roomId;
-              const room = gameRooms[roomId];
+          const room = gameRooms[hittingPlayer.roomId];
+          if (room && !room.gameOver) {
+            const opponentId = hittingPlayer.opponent;
 
-              if (room && !room.gameOver) {
-                // بررسی می‌کنیم که بازی قبلاً تمام نشده باشد
-                const targetPlayerId = hittingPlayer.opponent;
+            (async () => {
+              try {
+                const User = require("./models/user");
+                const Leaderboard = require("./models/leaderboard");
 
-                (async () => {
-                  try {
-                    const User = require("./models/user");
-                    const Leaderboard = require("./models/leaderboard");
+                // پیدا کردن بازیکن هدف در اتاق بازی
+                const targetPlayer =
+                  room.player1.id === opponentId ? room.player1 : room.player2;
 
-                    const hittingPlayerInfo = players[message.userId];
-                    if (!hittingPlayerInfo) return;
+                // *** منطق اصلی جدید ***
+                // Damage مستقیماً از پیام کلاینت خوانده شده و اعمال می‌شود
+                targetPlayer.health = Math.max(
+                  0,
+                  targetPlayer.health - (message.damage || 0)
+                );
 
-                    const user = await User.findById(message.userId);
-                    if (!user) return;
+                // ارسال وضعیت جدید سلامتی به هر دو بازیکن
+                const player1Health =
+                  room.player1.id === hittingPlayer.userId
+                    ? room.player1.health
+                    : room.player2.health;
+                const player2Health =
+                  room.player1.id === opponentId
+                    ? room.player1.health
+                    : room.player2.health;
 
-                    // ۱. کلید هواپیمای در حال استفاده را بساز
-                    const airplaneKey = `${hittingPlayerInfo.airplaneTier}_${hittingPlayerInfo.airplaneStyle}`;
+                if (players[hittingPlayer.userId]) {
+                  players[hittingPlayer.userId].ws.send(
+                    JSON.stringify({
+                      type: "health_update",
+                      health: player1Health,
+                      opponentHealth: player2Health,
+                    })
+                  );
+                }
+                if (players[opponentId]) {
+                  players[opponentId].ws.send(
+                    JSON.stringify({
+                      type: "health_update",
+                      health: player2Health,
+                      opponentHealth: player1Health,
+                    })
+                  );
+                }
 
-                    // ۲. سطح گلوله را از Map بخوان (اگر تعریف نشده بود، پیش‌فرض ۱ است)
-                    const bulletLevel =
-                      user.airplaneBulletLevels.get(airplaneKey) || 1;
+                // بررسی پایان بازی
+                if (targetPlayer.health <= 0) {
+                  room.gameOver = true;
 
-                    const bulletSizeMultipliers = { 1: 1, 2: 2, 3: 3, 4: 5 };
-                    const bulletMultiplier =
-                      bulletSizeMultipliers[bulletLevel] || 1;
+                  const winnerId = hittingPlayer.userId;
+                  const loserId = opponentId;
 
-                    const baseDamage = 10;
-                    const upgradeDamage = (user.damageLevel - 1) * 2;
-                    const damage =
-                      (baseDamage + upgradeDamage) * bulletMultiplier;
+                  // آپدیت آمار و سکه‌ها
+                  await User.findByIdAndUpdate(winnerId, {
+                    $inc: { wins: 1, coins: 20 },
+                  });
+                  await User.findByIdAndUpdate(loserId, {
+                    $inc: { losses: 1, coins: 5 },
+                  });
 
-                    // کاهش جان بازیکن هدف
-                    const target =
-                      room.player1.id === targetPlayerId
-                        ? room.player1
-                        : room.player2;
-                    target.health = Math.max(0, target.health - damage);
-
-                    // ارسال وضعیت جدید سلامتی به هر دو بازیکن
-                    if (players[room.player1.id]) {
-                      players[room.player1.id].ws.send(
-                        JSON.stringify({
-                          type: "health_update",
-                          health: room.player1.health,
-                          opponentHealth: room.player2.health,
-                        })
-                      );
-                    }
-                    if (players[room.player2.id]) {
-                      players[room.player2.id].ws.send(
-                        JSON.stringify({
-                          type: "health_update",
-                          health: room.player2.health,
-                          opponentHealth: room.player1.health,
-                        })
-                      );
-                    }
-
-                    // بررسی پایان بازی
-                    if (room.player1.health <= 0 || room.player2.health <= 0) {
-                      room.gameOver = true; // جلوگیری از اجرای دوباره این بلوک
-
-                      const winnerId =
-                        room.player1.health > 0
-                          ? room.player1.id
-                          : room.player2.id;
-                      const loserId =
-                        room.player1.health <= 0
-                          ? room.player1.id
-                          : room.player2.id;
-
-                      // ۱. آپدیت آمار کلی و سکه کاربران
-                      await User.findByIdAndUpdate(winnerId, {
-                        $inc: { wins: 1, coins: 20 },
-                      });
-                      await User.findByIdAndUpdate(loserId, {
-                        $inc: { losses: 1, coins: 5 },
-                      });
-
-                      // ۲. آپدیت آمار برد و باخت در لیدربوردهای فعال
-                      const leaderboardTypes = ["daily", "weekly", "monthly"];
-                      const now = new Date();
-
-                      for (const type of leaderboardTypes) {
-                        const activeLeaderboard = {
-                          type: type,
-                          endDate: { $gt: now },
-                        };
-
-                        // آپدیت برنده
-                        await Leaderboard.updateOne(
-                          { ...activeLeaderboard, "rankings.user": winnerId },
-                          { $inc: { "rankings.$.wins": 1 } }
-                        );
-                        await Leaderboard.updateOne(
-                          {
-                            ...activeLeaderboard,
-                            "rankings.user": { $ne: winnerId },
-                          },
-                          {
-                            $push: {
-                              rankings: { user: winnerId, wins: 1, losses: 0 },
-                            },
-                          }
-                        );
-
-                        // آپدیت بازنده
-                        await Leaderboard.updateOne(
-                          { ...activeLeaderboard, "rankings.user": loserId },
-                          { $inc: { "rankings.$.losses": 1 } }
-                        );
-                        await Leaderboard.updateOne(
-                          {
-                            ...activeLeaderboard,
-                            "rankings.user": { $ne: loserId },
-                          },
-                          {
-                            $push: {
-                              rankings: { user: loserId, wins: 0, losses: 1 },
-                            },
-                          }
-                        );
+                  // آپدیت لیدربوردها
+                  const leaderboardTypes = ["daily", "weekly", "monthly"];
+                  const now = new Date();
+                  for (const type of leaderboardTypes) {
+                    const activeLeaderboard = {
+                      type: type,
+                      endDate: { $gt: now },
+                    };
+                    await Leaderboard.updateOne(
+                      { ...activeLeaderboard, "rankings.user": winnerId },
+                      { $inc: { "rankings.$.wins": 1 } }
+                    );
+                    await Leaderboard.updateOne(
+                      {
+                        ...activeLeaderboard,
+                        "rankings.user": { $ne: winnerId },
+                      },
+                      {
+                        $push: {
+                          rankings: { user: winnerId, wins: 1, losses: 0 },
+                        },
                       }
-
-                      // ۳. ارسال پیام پایان بازی و پاکسازی
-                      if (players[winnerId])
-                        players[winnerId].ws.send(
-                          JSON.stringify({ type: "game_over", result: "win" })
-                        );
-                      if (players[loserId])
-                        players[loserId].ws.send(
-                          JSON.stringify({ type: "game_over", result: "lose" })
-                        );
-
-                      delete gameRooms[roomId];
-                      if (players[winnerId]) delete players[winnerId];
-                      if (players[loserId]) delete players[loserId];
-                    }
-                  } catch (error) {
-                    console.error("Error processing hit:", error);
+                    );
+                    await Leaderboard.updateOne(
+                      { ...activeLeaderboard, "rankings.user": loserId },
+                      { $inc: { "rankings.$.losses": 1 } }
+                    );
+                    await Leaderboard.updateOne(
+                      {
+                        ...activeLeaderboard,
+                        "rankings.user": { $ne: loserId },
+                      },
+                      {
+                        $push: {
+                          rankings: { user: loserId, wins: 0, losses: 1 },
+                        },
+                      }
+                    );
                   }
-                })();
+
+                  // ارسال پیام پایان بازی و پاکسازی
+                  if (players[winnerId])
+                    players[winnerId].ws.send(
+                      JSON.stringify({ type: "game_over", result: "win" })
+                    );
+                  if (players[loserId])
+                    players[loserId].ws.send(
+                      JSON.stringify({ type: "game_over", result: "lose" })
+                    );
+
+                  delete gameRooms[hittingPlayer.roomId];
+                  if (players[winnerId]) delete players[winnerId];
+                  if (players[loserId]) delete players[loserId];
+                }
+              } catch (error) {
+                console.error("Error processing hit:", error);
               }
-            }
+            })();
           }
           break;
         case "potion_activate":
@@ -518,69 +491,75 @@ wss.on("connection", (ws) => {
 
 // در فایل backend/server.js
 
+// در فایل backend/server.js
 async function startGame(player1Id, player2Id) {
   console.log(
     `[startGame] Attempting to start game between ${player1Id} and ${player2Id}`
   );
   const User = require("./models/user");
-  const today = new Date().setHours(0, 0, 0, 0);
+  const { airplanesData } = require("./gameData");
 
   try {
-    const player1 = await User.findById(player1Id);
-    const player2 = await User.findById(player2Id);
+    const player1 = {
+      data: await User.findById(player1Id),
+      wsInfo: players[player1Id],
+    };
+    const player2 = {
+      data: await User.findById(player2Id),
+      wsInfo: players[player2Id],
+    };
 
-    if (!player1 || !player2) {
-      throw new Error("One or both players not found in database.");
+    if (!player1.data || !player2.data)
+      throw new Error("Player not found in DB.");
+
+    // --- لاگ جدید برای دیباگ ---
+    console.log(
+      `[startGame] P1 wants plane (Tier: ${player1.wsInfo.airplaneTier}, Style: ${player1.wsInfo.airplaneStyle})`
+    );
+    console.log(
+      `[startGame] P2 wants plane (Tier: ${player2.wsInfo.airplaneTier}, Style: ${player2.wsInfo.airplaneStyle})`
+    );
+
+    const p1Plane = airplanesData.find(
+      (p) =>
+        p.tier === player1.wsInfo.airplaneTier &&
+        p.style === player1.wsInfo.airplaneStyle
+    );
+    const p2Plane = airplanesData.find(
+      (p) =>
+        p.tier === player2.wsInfo.airplaneTier &&
+        p.style === player2.wsInfo.airplaneStyle
+    );
+
+    if (!p1Plane || !p2Plane) {
+      // لاگ برای اینکه بدانیم کدام هواپیما پیدا نشده است
+      if (!p1Plane)
+        console.error(`[startGame] FAILED to find data for P1's plane.`);
+      if (!p2Plane)
+        console.error(`[startGame] FAILED to find data for P2's plane.`);
+      throw new Error("Airplane data not found.");
     }
-    console.log(`[startGame] Both players found in DB.`);
+    console.log(`[startGame] Both airplane data found successfully.`);
 
-    // بخش ۱: بررسی محدودیت بازی روزانه
-    for (const p of [
-      { user: player1, id: player1Id },
-      { user: player2, id: player2Id },
-    ]) {
-      const lastReset = p.user.dailyPlay.lastReset.setHours(0, 0, 0, 0);
-      if (lastReset < today) {
-        p.user.dailyPlay.count = 0;
-        p.user.dailyPlay.lastReset = new Date();
-      }
-      if (p.user.dailyPlay.count >= 25) {
-        throw new Error(
-          `Player ${p.user.username} has reached the daily limit.`
-        );
-      }
-    }
-    console.log(`[startGame] Daily play limit check passed.`);
-
-    // بخش ۲: بررسی و کسر هزینه بازی
     const gameCost = 10;
-    if (player1.coins < gameCost || player2.coins < gameCost) {
-      throw new Error("Not enough coins for one or both players.");
-    }
+    if (player1.data.coins < gameCost || player2.data.coins < gameCost)
+      throw new Error("Not enough coins.");
+    player1.data.coins -= gameCost;
+    player2.data.coins -= gameCost;
+    await player1.data.save();
+    await player2.data.save();
 
-    player1.coins -= gameCost;
-    player2.coins -= gameCost;
-    player1.dailyPlay.count++;
-    player2.dailyPlay.count++;
-    await player1.save();
-    await player2.save();
-    console.log(`[startGame] Coin cost deducted successfully.`);
-
-    // بخش ۳: ایجاد اتاق بازی و ارسال اطلاعات
     const roomId = `${player1Id}_${player2Id}`;
-    const player1InitialHealth = 100 + ((player1.healthLevel || 1) - 1) * 20;
-    const player2InitialHealth = 100 + ((player2.healthLevel || 1) - 1) * 20;
-
     gameRooms[roomId] = {
       player1: {
         id: player1Id,
-        health: player1InitialHealth,
-        maxHealth: player1InitialHealth,
+        health: p1Plane.health,
+        maxHealth: p1Plane.health,
       },
       player2: {
         id: player2Id,
-        health: player2InitialHealth,
-        maxHealth: player2InitialHealth,
+        health: p2Plane.health,
+        maxHealth: p2Plane.health,
       },
     };
 
@@ -588,52 +567,38 @@ async function startGame(player1Id, player2Id) {
     players[player1Id].roomId = roomId;
     players[player2Id].opponent = player1Id;
     players[player2Id].roomId = roomId;
-    console.log(`[startGame] Game room ${roomId} created.`);
 
-    // اطمینان از اینکه هر دو بازیکن هنوز متصل هستند قبل از ارسال پیام
     if (players[player1Id] && players[player2Id]) {
       players[player1Id].ws.send(
         JSON.stringify({
           type: "game_start",
           opponent: {
-            username: players[player2Id].username,
-            airplane: players[player2Id].airplane,
-            bullets: players[player2Id].bullets,
+            username: player2.wsInfo.username,
+            airplane: player2.wsInfo.airplane,
           },
-          health: player1InitialHealth,
-          maxHealth: player1InitialHealth,
-          opponentHealth: player2InitialHealth,
-          opponentMaxHealth: player2InitialHealth,
+          health: p1Plane.health,
+          maxHealth: p1Plane.health,
+          opponentHealth: p2Plane.health,
+          opponentMaxHealth: p2Plane.health,
         })
       );
-
       players[player2Id].ws.send(
         JSON.stringify({
           type: "game_start",
           opponent: {
-            username: players[player1Id].username,
-            airplane: players[player1Id].airplane,
-            bullets: players[player1Id].bullets,
+            username: player1.wsInfo.username,
+            airplane: player1.wsInfo.airplane,
           },
-          health: player2InitialHealth,
-          maxHealth: player2InitialHealth,
-          opponentHealth: player1InitialHealth,
-          opponentMaxHealth: player1InitialHealth,
+          health: p2Plane.health,
+          maxHealth: p2Plane.health,
+          opponentHealth: p1Plane.health,
+          opponentMaxHealth: p1Plane.health,
         })
       );
-      console.log(
-        `[startGame] 'game_start' messages sent to both players. Game is ON!`
-      );
-    } else {
-      throw new Error(
-        "One of the players disconnected before game could start."
-      );
+      console.log(`[startGame] 'game_start' messages sent. Game is ON!`);
     }
   } catch (error) {
-    // --- بخش حیاتی برای مدیریت خطا ---
     console.error("!!! [startGame] FAILED:", error.message);
-
-    // به هر دو بازیکن (اگر هنوز متصل هستند) اطلاع بده که بازی لغو شد
     if (players[player1Id]) {
       players[player1Id].ws.send(
         JSON.stringify({
@@ -650,10 +615,8 @@ async function startGame(player1Id, player2Id) {
         })
       );
     }
-
-    // بازیکنان را از حافظه پاک کن تا بتوانند دوباره تلاش کنند
-    delete players[player1Id];
-    delete players[player2Id];
+    if (players[player1Id]) delete players[player1Id];
+    if (players[player2Id]) delete players[player2Id];
     console.log(`[startGame] Cleaned up players due to failure.`);
   }
 }

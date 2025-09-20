@@ -3,6 +3,7 @@ const router = express.Router();
 const User = require("../models/user");
 const Potion = require("../models/potion");
 const Game = require("../models/game");
+const { airplanesData, potionsData, bulletsData } = require("../gameData");
 const Leaderboard = require("../models/leaderboard");
 
 // Middleware برای احراز هویت کاربر تلگرام
@@ -230,15 +231,12 @@ router.post("/game/finish", auth, async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
-
+router.get("/game-data/airplanes", (req, res) => {
+  res.json(airplanesData);
+});
 // دریافت لیست معجون‌ها
-router.get("/potions", auth, async (req, res) => {
-  try {
-    const potions = await Potion.find();
-    res.json(potions);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
+router.get("/potions", auth, (req, res) => {
+  res.json(potionsData);
 });
 // ثبت کاربر جدید
 router.post("/register", async (req, res) => {
@@ -272,337 +270,330 @@ router.post("/register", async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
-router.get("/assets/airplanes", (req, res) => {
-  res.json([
-    // Tier 1
-    {
-      id: 1,
-      name: "Tier 1 - Model 1",
-      image: "assets/images/airplanes/Tier 1/1.png",
-    },
-    {
-      id: 2,
-      name: "Tier 1 - Model 2",
-      image: "assets/images/airplanes/Tier 1/2.png",
-    },
-    {
-      id: 3,
-      name: "Tier 1 - Model 3",
-      image: "assets/images/airplanes/Tier 1/3.png",
-    },
-    {
-      id: 4,
-      name: "Tier 1 - Model 4",
-      image: "assets/images/airplanes/Tier 1/4.png",
-    },
-    {
-      id: 5,
-      name: "Tier 1 - Model 5",
-      image: "assets/images/airplanes/Tier 1/5.png",
-    },
-    {
-      id: 6,
-      name: "Tier 1 - Model 6",
-      image: "assets/images/airplanes/Tier 1/6.png",
-    },
-    {
-      id: 7,
-      name: "Tier 1 - Model 7",
-      image: "assets/images/airplanes/Tier 1/7.png",
-    },
-    {
-      id: 8,
-      name: "Tier 1 - Model 8",
-      image: "assets/images/airplanes/Tier 1/8.png",
-    },
-    {
-      id: 9,
-      name: "Tier 1 - Model 9",
-      image: "assets/images/airplanes/Tier 1/9.png",
-    },
-    {
-      id: 10,
-      name: "Tier 1 - Model 10",
-      image: "assets/images/airplanes/Tier 1/10.png",
-    },
-    {
-      id: 11,
-      name: "Tier 1 - Model 11",
-      image: "assets/images/airplanes/Tier 1/11.png",
-    },
-    {
-      id: 12,
-      name: "Tier 1 - Model 12",
-      image: "assets/images/airplanes/Tier 1/12.png",
-    },
-    {
-      id: 13,
-      name: "Tier 1 - Model 13",
-      image: "assets/images/airplanes/Tier 1/13.png",
-    },
-    {
-      id: 14,
-      name: "Tier 1 - Model 14",
-      image: "assets/images/airplanes/Tier 1/14.png",
-    },
+// router.get("/assets/airplanes", (req, res) => {
+//   res.json([
+//     // Tier 1
+//     {
+//       id: 1,
+//       name: "Tier 1 - Model 1",
+//       image: "assets/images/airplanes/Tier 1/1.png",
+//     },
+//     {
+//       id: 2,
+//       name: "Tier 1 - Model 2",
+//       image: "assets/images/airplanes/Tier 1/2.png",
+//     },
+//     {
+//       id: 3,
+//       name: "Tier 1 - Model 3",
+//       image: "assets/images/airplanes/Tier 1/3.png",
+//     },
+//     {
+//       id: 4,
+//       name: "Tier 1 - Model 4",
+//       image: "assets/images/airplanes/Tier 1/4.png",
+//     },
+//     {
+//       id: 5,
+//       name: "Tier 1 - Model 5",
+//       image: "assets/images/airplanes/Tier 1/5.png",
+//     },
+//     {
+//       id: 6,
+//       name: "Tier 1 - Model 6",
+//       image: "assets/images/airplanes/Tier 1/6.png",
+//     },
+//     {
+//       id: 7,
+//       name: "Tier 1 - Model 7",
+//       image: "assets/images/airplanes/Tier 1/7.png",
+//     },
+//     {
+//       id: 8,
+//       name: "Tier 1 - Model 8",
+//       image: "assets/images/airplanes/Tier 1/8.png",
+//     },
+//     {
+//       id: 9,
+//       name: "Tier 1 - Model 9",
+//       image: "assets/images/airplanes/Tier 1/9.png",
+//     },
+//     {
+//       id: 10,
+//       name: "Tier 1 - Model 10",
+//       image: "assets/images/airplanes/Tier 1/10.png",
+//     },
+//     {
+//       id: 11,
+//       name: "Tier 1 - Model 11",
+//       image: "assets/images/airplanes/Tier 1/11.png",
+//     },
+//     {
+//       id: 12,
+//       name: "Tier 1 - Model 12",
+//       image: "assets/images/airplanes/Tier 1/12.png",
+//     },
+//     {
+//       id: 13,
+//       name: "Tier 1 - Model 13",
+//       image: "assets/images/airplanes/Tier 1/13.png",
+//     },
+//     {
+//       id: 14,
+//       name: "Tier 1 - Model 14",
+//       image: "assets/images/airplanes/Tier 1/14.png",
+//     },
 
-    // Tier 2
-    {
-      id: 15,
-      name: "Tier 2 - Model 1",
-      image: "assets/images/airplanes/Tier 2/1.png",
-    },
-    {
-      id: 16,
-      name: "Tier 2 - Model 2",
-      image: "assets/images/airplanes/Tier 2/2.png",
-    },
-    {
-      id: 17,
-      name: "Tier 2 - Model 3",
-      image: "assets/images/airplanes/Tier 2/3.png",
-    },
-    {
-      id: 18,
-      name: "Tier 2 - Model 4",
-      image: "assets/images/airplanes/Tier 2/4.png",
-    },
-    {
-      id: 19,
-      name: "Tier 2 - Model 5",
-      image: "assets/images/airplanes/Tier 2/5.png",
-    },
-    {
-      id: 20,
-      name: "Tier 2 - Model 6",
-      image: "assets/images/airplanes/Tier 2/6.png",
-    },
-    {
-      id: 21,
-      name: "Tier 2 - Model 7",
-      image: "assets/images/airplanes/Tier 2/7.png",
-    },
-    {
-      id: 22,
-      name: "Tier 2 - Model 8",
-      image: "assets/images/airplanes/Tier 2/8.png",
-    },
-    {
-      id: 23,
-      name: "Tier 2 - Model 9",
-      image: "assets/images/airplanes/Tier 2/9.png",
-    },
-    {
-      id: 24,
-      name: "Tier 2 - Model 10",
-      image: "assets/images/airplanes/Tier 2/10.png",
-    },
-    {
-      id: 25,
-      name: "Tier 2 - Model 11",
-      image: "assets/images/airplanes/Tier 2/11.png",
-    },
-    {
-      id: 26,
-      name: "Tier 2 - Model 12",
-      image: "assets/images/airplanes/Tier 2/12.png",
-    },
-    {
-      id: 27,
-      name: "Tier 2 - Model 13",
-      image: "assets/images/airplanes/Tier 2/13.png",
-    },
-    {
-      id: 28,
-      name: "Tier 2 - Model 14",
-      image: "assets/images/airplanes/Tier 2/14.png",
-    },
-    {
-      id: 29,
-      name: "Tier 2 - Model 15",
-      image: "assets/images/airplanes/Tier 2/15.png",
-    },
-    {
-      id: 30,
-      name: "Tier 2 - Model 16",
-      image: "assets/images/airplanes/Tier 2/16.png",
-    },
-    {
-      id: 31,
-      name: "Tier 2 - Model 17",
-      image: "assets/images/airplanes/Tier 2/17.png",
-    },
-    {
-      id: 32,
-      name: "Tier 2 - Model 18",
-      image: "assets/images/airplanes/Tier 2/18.png",
-    },
-    {
-      id: 33,
-      name: "Tier 2 - Model 19",
-      image: "assets/images/airplanes/Tier 2/19.png",
-    },
-    {
-      id: 34,
-      name: "Tier 2 - Model 20",
-      image: "assets/images/airplanes/Tier 2/20.png",
-    },
+//     // Tier 2
+//     {
+//       id: 15,
+//       name: "Tier 2 - Model 1",
+//       image: "assets/images/airplanes/Tier 2/1.png",
+//     },
+//     {
+//       id: 16,
+//       name: "Tier 2 - Model 2",
+//       image: "assets/images/airplanes/Tier 2/2.png",
+//     },
+//     {
+//       id: 17,
+//       name: "Tier 2 - Model 3",
+//       image: "assets/images/airplanes/Tier 2/3.png",
+//     },
+//     {
+//       id: 18,
+//       name: "Tier 2 - Model 4",
+//       image: "assets/images/airplanes/Tier 2/4.png",
+//     },
+//     {
+//       id: 19,
+//       name: "Tier 2 - Model 5",
+//       image: "assets/images/airplanes/Tier 2/5.png",
+//     },
+//     {
+//       id: 20,
+//       name: "Tier 2 - Model 6",
+//       image: "assets/images/airplanes/Tier 2/6.png",
+//     },
+//     {
+//       id: 21,
+//       name: "Tier 2 - Model 7",
+//       image: "assets/images/airplanes/Tier 2/7.png",
+//     },
+//     {
+//       id: 22,
+//       name: "Tier 2 - Model 8",
+//       image: "assets/images/airplanes/Tier 2/8.png",
+//     },
+//     {
+//       id: 23,
+//       name: "Tier 2 - Model 9",
+//       image: "assets/images/airplanes/Tier 2/9.png",
+//     },
+//     {
+//       id: 24,
+//       name: "Tier 2 - Model 10",
+//       image: "assets/images/airplanes/Tier 2/10.png",
+//     },
+//     {
+//       id: 25,
+//       name: "Tier 2 - Model 11",
+//       image: "assets/images/airplanes/Tier 2/11.png",
+//     },
+//     {
+//       id: 26,
+//       name: "Tier 2 - Model 12",
+//       image: "assets/images/airplanes/Tier 2/12.png",
+//     },
+//     {
+//       id: 27,
+//       name: "Tier 2 - Model 13",
+//       image: "assets/images/airplanes/Tier 2/13.png",
+//     },
+//     {
+//       id: 28,
+//       name: "Tier 2 - Model 14",
+//       image: "assets/images/airplanes/Tier 2/14.png",
+//     },
+//     {
+//       id: 29,
+//       name: "Tier 2 - Model 15",
+//       image: "assets/images/airplanes/Tier 2/15.png",
+//     },
+//     {
+//       id: 30,
+//       name: "Tier 2 - Model 16",
+//       image: "assets/images/airplanes/Tier 2/16.png",
+//     },
+//     {
+//       id: 31,
+//       name: "Tier 2 - Model 17",
+//       image: "assets/images/airplanes/Tier 2/17.png",
+//     },
+//     {
+//       id: 32,
+//       name: "Tier 2 - Model 18",
+//       image: "assets/images/airplanes/Tier 2/18.png",
+//     },
+//     {
+//       id: 33,
+//       name: "Tier 2 - Model 19",
+//       image: "assets/images/airplanes/Tier 2/19.png",
+//     },
+//     {
+//       id: 34,
+//       name: "Tier 2 - Model 20",
+//       image: "assets/images/airplanes/Tier 2/20.png",
+//     },
 
-    // Tier 3
-    {
-      id: 35,
-      name: "Tier 3 - Model 1",
-      image: "assets/images/airplanes/Tier 3/1.png",
-    },
-    {
-      id: 36,
-      name: "Tier 3 - Model 2",
-      image: "assets/images/airplanes/Tier 3/2.png",
-    },
-    {
-      id: 37,
-      name: "Tier 3 - Model 3",
-      image: "assets/images/airplanes/Tier 3/3.png",
-    },
-    {
-      id: 38,
-      name: "Tier 3 - Model 4",
-      image: "assets/images/airplanes/Tier 3/4.png",
-    },
-    {
-      id: 39,
-      name: "Tier 3 - Model 5",
-      image: "assets/images/airplanes/Tier 3/5.png",
-    },
-    {
-      id: 40,
-      name: "Tier 3 - Model 6",
-      image: "assets/images/airplanes/Tier 3/6.png",
-    },
-    {
-      id: 41,
-      name: "Tier 3 - Model 7",
-      image: "assets/images/airplanes/Tier 3/7.png",
-    },
-    {
-      id: 42,
-      name: "Tier 3 - Model 8",
-      image: "assets/images/airplanes/Tier 3/8.png",
-    },
-    {
-      id: 43,
-      name: "Tier 3 - Model 9",
-      image: "assets/images/airplanes/Tier 3/9.png",
-    },
-    {
-      id: 44,
-      name: "Tier 3 - Model 10",
-      image: "assets/images/airplanes/Tier 3/10.png",
-    },
-    {
-      id: 45,
-      name: "Tier 3 - Model 11",
-      image: "assets/images/airplanes/Tier 3/11.png",
-    },
-    {
-      id: 46,
-      name: "Tier 3 - Model 12",
-      image: "assets/images/airplanes/Tier 3/12.png",
-    },
-    {
-      id: 47,
-      name: "Tier 3 - Model 13",
-      image: "assets/images/airplanes/Tier 3/13.png",
-    },
-    {
-      id: 48,
-      name: "Tier 3 - Model 14",
-      image: "assets/images/airplanes/Tier 3/14.png",
-    },
-    {
-      id: 49,
-      name: "Tier 3 - Model 15",
-      image: "assets/images/airplanes/Tier 3/15.png",
-    },
-    {
-      id: 50,
-      name: "Tier 3 - Model 16",
-      image: "assets/images/airplanes/Tier 3/16.png",
-    },
-    {
-      id: 51,
-      name: "Tier 3 - Model 17",
-      image: "assets/images/airplanes/Tier 3/17.png",
-    },
-    {
-      id: 52,
-      name: "Tier 3 - Model 18",
-      image: "assets/images/airplanes/Tier 3/18.png",
-    },
-    {
-      id: 53,
-      name: "Tier 3 - Model 19",
-      image: "assets/images/airplanes/Tier 3/19.png",
-    },
+//     // Tier 3
+//     {
+//       id: 35,
+//       name: "Tier 3 - Model 1",
+//       image: "assets/images/airplanes/Tier 3/1.png",
+//     },
+//     {
+//       id: 36,
+//       name: "Tier 3 - Model 2",
+//       image: "assets/images/airplanes/Tier 3/2.png",
+//     },
+//     {
+//       id: 37,
+//       name: "Tier 3 - Model 3",
+//       image: "assets/images/airplanes/Tier 3/3.png",
+//     },
+//     {
+//       id: 38,
+//       name: "Tier 3 - Model 4",
+//       image: "assets/images/airplanes/Tier 3/4.png",
+//     },
+//     {
+//       id: 39,
+//       name: "Tier 3 - Model 5",
+//       image: "assets/images/airplanes/Tier 3/5.png",
+//     },
+//     {
+//       id: 40,
+//       name: "Tier 3 - Model 6",
+//       image: "assets/images/airplanes/Tier 3/6.png",
+//     },
+//     {
+//       id: 41,
+//       name: "Tier 3 - Model 7",
+//       image: "assets/images/airplanes/Tier 3/7.png",
+//     },
+//     {
+//       id: 42,
+//       name: "Tier 3 - Model 8",
+//       image: "assets/images/airplanes/Tier 3/8.png",
+//     },
+//     {
+//       id: 43,
+//       name: "Tier 3 - Model 9",
+//       image: "assets/images/airplanes/Tier 3/9.png",
+//     },
+//     {
+//       id: 44,
+//       name: "Tier 3 - Model 10",
+//       image: "assets/images/airplanes/Tier 3/10.png",
+//     },
+//     {
+//       id: 45,
+//       name: "Tier 3 - Model 11",
+//       image: "assets/images/airplanes/Tier 3/11.png",
+//     },
+//     {
+//       id: 46,
+//       name: "Tier 3 - Model 12",
+//       image: "assets/images/airplanes/Tier 3/12.png",
+//     },
+//     {
+//       id: 47,
+//       name: "Tier 3 - Model 13",
+//       image: "assets/images/airplanes/Tier 3/13.png",
+//     },
+//     {
+//       id: 48,
+//       name: "Tier 3 - Model 14",
+//       image: "assets/images/airplanes/Tier 3/14.png",
+//     },
+//     {
+//       id: 49,
+//       name: "Tier 3 - Model 15",
+//       image: "assets/images/airplanes/Tier 3/15.png",
+//     },
+//     {
+//       id: 50,
+//       name: "Tier 3 - Model 16",
+//       image: "assets/images/airplanes/Tier 3/16.png",
+//     },
+//     {
+//       id: 51,
+//       name: "Tier 3 - Model 17",
+//       image: "assets/images/airplanes/Tier 3/17.png",
+//     },
+//     {
+//       id: 52,
+//       name: "Tier 3 - Model 18",
+//       image: "assets/images/airplanes/Tier 3/18.png",
+//     },
+//     {
+//       id: 53,
+//       name: "Tier 3 - Model 19",
+//       image: "assets/images/airplanes/Tier 3/19.png",
+//     },
 
-    // Tier 4
-    {
-      id: 54,
-      name: "Tier 4 - Model 1",
-      image: "assets/images/airplanes/Tier 4/1.png",
-    },
-    {
-      id: 55,
-      name: "Tier 4 - Model 2",
-      image: "assets/images/airplanes/Tier 4/2.png",
-    },
-    {
-      id: 56,
-      name: "Tier 4 - Model 3",
-      image: "assets/images/airplanes/Tier 4/3.png",
-    },
-    {
-      id: 57,
-      name: "Tier 4 - Model 4",
-      image: "assets/images/airplanes/Tier 4/4.png",
-    },
-    {
-      id: 58,
-      name: "Tier 4 - Model 5",
-      image: "assets/images/airplanes/Tier 4/5.png",
-    },
-    {
-      id: 59,
-      name: "Tier 4 - Model 6",
-      image: "assets/images/airplanes/Tier 4/6.png",
-    },
-    {
-      id: 60,
-      name: "Tier 4 - Model 7",
-      image: "assets/images/airplanes/Tier 4/7.png",
-    },
-    {
-      id: 61,
-      name: "Tier 4 - Model 8",
-      image: "assets/images/airplanes/Tier 4/8.png",
-    },
-    {
-      id: 62,
-      name: "Tier 4 - Model 9",
-      image: "assets/images/airplanes/Tier 4/9.png",
-    },
-  ]);
-});
+//     // Tier 4
+//     {
+//       id: 54,
+//       name: "Tier 4 - Model 1",
+//       image: "assets/images/airplanes/Tier 4/1.png",
+//     },
+//     {
+//       id: 55,
+//       name: "Tier 4 - Model 2",
+//       image: "assets/images/airplanes/Tier 4/2.png",
+//     },
+//     {
+//       id: 56,
+//       name: "Tier 4 - Model 3",
+//       image: "assets/images/airplanes/Tier 4/3.png",
+//     },
+//     {
+//       id: 57,
+//       name: "Tier 4 - Model 4",
+//       image: "assets/images/airplanes/Tier 4/4.png",
+//     },
+//     {
+//       id: 58,
+//       name: "Tier 4 - Model 5",
+//       image: "assets/images/airplanes/Tier 4/5.png",
+//     },
+//     {
+//       id: 59,
+//       name: "Tier 4 - Model 6",
+//       image: "assets/images/airplanes/Tier 4/6.png",
+//     },
+//     {
+//       id: 60,
+//       name: "Tier 4 - Model 7",
+//       image: "assets/images/airplanes/Tier 4/7.png",
+//     },
+//     {
+//       id: 61,
+//       name: "Tier 4 - Model 8",
+//       image: "assets/images/airplanes/Tier 4/8.png",
+//     },
+//     {
+//       id: 62,
+//       name: "Tier 4 - Model 9",
+//       image: "assets/images/airplanes/Tier 4/9.png",
+//     },
+//   ]);
+// });
 
 router.get("/assets/bullets", (req, res) => {
-  res.json([
-    { id: 1, name: "Level 1", image: "assets/images/bullets/lvl1.png" },
-    { id: 2, name: "Level 2", image: "assets/images/bullets/lvl2.png" },
-    { id: 2, name: "Level 3", image: "assets/images/bullets/lvl3.png" },
-    { id: 2, name: "Level 4", image: "assets/images/bullets/lvl4.png" },
-    { id: 2, name: "Level 5", image: "assets/images/bullets/lvl5.png" },
-    { id: 2, name: "Level 6", image: "assets/images/bullets/lvl6.png" },
-  ]);
+  res.json(bulletsData);
 });
 // ورود کاربر
 // در فایل: routes/api.js
@@ -677,88 +668,39 @@ router.post("/shop/buy-potion", auth, async (req, res) => {
 // ارتقاء ویژگی‌ها
 router.post("/upgrade", auth, async (req, res) => {
   try {
-    const { type } = req.body; // damage, speed, health, airplane
+    const { type } = req.body;
     const user = req.user;
-    let cost = 0;
 
-    switch (type) {
-      // ... (case های دیگر)
-      // <<<< بازنویسی کامل منطق ارتقا گلوله >>>>
-      case "bullet":
-        const { airplaneTier, airplaneStyle } = req.body;
-        if (!airplaneTier || !airplaneStyle) {
-          return res
-            .status(400)
-            .json({ error: "اطلاعات هواپیما برای ارتقا ارسال نشده است" });
-        }
+    if (type === "airplane") {
+      const currentTier = user.airplaneTier;
+      const currentStyle = user.airplaneStyle;
 
-        // ایجاد یک کلید منحصر به فرد برای هر هواپیما
-        const airplaneKey = `${airplaneTier}_${airplaneStyle}`;
+      // پیدا کردن ایندکس هواپیمای بعدی
+      const currentIndex = airplanesData.findIndex(
+        (p) => p.tier === currentTier && p.style === currentStyle
+      );
+      const nextPlane = airplanesData[currentIndex + 1];
 
-        // دریافت سطح فعلی گلوله برای این هواپیما (اگر وجود نداشت، سطح ۱ است)
-        const currentLevel = user.airplaneBulletLevels.get(airplaneKey) || 1;
+      if (!nextPlane) {
+        return res
+          .status(400)
+          .json({ error: "شما به آخرین لول هواپیما رسیدید" });
+      }
 
-        if (currentLevel >= 4) {
-          return res
-            .status(400)
-            .json({ error: "این هواپیما به حداکثر سطح گلوله رسیده‌ است" });
-        }
+      const cost = nextPlane.price;
+      if (user.coins < cost) {
+        return res.status(400).json({ error: "سکه کافی نیست" });
+      }
 
-        const BaseValue = 1000;
-        const costFormula = BaseValue * 0.06 * Math.pow(1.12, currentLevel - 1);
-        cost = Math.ceil(costFormula);
-
-        if (user.coins < cost) {
-          return res.status(400).json({ error: "سکه کافی نیست" });
-        }
-
-        user.coins -= cost;
-        // آپدیت سطح گلوله برای هواپیمای مشخص شده در Map
-        user.airplaneBulletLevels.set(airplaneKey, currentLevel + 1);
-
-        // علامت‌گذاری برای ذخیره تغییرات در Map
-        user.markModified("airplaneBulletLevels");
-        break;
-      // <<<< پایان بخش بازنویسی شده >>>>
-
-      case "airplane":
-        // تعریف تعداد مدل‌ها برای هر تایر
-        const maxStylesPerTier = { 1: 14, 2: 20, 3: 19, 4: 9 };
-
-        const currentTier = user.airplaneTier;
-        const currentStyle = user.airplaneStyle;
-
-        // بررسی اینکه آیا کاربر در بالاترین سطح ممکن است یا خیر
-        if (currentTier >= 4 && currentStyle >= maxStylesPerTier[4]) {
-          return res
-            .status(400)
-            .json({ error: "شما به آخرین لول هواپیما رسیدید" });
-        }
-
-        // فرمول جدید برای هزینه ارتقا
-        cost = currentTier * 100 + currentStyle * 20;
-        if (user.coins < cost) {
-          return res.status(400).json({ error: "سکه کافی نیست" });
-        }
-        user.coins -= cost;
-
-        // منطق اصلی ارتقا
-        if (currentStyle < maxStylesPerTier[currentTier]) {
-          // ارتقا مدل در تایر فعلی
-          user.airplaneStyle += 1;
-        } else {
-          // رفتن به تایر بعدی و ریست شدن مدل به ۱
-          user.airplaneTier += 1;
-          user.airplaneStyle = 1;
-        }
-        break;
-
-      default:
-        return res.status(400).json({ error: "Invalid upgrade type" });
+      user.coins -= cost;
+      user.airplaneTier = nextPlane.tier;
+      user.airplaneStyle = nextPlane.style;
+    } else {
+      return res.status(400).json({ error: "Invalid upgrade type" });
     }
 
     await user.save();
-    res.json({ message: "Upgrade successful", user }); // ارسال کل اطلاعات کاربر برای آپدیت در فرانت
+    res.json({ message: "Upgrade successful", user });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

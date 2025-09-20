@@ -122,16 +122,15 @@ class MenuManager {
   }
   // در فایل js/menu.js -> داخل کلاس MenuManager
   // در فایل js/menu.js -> داخل کلاس MenuManager
+  // در فایل js/menu.js -> داخل کلاس MenuManager
   async showSelectionMenu() {
     this.showMenu("selection-menu");
-
     const airplaneContainer = document.getElementById(
       "airplane-selection-container"
     );
     const potionContainer = document.getElementById(
       "potion-selection-container"
     );
-
     if (!airplaneContainer || !potionContainer) return;
 
     airplaneContainer.innerHTML =
@@ -140,43 +139,28 @@ class MenuManager {
       '<p class="loading-text">در حال بارگذاری...</p>';
 
     try {
-      let [userData, allPlanes, allPotions] = await Promise.all([
+      // هواپیماها را دیگر اینجا fetch نمی‌کنیم
+      const [userData, allPotions] = await Promise.all([
         this.apiRequest("/api/user"),
-        this.apiRequest("/api/assets/airplanes"),
         this.apiRequest("/api/potions"),
       ]);
-
       this.userData = userData;
+      const allPlanes = window.gameManager.allPlanes; // از لیست آماده استفاده می‌کنیم
 
-      // --- شروع بخش اصلاح شده ---
-      // FIX: نام هواپیما را تجزیه کرده و tier و style را به آبجکت اضافه می‌کنیم
-      allPlanes = allPlanes.map((plane) => {
-        const nameMatch = plane.name.match(/Tier (\d+) - Model (\d+)/);
-        if (nameMatch) {
-          plane.tier = parseInt(nameMatch[1]);
-          plane.style = parseInt(nameMatch[2]);
-        }
-        return plane;
-      });
-      // --- پایان بخش اصلاح شده ---
-
-      // ---- نمایش هواپیماها ----
+      // Display Airplanes
       airplaneContainer.innerHTML = "";
-      const userTier = userData.airplaneTier || 1;
-      const userStyle = userData.airplaneStyle || 1;
-
       const availablePlanes = allPlanes.filter(
         (plane) =>
           plane.tier &&
-          (plane.tier < userTier ||
-            (plane.tier === userTier && plane.style <= userStyle))
+          (plane.tier < userData.airplaneTier ||
+            (plane.tier === userData.airplaneTier &&
+              plane.style <= userData.airplaneStyle))
       );
-
       availablePlanes.forEach((plane) =>
         airplaneContainer.appendChild(this.createSelectItem(plane, "airplane"))
       );
 
-      // ---- نمایش معجون‌ها ----
+      // Display Potions
       potionContainer.innerHTML = "";
       const nonePotion = {
         _id: "none",
@@ -195,8 +179,7 @@ class MenuManager {
           }
         });
       }
-
-      this.applySavedSelections({ allPotions });
+      this.applySavedSelections({ allPlanes, allPotions });
     } catch (error) {
       console.error("Failed to load equipment:", error);
       airplaneContainer.innerHTML = "<p>خطا در بارگذاری.</p>";
@@ -207,11 +190,10 @@ class MenuManager {
   // در فایل js/menu.js -> داخل کلاس MenuManager
 
   // در فایل js/menu.js -> داخل کلاس MenuManager
-  applySavedSelections({ allPotions }) {
-    // allBullets از پارامترها حذف شد
-    if (!window.gameManager) return;
+  // در فایل js/menu.js -> داخل کلاس MenuManager
+  applySavedSelections({ allPlanes, allPotions }) {
+    if (!window.gameManager || !this.userData) return;
 
-    // --- ۱. اعمال انتخاب برای هواپیما ---
     const airplaneContainer = document.getElementById(
       "airplane-selection-container"
     );
@@ -219,20 +201,43 @@ class MenuManager {
       .querySelectorAll(".selection-item")
       .forEach((el) => el.classList.remove("selected"));
 
-    const savedAirplane = JSON.parse(localStorage.getItem("selectedAirplane"));
-    if (savedAirplane) {
-      const itemElement = airplaneContainer.querySelector(
-        `.selection-item[data-asset-id="${savedAirplane.id}"]`
+    let airplaneToSelect = null;
+    const savedAirplaneData = JSON.parse(
+      localStorage.getItem("selectedAirplane")
+    );
+
+    if (savedAirplaneData && allPlanes) {
+      airplaneToSelect = allPlanes.find(
+        (p) =>
+          p.tier === savedAirplaneData.tier &&
+          p.style === savedAirplaneData.style
       );
-      if (itemElement) {
-        itemElement.classList.add("selected");
-        window.gameManager.selectedAirplane = savedAirplane;
-      }
     }
 
-    // --- ۲. بخش مربوط به گلوله کاملا حذف شد ---
+    if (!airplaneToSelect) {
+      airplaneToSelect = allPlanes.find(
+        (p) =>
+          p.tier === this.userData.airplaneTier &&
+          p.style === this.userData.airplaneStyle
+      );
+    }
 
-    // --- ۳. اعمال انتخاب برای معجون ---
+    if (airplaneToSelect) {
+      const assetId = `${airplaneToSelect.tier}_${airplaneToSelect.style}`;
+      const itemElement = airplaneContainer.querySelector(
+        `.selection-item[data-asset-id="${assetId}"]`
+      );
+
+      if (itemElement) {
+        itemElement.classList.add("selected");
+      }
+      window.gameManager.selectedAirplane = airplaneToSelect;
+      localStorage.setItem(
+        "selectedAirplane",
+        JSON.stringify(airplaneToSelect)
+      );
+    }
+
     const potionContainer = document.getElementById(
       "potion-selection-container"
     );
@@ -241,12 +246,11 @@ class MenuManager {
       .forEach((el) => el.classList.remove("selected"));
 
     let savedPotion = JSON.parse(localStorage.getItem("selectedPotion"));
-    // برای معجون از _id استفاده می‌کنیم
     let selectedPotionElement = savedPotion
       ? potionContainer.querySelector(
           `.selection-item[data-asset-id="${savedPotion._id}"]`
         )
-      : null;
+      : potionContainer.querySelector('.selection-item[data-asset-id="none"]');
 
     if (!selectedPotionElement) {
       selectedPotionElement = potionContainer.querySelector(
@@ -255,7 +259,6 @@ class MenuManager {
       savedPotion = null;
       localStorage.setItem("selectedPotion", JSON.stringify(null));
     }
-
     if (selectedPotionElement) {
       selectedPotionElement.classList.add("selected");
       window.gameManager.selectedPotion = savedPotion;
@@ -267,7 +270,13 @@ class MenuManager {
   createSelectItem(asset, type) {
     const item = document.createElement("div");
     item.className = "selection-item";
-    const assetId = asset._id || asset.id; // شناسه منحصر به فرد
+
+    let assetId;
+    if (type === "airplane") {
+      assetId = `${asset.tier}_${asset.style}`;
+    } else {
+      assetId = asset._id || asset.id;
+    }
     item.dataset.assetId = assetId;
 
     const imageSrc = asset.imagePath || asset.image;
@@ -284,12 +293,11 @@ class MenuManager {
       item.classList.add("selected");
 
       if (window.gameManager) {
-        // <<<< بخش جدید برای ذخیره در localStorage >>>>
-        const key = `selected${type.charAt(0).toUpperCase() + type.slice(1)}`; // مثلا: selectedAirplane
-        const valueToStore = asset.id === "none" ? null : asset;
+        const key = `selected${type.charAt(0).toUpperCase() + type.slice(1)}`;
+        const valueToStore = assetId === "none" ? null : asset;
 
         window.gameManager[key] = valueToStore;
-        localStorage.setItem(key, JSON.stringify(valueToStore)); // ذخیره کل آبجکت
+        localStorage.setItem(key, JSON.stringify(valueToStore));
         console.log(`Saved ${key}:`, valueToStore);
       }
     });
@@ -759,7 +767,7 @@ class MenuManager {
 
       let upgradeHTML = "";
       if (nextPlane && currentPlane) {
-        const cost = currentTier * 100 + currentStyle * 20;
+        const cost = nextPlane.price; // FIX: هزینه از دیتای هواپیمای بعدی خوانده می‌شود
         const canAfford = userData.coins >= cost;
         upgradeHTML = `
                 <div class="upgrade-info">

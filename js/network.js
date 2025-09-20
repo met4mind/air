@@ -78,8 +78,10 @@ export class NetworkManager {
     });
   }
 
+  // در فایل js/network.js -> داخل کلاس NetworkManager
   async getAirplanes() {
-    return this.apiRequest("/api/assets/airplanes");
+    // FIX: آدرس API را به مسیر جدید و کامل تغییر می‌دهیم
+    return this.apiRequest("/api/game-data/airplanes");
   }
 
   async getBullets() {
@@ -261,13 +263,14 @@ export class NetworkManager {
   }
   // در network.js - تابع handleMessage
 
+  // در فایل js/network.js
   sendHit(damage) {
     if (this.connected) {
       this.socket.send(
         JSON.stringify({
           type: "hit",
           userId: this.userId,
-          damage: damage,
+          damage: damage, // ارسال مقدار damage
         })
       );
     }

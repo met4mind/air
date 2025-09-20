@@ -3,6 +3,7 @@ import { Airplane } from "./airplane.js";
 import { OpponentAirplane } from "./opponentAirplane.js";
 import { Cloud } from "./clouds.js";
 import { RoadManager } from "./road.js";
+import { Missile } from "./missile.js";
 import { AirplaneWingman } from "./wingman.js";
 import { Bullet } from "./bullet.js";
 
@@ -30,7 +31,7 @@ export class WarScene {
     this.opponentHealth = 100;
     this.bullets = [];
     this.isPotionActive = false;
-
+    this.missiles = [];
     this.isShielded = false;
     this.originalBulletSpeed = this.CONFIG.bullets.speed;
     this.originalShootingInterval = this.CONFIG.bullets.interval;
@@ -43,13 +44,122 @@ export class WarScene {
   async init() {
     this.setupScene();
     this.createGameObjects();
-    this.setupEventListeners();
+    // this.setupEventListeners();
+    this.startShooting();
     this.setupNetworkHandlers();
     this.startGameLoop();
 
     this.createHealthDisplays();
     this.setupPotionButton(); // جدید
   }
+
+  startShooting() {
+    const planeData = window.gameManager.allPlanes.find(
+      (p) =>
+        p.tier === this.selectedAirplane.tier &&
+        p.style === this.selectedAirplane.style
+    );
+
+    // FIX: شرط را کامل‌تر می‌کنیم تا آرایه خالی را هم مدیریت کند
+    if (
+      !planeData ||
+      !planeData.projectiles ||
+      planeData.projectiles.length === 0
+    ) {
+      console.error(
+        `Shooting data not found for plane: ${this.selectedAirplane.name}. The plane will not shoot.`
+      );
+      return; // از ادامه تابع جلوگیری کرده و بازی ادامه پیدا می‌کند (بدون شلیک)
+    }
+
+    // تعریف مشخصات بصری برای گلوله‌ها
+    const bulletVisuals = {
+      blue: { filter: "saturate(3) hue-rotate(200deg)" },
+      orange: { filter: "saturate(5) hue-rotate(15deg)" },
+      red: { filter: "saturate(4) hue-rotate(320deg)" },
+      purple: { filter: "saturate(3) hue-rotate(250deg)" },
+    };
+    const bulletSizeMap = { 1: 15, 2: 20, 3: 25, 5: 35 };
+    const missileSizeMap = { 1: 20, 2: 25, 3: 30, 4: 40, 5: 50 };
+
+    const totalProjectileCount = planeData.projectiles.reduce(
+      (sum, p) => sum + p.count,
+      0
+    );
+    const damagePerProjectile =
+      totalProjectileCount > 0 ? planeData.damage / totalProjectileCount : 0;
+
+    const shootingInterval = 1200;
+
+    this.shootingInterval = setInterval(() => {
+      if (!this.airplane || !this.airplane.element.parentNode) {
+        clearInterval(this.shootingInterval);
+        return;
+      }
+      const planePos = this.airplane.getPosition();
+
+      planeData.projectiles.forEach((proj) => {
+        const count = proj.count;
+
+        for (let i = 0; i < count; i++) {
+          let startX,
+            startY,
+            angleDeg = -90;
+
+          if (proj.from === "nose") {
+            const offsetFromCenter = count > 1 ? (i - (count - 1) / 2) * 15 : 0;
+            startX = planePos.x + planePos.width / 2 + offsetFromCenter;
+            startY = planePos.y + 20;
+          } else {
+            // wings
+            const offsetRatio = proj.offset === "near" ? 0.3 : 0.1;
+            const wing = i % 2 === 0 ? -1 : 1; // -1 for left, 1 for right
+            startX =
+              planePos.x +
+              planePos.width / 2 +
+              wing * planePos.width * offsetRatio;
+            startY = planePos.y + planePos.height * 0.4;
+          }
+
+          if (proj.pattern === "angled" && count > 1) {
+            const spread = 40;
+            angleDeg = -90 - spread / 2 + i * (spread / (count - 1));
+          }
+
+          if (proj.type === "bullet") {
+            const visual = bulletVisuals[proj.color] || {};
+            const size = bulletSizeMap[proj.size] || 20;
+            const bullet = new Bullet(
+              "./assets/images/bullets/lvl1.png",
+              startX,
+              startY,
+              size,
+              planeData.bulletSpeed / 20,
+              angleDeg,
+              false,
+              visual.filter
+            );
+            bullet.damage = damagePerProjectile;
+            this.bullets.push(bullet);
+          } else if (proj.type === "missile") {
+            const size = missileSizeMap[proj.size] || 30;
+            const missile = new Missile({
+              x: startX,
+              y: startY,
+              target: this.opponentAirplane,
+              missileType: proj.missileType,
+              speed: planeData.bulletSpeed / 30,
+              damage: damagePerProjectile,
+              size: size,
+            });
+            this.missiles.push(missile);
+          }
+        }
+      });
+      this.playSound(this.CONFIG.assets.sound);
+    }, shootingInterval);
+  }
+
   setupPotionButton() {
     const potionBtn = document.getElementById("use-potion-btn");
 
@@ -593,28 +703,45 @@ export class WarScene {
   // این تابع را به طور کامل جایگزین تابع قبلی کنید.
 
   checkCollisions() {
+    if (!this.opponentAirplane) return;
+
     // برخورد گلوله‌های من به حریف
     for (let i = this.bullets.length - 1; i >= 0; i--) {
       const bullet = this.bullets[i];
       if (
-        this.opponentAirplane &&
+        bullet &&
+        bullet.active &&
         this.isColliding(bullet, this.opponentAirplane)
       ) {
-        // پیام برخورد به سرور ارسال می‌شود و سرور خودش damage را محاسبه می‌کند
-        if (this.networkManager && this.networkManager.sendHit) {
-          this.networkManager.sendHit();
-        }
+        this.networkManager.sendHit(bullet.damage); // ارسال damage به سرور
         bullet.remove();
         this.bullets.splice(i, 1);
+      }
+    }
+
+    // برخورد موشک‌های من به حریف
+    for (let i = this.missiles.length - 1; i >= 0; i--) {
+      const missile = this.missiles[i];
+      if (
+        missile &&
+        missile.active &&
+        this.isColliding(missile, this.opponentAirplane)
+      ) {
+        this.networkManager.sendHit(missile.damage);
+        missile.remove();
+        this.missiles.splice(i, 1);
       }
     }
 
     // برخورد گلوله‌های حریف با هواپیمای من
     for (let i = this.opponentBullets.length - 1; i >= 0; i--) {
       const bullet = this.opponentBullets[i];
-
-      // اگر سپر فعال نباشد و برخورد رخ دهد
-      if (!this.isShielded && this.isColliding(bullet, this.airplane)) {
+      if (
+        !this.isShielded &&
+        bullet &&
+        bullet.active &&
+        this.isColliding(bullet, this.airplane)
+      ) {
         // سرور مسئول کم کردن جان است، کلاینت فقط گلوله را حذف می‌کند
         bullet.remove();
         this.opponentBullets.splice(i, 1);
@@ -735,22 +862,19 @@ export class WarScene {
     clearInterval(this.opponentShootingInterval);
     clearInterval(this.cloudGenerationInterval);
 
-    this.airplane.remove();
+    if (this.airplane) this.airplane.remove();
     if (this.wingman) this.wingman.remove();
     if (this.opponentAirplane) this.opponentAirplane.remove();
-
-    // حذف نمایش سلامت
     if (this.playerHealthDisplay) this.playerHealthDisplay.remove();
     if (this.opponentHealthDisplay) this.opponentHealthDisplay.remove();
 
-    // حذف تمام گلوله‌ها
+    // حذف تمام پرتابه‌ها
     this.bullets.forEach((bullet) => bullet.remove());
+    this.missiles.forEach((missile) => missile.remove()); // <<<< این خط جدید است
     this.opponentBullets.forEach((bullet) => bullet.remove());
 
-    // حذف networkManager از scope全局
     window.networkManager = null;
   }
-
   // تابع برای به روزرسانی ابعاد صفحه هنگام resize
   handleResize() {
     this.screenWidth = window.innerWidth;
