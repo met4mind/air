@@ -377,35 +377,34 @@ export class WarScene {
         planePercentY,
         offsetX,
         offsetY,
-        rotation,
+        rotation, // زاویه اصلی شلیک بازیکن
         isWingman,
         bulletSpec
       ) => {
         if (!this.opponentAirplane) return;
-
-        // <<<< شروع بخش اصلاح‌شده نهایی >>>>
 
         // ۱. موقعیت مرکز هواپیمای حریف را در صفحه ما بازسازی می‌کنیم
         const opponentPlaneCenterX = (1 - planePercentX) * window.innerWidth;
         const opponentPlaneCenterY = (1 - planePercentY) * window.innerHeight;
 
         // ۲. آفست‌ها را برای مختصات معکوس حریف اعمال می‌کنیم
-        // offsetX منفی می‌شود تا جهت افقی درست باشد
-        // offsetY منفی می‌شود تا الگوی شلیک (جلوتر بودن تیر دماغه) درست باشد
         const bulletX = opponentPlaneCenterX - offsetX;
         const bulletY = opponentPlaneCenterY - offsetY;
 
-        // ۳. زاویه شلیک به سمت پایین را تنظیم می‌کنیم
-        const downwardRotation = 90;
+        // <<<< شروع اصلاح اصلی زاویه >>>>
+        // ۳. زاویه حرکت را برای صفحه آینه‌ای حریف معکوس می‌کنیم
+        // اگر بازیکن با زاویه -80 (کمی به راست) شلیک کند،
+        // برای ما باید با زاویه +80 (کمی به چپ) بیاید.
+        const mirroredRotation = -rotation;
 
-        // ۴. گلوله را با موقعیت و زاویه نهایی ایجاد می‌کنیم
+        // ۴. گلوله را با موقعیت و زاویه حرکتی صحیح ایجاد می‌کنیم
         this.createOpponentBullet(
           bulletX,
           bulletY,
-          downwardRotation,
+          mirroredRotation,
           bulletSpec
         );
-        // <<<< پایان بخش اصلاح‌شده نهایی >>>>
+        // <<<< پایان اصلاح اصلی زاویه >>>>
       };
       this.networkManager.onYouHit = (damage) => {
         this.applyDamage(damage);

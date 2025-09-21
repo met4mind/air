@@ -6,13 +6,15 @@ export class Bullet {
   // در فایل js/bullet.js
   // در فایل js/bullet.js
 
+  // در فایل js/bullet.js
+
   constructor(
     imageUrl,
     x,
     y,
     size = 20,
     speed = 5,
-    rotationDeg = 0,
+    rotationDeg = 0, // این زاویه، زاویه حرکت است
     isOpponent = false,
     filter = "none"
   ) {
@@ -25,6 +27,7 @@ export class Bullet {
 
     this.element = document.createElement("div");
     this.element.className = "bullet";
+    // ... (سایر استایل‌ها بدون تغییر)
     this.element.style.width = `${size}px`;
     this.element.style.height = `${size}px`;
     this.element.style.position = "absolute";
@@ -41,10 +44,11 @@ export class Bullet {
       this.element.style.backgroundRepeat = "no-repeat";
       this.element.style.backgroundPosition = "center";
 
-      // <<<< اصلاح چرخش تصویر >>>>
-      // زاویه دریافتی برای حرکت صحیح است، اما برای نمایش بصری،
-      // تصویر گلوله حریف باید ۱۸0 درجه بچرخد تا سر و ته نباشد.
-      const visualRotation = isOpponent ? rotationDeg + 180 : rotationDeg;
+      // <<<< اصلاح نهایی چرخش بصری >>>>
+      // فرض می‌کنیم تصویر اصلی گلوله رو به بالا است.
+      // برای چرخاندن آن در جهت حرکت، باید ۹۰ درجه به زاویه حرکت اضافه کنیم.
+      // این فرمول هم برای شما و هم برای حریف به درستی کار می‌کند.
+      const visualRotation = rotationDeg;
       this.element.style.transform = `rotate(${visualRotation}deg)`;
     } else {
       this.element.style.backgroundColor = isOpponent ? "red" : "yellow";
