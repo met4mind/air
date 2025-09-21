@@ -8,17 +8,20 @@ import { AirplaneWingman } from "./wingman.js";
 import { Bullet } from "./bullet.js";
 
 export class WarScene {
+  // در فایل js/warScene.js -> کل constructor را جایگزین کنید
+
   constructor(
     CONFIG,
     networkManager,
     selectedAirplane,
     selectedBullet,
     selectedPotion,
-    userData
+    userData,
+    initialHealth, // پارامتر جدید
+    initialOpponentHealth // پارامتر جدید
   ) {
     this.CONFIG = CONFIG;
     this.networkManager = networkManager;
-    // Store the selected asset objects directly
     this.selectedAirplane = selectedAirplane;
     this.selectedBullet = selectedBullet;
     this.selectedPotion = selectedPotion || null;
@@ -27,8 +30,12 @@ export class WarScene {
     this.opponent = null;
     this.opponentAirplane = null;
     this.opponentBullets = [];
-    this.health = 100;
-    this.opponentHealth = 100;
+
+    // <<<< اصلاح اصلی اینجاست >>>>
+    // به جای مقدار ثابت ۱۰۰، از مقادیر دریافتی استفاده می‌کنیم
+    this.health = initialHealth || 100;
+    this.opponentHealth = initialOpponentHealth || 100;
+
     this.bullets = [];
     this.isPotionActive = false;
     this.missiles = [];
@@ -565,9 +572,11 @@ export class WarScene {
 
   updateHealthDisplay() {
     if (this.playerHealthDisplay) {
-      this.playerHealthDisplay.innerHTML = `Your Health: ${this.health}%`;
+      // این خط اصلاح می‌شود
+      this.playerHealthDisplay.innerHTML = `Your Health: ${Math.round(
+        this.health
+      )}%`;
 
-      // تغییر رنگ بر اساس سلامت
       if (this.health < 30) {
         this.playerHealthDisplay.style.background = "rgba(255,0,0,0.7)";
       } else if (this.health < 60) {
@@ -580,11 +589,11 @@ export class WarScene {
 
   updateOpponentHealthDisplay() {
     if (this.opponentHealthDisplay) {
+      // این خط اصلاح می‌شود
       this.opponentHealthDisplay.innerHTML = `${
         this.opponent?.username || "Opponent"
-      } Health: ${this.opponentHealth}%`;
+      } Health: ${Math.round(this.opponentHealth)}%`;
 
-      // تغییر رنگ بر اساس سلامت
       if (this.opponentHealth < 30) {
         this.opponentHealthDisplay.style.background = "rgba(255,0,0,0.7)";
       } else if (this.opponentHealth < 60) {

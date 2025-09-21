@@ -120,7 +120,10 @@ export class NetworkManager {
 
       case "game_start":
         this.opponent = message.opponent;
-        if (this.onGameStart) this.onGameStart(message.opponent);
+        if (this.onGameStart) {
+          // به جای message.opponent، کل آبجکت message را ارسال می‌کنیم
+          this.onGameStart(message);
+        }
         break;
       case "game_cancelled":
         if (this.onGameCancelled) this.onGameCancelled(message.message);

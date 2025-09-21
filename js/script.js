@@ -538,7 +538,7 @@ class GameManager {
       this.showWaitingMessage("در حال اتصال به سرور بازی...");
       this.networkManager.connect();
 
-      this.networkManager.onGameStart = (opponent) => this.startGame(opponent);
+      this.networkManager.onGameStart = (gameData) => this.startGame(gameData);
       this.networkManager.onWaiting = (message) =>
         this.showWaitingMessage(message);
       this.networkManager.onGameCancelled = (message) => {
@@ -728,48 +728,42 @@ class GameManager {
   }
 
   // در فایل js/script.js -> کلاس GameManager
-  async startGame(opponent) {
-    try {
-      // <<<< بخش اصلاح‌شده: به جای فراخوانی تابع حذف‌شده، اطلاعات را مستقیم از localStorage می‌خوانیم >>>>
-      this.userData = JSON.parse(localStorage.getItem("userData"));
+  // در فایل js/script.js -> کل تابع را جایگزین کنید
 
-      // اگر به هر دلیلی اطلاعات کاربر در دسترس نبود، بازی را متوقف کن
+  async startGame(gameData) {
+    try {
+      this.userData = JSON.parse(localStorage.getItem("userData"));
       if (!this.userData) {
         throw new Error("User data not found. Cannot start game.");
       }
-      // <<<< پایان بخش اصلاح‌شده >>>>
 
       this.hideWaitingMessage();
       this.hideScreen("main-menu");
       this.showScreen("game-container");
 
-      const playerAssets = {
-        airplane:
-          this.selectedAirplane?.image ||
-          "assets/images/airplanes/Tier 1/1.png",
-        bullets: this.selectedBullet?.image || "assets/images/bullets/lvl1.png",
-      };
-
-      // ارسال آبجکت‌های کامل به جای playerAssets
+      // <<<< شروع بخش اصلاح‌شده >>>>
       this.scenes.war = new WarScene(
         CONFIG,
         this.networkManager,
-        this.selectedAirplane, // آبجکت کامل هواپیما
-        this.selectedBullet, // آبجکت کامل گلوله
+        this.selectedAirplane,
+        this.selectedBullet,
         this.selectedPotion,
-        this.userData
+        this.userData,
+        gameData.health, // ارسال سلامتی اولیه بازیکن
+        gameData.opponentHealth // ارسال سلامتی اولیه حریف
       );
 
       await this.switchScene("war");
       if (this.currentScene && this.currentScene.setOpponent) {
-        this.currentScene.setOpponent(opponent);
+        // آبجکت حریف را از gameData می‌خوانیم
+        this.currentScene.setOpponent(gameData.opponent);
       }
+      // <<<< پایان بخش اصلاح‌شده >>>>
     } catch (error) {
       console.error("Failed to start game:", error);
       alert("Failed to start game: " + error.message);
     }
   }
-
   async switchScene(sceneName) {
     if (this.currentScene && this.currentScene.cleanup) {
       await this.currentScene.cleanup();
