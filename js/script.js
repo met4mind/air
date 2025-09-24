@@ -1,3 +1,5 @@
+// js/script.js
+
 import { CONFIG } from "./../config.js";
 import { WarScene } from "./warScene.js";
 import { NetworkManager } from "./network.js";
@@ -25,6 +27,12 @@ class GameManager {
     document
       .getElementById("cancel-search-container")
       .addEventListener("click", () => this.cancelSearch());
+
+    // <<< تغییر اصلی اینجاست >>>
+    // این خط حذف می‌شود چون musicManager خودش بعد از اولین کلیک، موسیقی را پخش می‌کند
+    // if (window.musicManager) {
+    //     window.musicManager.play('menu');
+    // }
 
     await this.fetchAllAssets();
 
@@ -181,6 +189,10 @@ class GameManager {
     }
     document.querySelector(".footer-nav").style.display = "flex";
     if (window.menuManager) window.menuManager.showMenu("main-menu");
+
+    if (window.musicManager) {
+      window.musicManager.play("menu");
+    }
   }
 
   getDeviceType() {
@@ -196,22 +208,22 @@ class GameManager {
     return "pc";
   }
 
-  // **تابع showWaitingMessage با کد اصلاح شده**
   showWaitingMessage(message) {
     const overlay = document.getElementById("waiting-overlay");
     const textElement = document.getElementById("waiting-message-text");
-
-    // **اصلاح اصلی: این سه خط کد برای نمایش عکس بازگردانده شد**
     const deviceType = this.getDeviceType();
     const imagePath = `assets/images/waiting/${deviceType}.png`;
     overlay.style.backgroundImage = `url('${imagePath}')`;
-
     textElement.textContent = message;
 
     document.querySelector(".footer-nav").style.display = "none";
     if (window.menuManager) window.menuManager.showMenu(null);
 
     overlay.classList.remove("hidden");
+
+    if (window.musicManager) {
+      window.musicManager.play("waiting");
+    }
   }
 
   hideWaitingMessage() {
@@ -264,6 +276,7 @@ class GameManager {
         alert(message);
         document.querySelector(".footer-nav").style.display = "flex";
         if (window.menuManager) window.menuManager.showMenu("main-menu");
+        if (window.musicManager) window.musicManager.play("menu");
       };
 
       await new Promise((resolve, reject) => {
@@ -299,6 +312,7 @@ class GameManager {
       this.hideWaitingMessage();
       document.querySelector(".footer-nav").style.display = "flex";
       if (window.menuManager) window.menuManager.showMenu("main-menu");
+      if (window.musicManager) window.musicManager.play("menu");
     }
   }
 
@@ -312,6 +326,10 @@ class GameManager {
       document.querySelector(".footer-nav").style.display = "none";
       if (window.menuManager) window.menuManager.showMenu(null);
       document.getElementById("game-container").classList.remove("hidden");
+
+      if (window.musicManager) {
+        window.musicManager.play("war");
+      }
 
       this.scenes.war = new WarScene(
         CONFIG,
@@ -356,7 +374,6 @@ class GameManager {
   }
 
   showScreen(id) {
-    // This function is now simplified, as footer logic is handled elsewhere.
     const element = document.getElementById(id);
     if (element) {
       element.classList.remove("hidden");

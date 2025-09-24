@@ -1,8 +1,11 @@
+// js/musicManager.js
+
 class MusicManager {
   constructor() {
     this.tracks = {};
     this.currentTrack = null;
-    this.volume = 0.3; // بلندی صدای پیش‌فرض (می‌توانید تغییر دهید)
+    this.audioContextUnlocked = false;
+    this.volume = 0.3; // بلندی صدای پیش‌فرض
     this.fadeDuration = 1000; // مدت زمان محو شدن آهنگ (۱ ثانیه)
 
     this.preloadTracks();
@@ -10,7 +13,6 @@ class MusicManager {
   }
 
   preloadTracks() {
-    // فرض می‌کنیم آهنگ‌ها در این مسیر قرار دارند. اگر مسیر دیگری است، آن را اصلاح کنید.
     const trackPaths = {
       menu: "assets/sounds/menu/menu.wav",
       waiting: "assets/sounds/menu/waiting.wav",
@@ -25,40 +27,64 @@ class MusicManager {
     }
   }
 
-  // این تابع برای رفع محدودیت پخش خودکار صدا در مرورگرهاست
   unlockAudioContext() {
-    document.body.addEventListener(
-      "click",
-      () => {
-        Object.values(this.tracks).forEach((track) => {
-          track.play().then(() => track.pause());
-        });
-      },
-      { once: true }
-    );
+    const unlock = () => {
+      if (this.audioContextUnlocked) return;
+
+      // تلاش برای فعال‌سازی صداها
+      const promises = Object.values(this.tracks).map((track) => {
+        const playPromise = track.play();
+        if (playPromise !== undefined) {
+          return playPromise.then(() => track.pause()).catch(() => {});
+        }
+        return Promise.resolve();
+      });
+
+      Promise.all(promises).then(() => {
+        this.audioContextUnlocked = true;
+        console.log("Audio context unlocked.");
+        // <<< تغییر اصلی اینجاست >>>
+        // بعد از اینکه صدا با موفقیت فعال شد، موسیقی منو را پخش کن
+        this.play("menu");
+      });
+
+      document.body.removeEventListener("click", unlock);
+      document.body.removeEventListener("touchstart", unlock);
+    };
+
+    document.body.addEventListener("click", unlock, { once: true });
+    document.body.addEventListener("touchstart", unlock, { once: true });
   }
 
   play(trackName) {
+    // اگر صدا هنوز فعال نشده، پخش را انجام نده (تابع unlock این کار را خواهد کرد)
+    if (!this.audioContextUnlocked) {
+      console.warn("Audio context not unlocked yet. Playback deferred.");
+      return;
+    }
+
     if (
       !this.tracks[trackName] ||
       (this.currentTrack && this.currentTrack.name === trackName)
     ) {
-      return; // اگر آهنگ در حال پخش است، دوباره پخشش نکن
+      return;
     }
 
-    // قطع کردن و محو کردن آهنگ قبلی
     if (this.currentTrack) {
       this.fadeOut(this.currentTrack.audio);
     }
 
-    // پخش و نمایان کردن آهنگ جدید
     const newTrack = this.tracks[trackName];
     this.currentTrack = { name: trackName, audio: newTrack };
 
     const playPromise = newTrack.play();
     if (playPromise !== undefined) {
       playPromise.catch((error) => {
-        console.warn(`پخش خودکار موسیقی '${trackName}' توسط مرورگر متوقف شد.`);
+        // این خطا دیگر نباید رخ دهد، اما برای اطمینان آن را نگه می‌داریم
+        console.warn(
+          `پخش خودکار موسیقی '${trackName}' توسط مرورگر متوقف شد:`,
+          error
+        );
       });
     }
     this.fadeIn(newTrack);
@@ -75,12 +101,12 @@ class MusicManager {
     let currentVolume = 0;
     audio.volume = 0;
     const fadeStep = this.volume / (this.fadeDuration / 50);
-
-    const fadeInterval = setInterval(() => {
+    if (audio.fadeInterval) clearInterval(audio.fadeInterval);
+    audio.fadeInterval = setInterval(() => {
       currentVolume += fadeStep;
       if (currentVolume >= this.volume) {
         audio.volume = this.volume;
-        clearInterval(fadeInterval);
+        clearInterval(audio.fadeInterval);
       } else {
         audio.volume = currentVolume;
       }
@@ -90,17 +116,19 @@ class MusicManager {
   fadeOut(audio) {
     let currentVolume = audio.volume;
     const fadeStep = currentVolume / (this.fadeDuration / 50);
-
-    const fadeInterval = setInterval(() => {
+    if (audio.fadeInterval) clearInterval(audio.fadeInterval);
+    audio.fadeInterval = setInterval(() => {
       currentVolume -= fadeStep;
       if (currentVolume <= 0) {
         audio.volume = 0;
         audio.pause();
-        audio.currentTime = 0; // بازگشت به ابتدای آهنگ
-        clearInterval(fadeInterval);
+        audio.currentTime = 0;
+        clearInterval(audio.fadeInterval);
       } else {
         audio.volume = currentVolume;
       }
     }, 50);
   }
 }
+
+window.musicManager = new MusicManager();

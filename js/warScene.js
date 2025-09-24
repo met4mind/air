@@ -1,3 +1,5 @@
+// js/warScene.js
+
 import { CONFIG } from "../config.js";
 import { Airplane } from "./airplane.js";
 import { OpponentAirplane } from "./opponentAirplane.js";
@@ -8,8 +10,6 @@ import { AirplaneWingman } from "./wingman.js";
 import { Bullet } from "./bullet.js";
 
 export class WarScene {
-  // در فایل js/warScene.js -> کل constructor را جایگزین کنید
-
   constructor(
     CONFIG,
     networkManager,
@@ -17,8 +17,8 @@ export class WarScene {
     selectedBullet,
     selectedPotion,
     userData,
-    initialHealth, // پارامتر جدید
-    initialOpponentHealth // پارامتر جدید
+    initialHealth,
+    initialOpponentHealth
   ) {
     this.CONFIG = CONFIG;
     this.networkManager = networkManager;
@@ -26,43 +26,30 @@ export class WarScene {
     this.selectedBullet = selectedBullet;
     this.selectedPotion = selectedPotion || null;
     this.userData = userData;
-
     this.opponent = null;
     this.opponentAirplane = null;
     this.opponentBullets = [];
-
-    // <<<< اصلاح اصلی اینجاست >>>>
-    // به جای مقدار ثابت ۱۰۰، از مقادیر دریافتی استفاده می‌کنیم
     this.health = initialHealth || 100;
     this.opponentHealth = initialOpponentHealth || 100;
-
     this.bullets = [];
     this.isPotionActive = false;
     this.missiles = [];
     this.isShielded = false;
     this.originalBulletSpeed = this.CONFIG.bullets.speed;
     this.originalShootingInterval = this.CONFIG.bullets.interval;
-
     window.networkManager = networkManager;
-
     this.screenWidth = window.innerWidth;
     this.screenHeight = window.innerHeight;
   }
   async init() {
     this.setupScene();
     this.createGameObjects();
-    // this.setupEventListeners();
     this.startShooting();
     this.setupNetworkHandlers();
     this.startGameLoop();
-
     this.createHealthDisplays();
-    this.setupPotionButton(); // جدید
+    this.setupPotionButton();
   }
-
-  // در فایل js/warScene.js
-
-  // در فایل js/warScene.js
 
   startShooting() {
     const planeData = window.gameManager.allPlanes.find(
@@ -190,23 +177,18 @@ export class WarScene {
 
   setupPotionButton() {
     const potionBtn = document.getElementById("use-potion-btn");
-
-    // <<<< این بررسی جدید از متوقف شدن بازی جلوگیری می‌کند >>>>
     if (!potionBtn) {
       console.warn(
         'Potion button with id "use-potion-btn" not found in the DOM.'
       );
-      return; // اگر دکمه پیدا نشد، از تابع خارج شو
+      return;
     }
 
     if (this.selectedPotion) {
       potionBtn.classList.remove("hidden");
       potionBtn.innerHTML = `<img src="${this.selectedPotion.imagePath}" alt="${this.selectedPotion.name}">`;
-
-      // برای جلوگیری از اضافه شدن چندباره event listener، دکمه را کلون می‌کنیم
       const newPotionBtn = potionBtn.cloneNode(true);
       potionBtn.parentNode.replaceChild(newPotionBtn, potionBtn);
-
       newPotionBtn.addEventListener("click", () => this.activatePotion(), {
         once: true,
       });
@@ -215,13 +197,9 @@ export class WarScene {
     }
   }
 
-  // در فایل: js/warScene.js
-  // این تابع را به طور کامل جایگزین تابع قبلی کنید.
-
   activatePotion() {
     if (!this.selectedPotion || this.isPotionActive) return;
 
-    // <<<< تغییر مهم: ارسال پیام فعال‌سازی به سرور (برای مشکلات ۳ و ۴) >>>>
     if (this.networkManager) {
       this.networkManager.sendPotionActivate(this.selectedPotion._id);
     }
@@ -252,23 +230,15 @@ export class WarScene {
         soundPath = "assets/sounds/potions/speed.mp3";
         effectClass = "speed-effect";
         airplaneElement.classList.add(effectClass, "potion-effect-active");
-
         clearInterval(this.shootingInterval);
         this.CONFIG.bullets.interval = this.originalShootingInterval / 1.5;
-        console.log(
-          `FIRE RATE INCREASED! New interval: ${this.CONFIG.bullets.interval}ms`
-        ); // برای دیباگ
         this.setupEventListeners();
-
         setTimeout(() => {
           airplaneElement.classList.remove(effectClass, "potion-effect-active");
           clearInterval(this.shootingInterval);
           this.CONFIG.bullets.interval = this.originalShootingInterval;
           this.setupEventListeners();
           this.isPotionActive = false;
-          console.log(
-            `FIRE RATE NORMALIZED. Interval: ${this.CONFIG.bullets.interval}ms`
-          ); // برای دیباگ
         }, 30000);
         break;
 
@@ -286,7 +256,6 @@ export class WarScene {
 
       case "معجون درمان":
         soundPath = "assets/sounds/potions/heal.mp3";
-        // منطق درمان اکنون توسط سرور مدیریت می‌شود و پیام آن در ابتدای تابع ارسال شد
         for (let i = 0; i < 20; i++) {
           const particle = document.createElement("div");
           particle.className = "heal-particle";
@@ -329,7 +298,6 @@ export class WarScene {
 
     if (effectClass) {
       opponentElement.classList.add(effectClass, "potion-effect-active");
-      // زمان افکت‌ها با سرور هماهنگ است، پس زمان حذف آن‌ها را نیز مشابه کلاینت اصلی میگذاریم
       let duration = 20000;
       if (potionName === "معجون سرعت") duration = 30000;
       if (potionName === "معجون محافظ") duration = 10000;
@@ -348,15 +316,12 @@ export class WarScene {
 
   setupNetworkHandlers() {
     if (this.networkManager) {
-      // در warScene.js - تابع onOpponentMove
       this.networkManager.onOpponentMove = (percentX, percentY) => {
         if (this.opponentAirplane) {
-          // تبدیل درصد به موقعیت واقعی در صفحه فعلی
           const actualX =
             (1 - percentX) * window.innerWidth - this.opponentAirplane.width;
           const actualY =
             (1 - percentY) * window.innerHeight - this.opponentAirplane.height;
-
           this.opponentAirplane.setPosition(actualX, actualY);
         }
       };
@@ -370,61 +335,37 @@ export class WarScene {
         this.updateHealthDisplay();
         this.updateOpponentHealthDisplay();
       };
-
-      // در warScene.js - تابع onOpponentShoot
-      // در warScene.js - تابع onOpponentShoot
-      // در فایل js/warScene.js -> داخل تابع setupNetworkHandlers
-
-      // در فایل js/warScene.js -> داخل تابع setupNetworkHandlers
-
-      // در فایل js/warScene.js -> داخل تابع setupNetworkHandlers
-
       this.networkManager.onOpponentShoot = (
         planePercentX,
         planePercentY,
         offsetX,
         offsetY,
-        rotation, // زاویه اصلی شلیک بازیکن
+        rotation,
         isWingman,
         bulletSpec
       ) => {
         if (!this.opponentAirplane) return;
-
-        // ۱. موقعیت مرکز هواپیمای حریف را در صفحه ما بازسازی می‌کنیم
         const opponentPlaneCenterX = (1 - planePercentX) * window.innerWidth;
         const opponentPlaneCenterY = (1 - planePercentY) * window.innerHeight;
-
-        // ۲. آفست‌ها را برای مختصات معکوس حریف اعمال می‌کنیم
         const bulletX = opponentPlaneCenterX - offsetX;
         const bulletY = opponentPlaneCenterY - offsetY;
-
-        // <<<< شروع اصلاح اصلی زاویه >>>>
-        // ۳. زاویه حرکت را برای صفحه آینه‌ای حریف معکوس می‌کنیم
-        // اگر بازیکن با زاویه -80 (کمی به راست) شلیک کند،
-        // برای ما باید با زاویه +80 (کمی به چپ) بیاید.
         const mirroredRotation = -rotation;
-
-        // ۴. گلوله را با موقعیت و زاویه حرکتی صحیح ایجاد می‌کنیم
         this.createOpponentBullet(
           bulletX,
           bulletY,
           mirroredRotation,
           bulletSpec
         );
-        // <<<< پایان اصلاح اصلی زاویه >>>>
       };
       this.networkManager.onYouHit = (damage) => {
         this.applyDamage(damage);
       };
-
       this.networkManager.onGameOver = (result) => {
         this.showGameOver(result === "win");
       };
-
       this.networkManager.onOpponentDisconnected = () => {
         this.showOpponentDisconnected();
       };
-
       this.networkManager.onOpponentHealthUpdate = (health) => {
         this.opponentHealth = health;
         this.updateOpponentHealthDisplay();
@@ -445,29 +386,19 @@ export class WarScene {
 
   createOpponentAirplane() {
     if (!this.opponent) return;
-
     this.opponentAirplane = new OpponentAirplane(
       this.getAirplaneImage(this.opponent.airplane),
       this.CONFIG.airplane.width,
       this.CONFIG.airplane.height
     );
-
-    // قرار دادن حریف در موقعیت اولیه (بالای صفحه)
     const initialX = this.screenWidth / 2 - this.CONFIG.airplane.width / 2;
     const initialY = 50;
     this.opponentAirplane.setPosition(initialX, initialY);
   }
 
-  // در فایل js/warScene.js
-
   createOpponentBullet(x, y, rotation = 180, bulletSpec) {
     if (!this.opponentAirplane) return;
-
     const opponentBulletImage = "./assets/images/bullets/lvl1.png";
-
-    // <<<< اصلاح سرعت >>>>
-    // سرعت گلوله حریف را بر اساس داده‌های هواپیمای خودمان تخمین می‌زنیم
-    // تا با سرعت گلوله‌های ما هماهنگ باشد.
     const planeData = window.gameManager.allPlanes.find(
       (p) =>
         p.tier === this.selectedAirplane.tier &&
@@ -476,20 +407,19 @@ export class WarScene {
     const bulletSpeed = planeData
       ? planeData.bulletSpeed / 20
       : this.CONFIG.bullets.speed;
-
     const bullet = this.opponentAirplane.shoot(
       opponentBulletImage,
-      bulletSpeed, // استفاده از سرعت محاسبه‌شده
+      bulletSpeed,
       rotation,
       bulletSpec
     );
-
     if (x !== undefined && y !== undefined) {
       bullet.setPosition(x, y);
     }
     this.opponentBullets.push(bullet);
     this.playSound(this.CONFIG.assets.sound);
   }
+
   setupScene() {
     this.roadManager = new RoadManager(this.CONFIG);
     this.roadManager.init();
@@ -497,22 +427,17 @@ export class WarScene {
   }
 
   createGameObjects() {
-    // Create the player's main airplane
     this.airplane = new Airplane(
       this.getAirplaneImage(
-        // FIX: Use this.selectedAirplane.image instead of this.playerAssets.airplane
         this.selectedAirplane?.image || this.CONFIG.assets.airplane
       ),
       this.CONFIG.airplane.width,
       this.CONFIG.airplane.height
     );
-
-    // Position the player at the bottom of the screen
     const playerX = this.screenWidth / 2 - this.CONFIG.airplane.width / 2;
     const playerY = this.screenHeight - this.CONFIG.airplane.height - 50;
     this.airplane.setPosition(playerX, playerY);
 
-    // Create wingmen (if enabled)
     if (this.CONFIG.wingmen.enabled) {
       this.wingman = new AirplaneWingman(this.airplane, {
         ...this.CONFIG.wingmen,
@@ -521,13 +446,10 @@ export class WarScene {
           right: this.getAirplaneImage(this.CONFIG.assets.wingmen.right),
         },
         bulletImage: this.getBulletImage(
-          // FIX: Use this.selectedBullet.image instead of this.playerAssets.bullets
           this.selectedBullet?.image || this.CONFIG.assets.bullet
         ),
       });
     }
-
-    // Create clouds
     this.createClouds();
   }
 
@@ -535,7 +457,6 @@ export class WarScene {
     const gameContainer = document.getElementById("game-container");
     if (!gameContainer) return;
 
-    // ایجاد نمایش سلامت کاربر
     this.playerHealthDisplay = document.createElement("div");
     this.playerHealthDisplay.id = "player-health";
     this.playerHealthDisplay.style.position = "fixed";
@@ -551,7 +472,6 @@ export class WarScene {
     this.playerHealthDisplay.innerHTML = `Your Health: ${this.health}%`;
     gameContainer.appendChild(this.playerHealthDisplay);
 
-    // ایجاد نمایش سلامت حریف
     this.opponentHealthDisplay = document.createElement("div");
     this.opponentHealthDisplay.id = "opponent-health";
     this.opponentHealthDisplay.style.position = "fixed";
@@ -572,11 +492,9 @@ export class WarScene {
 
   updateHealthDisplay() {
     if (this.playerHealthDisplay) {
-      // این خط اصلاح می‌شود
       this.playerHealthDisplay.innerHTML = `Your Health: ${Math.round(
         this.health
       )}%`;
-
       if (this.health < 30) {
         this.playerHealthDisplay.style.background = "rgba(255,0,0,0.7)";
       } else if (this.health < 60) {
@@ -589,11 +507,9 @@ export class WarScene {
 
   updateOpponentHealthDisplay() {
     if (this.opponentHealthDisplay) {
-      // این خط اصلاح می‌شود
       this.opponentHealthDisplay.innerHTML = `${
         this.opponent?.username || "Opponent"
       } Health: ${Math.round(this.opponentHealth)}%`;
-
       if (this.opponentHealth < 30) {
         this.opponentHealthDisplay.style.background = "rgba(255,0,0,0.7)";
       } else if (this.opponentHealth < 60) {
@@ -603,14 +519,14 @@ export class WarScene {
       }
     }
   }
+
   updateGameBounds(settings) {
-    // ذخیره محدوده مجاز حرکت
     this.gameBounds = {
       minX: 0,
       maxX: settings.maxX,
       minY: 0,
       maxY: settings.maxY,
-    }; // محدود کردن موقعیت فعلی هواپیما
+    };
     const currentPos = this.airplane.getPosition();
     const newX = Math.min(
       Math.max(currentPos.x, this.gameBounds.minX),
@@ -620,12 +536,9 @@ export class WarScene {
       Math.max(currentPos.y, this.gameBounds.minY),
       this.gameBounds.maxY
     );
-
     this.airplane.setPosition(newX, newY);
   }
-  // در تابع setupEventListeners، interval شلیک حریف را حذف کنید
-  // در فایل js/warScene.js
-  // در فایل js/warScene.js
+
   setupEventListeners() {
     const baseInterval = this.CONFIG.bullets.interval;
     const userSpeedLevel = this.userData.speedLevel || 1;
@@ -647,10 +560,10 @@ export class WarScene {
         1;
 
       const bulletSpecs = {
-        1: { size: 20, filter: "saturate(3) hue-rotate(200deg)" }, // Blue
-        2: { size: 25, filter: "saturate(5) hue-rotate(15deg)" }, // Orange
-        3: { size: 30, filter: "saturate(4) hue-rotate(320deg)" }, // Red
-        4: { size: 40, filter: "saturate(3) hue-rotate(250deg)" }, // Purple
+        1: { size: 20, filter: "saturate(3) hue-rotate(200deg)" },
+        2: { size: 25, filter: "saturate(5) hue-rotate(15deg)" },
+        3: { size: 30, filter: "saturate(4) hue-rotate(320deg)" },
+        4: { size: 40, filter: "saturate(3) hue-rotate(250deg)" },
       };
       const spec = bulletSpecs[bulletLevel];
 
@@ -660,7 +573,7 @@ export class WarScene {
           spec.size,
           this.CONFIG.bullets.speed,
           angle,
-          spec.filter // ارسال فیلتر رنگ
+          spec.filter
         );
         this.bullets.push(bullet);
       });
@@ -682,6 +595,7 @@ export class WarScene {
       }
     }, actualInterval);
   }
+
   startGameLoop() {
     const gameLoop = () => {
       this.roadManager.update();
@@ -693,14 +607,11 @@ export class WarScene {
   }
 
   updateBullets() {
-    // به روزرسانی موقعیت گلوله‌های من
     for (let i = this.bullets.length - 1; i >= 0; i--) {
       if (!this.bullets[i].active) {
         this.bullets.splice(i, 1);
       }
     }
-
-    // به روزرسانی موقعیت گلوله‌های حریف
     for (let i = this.opponentBullets.length - 1; i >= 0; i--) {
       if (!this.opponentBullets[i].active) {
         this.opponentBullets.splice(i, 1);
@@ -709,7 +620,6 @@ export class WarScene {
   }
 
   createClouds() {
-    // Initial cloud creation
     for (let i = 0; i < this.CONFIG.clouds.count; i++) {
       setTimeout(() => {
         new Cloud({
@@ -717,8 +627,7 @@ export class WarScene {
             this.CONFIG.clouds.minSpeed +
             Math.random() *
               (this.CONFIG.clouds.maxSpeed - this.CONFIG.clouds.minSpeed),
-          // <<<< تغییر اصلی اینجاست: افزایش ضریب برای سرعت بیشتر >>>>
-          horizontalSpeed: (Math.random() - 0.5) * 2.5, // قبلاً 0.8 بود
+          horizontalSpeed: (Math.random() - 0.5) * 2.5,
           size:
             this.CONFIG.clouds.minSize +
             Math.random() *
@@ -731,16 +640,13 @@ export class WarScene {
         });
       }, i * 1500);
     }
-
-    // Continuous cloud generation
     this.cloudGenerationInterval = setInterval(() => {
       new Cloud({
         backwardSpeed:
           this.CONFIG.clouds.minSpeed +
           Math.random() *
             (this.CONFIG.clouds.maxSpeed - this.CONFIG.clouds.minSpeed),
-        // <<<< تغییر اصلی اینجاست: افزایش ضریب برای سرعت بیشتر >>>>
-        horizontalSpeed: (Math.random() - 0.5) * 2.5, // قبلاً 0.8 بود
+        horizontalSpeed: (Math.random() - 0.5) * 2.5,
         size:
           this.CONFIG.clouds.minSize +
           Math.random() *
@@ -770,13 +676,8 @@ export class WarScene {
     }
   }
 
-  // در فایل: js/warScene.js
-  // این تابع را به طور کامل جایگزین تابع قبلی کنید.
-
   checkCollisions() {
     if (!this.opponentAirplane) return;
-
-    // برخورد گلوله‌های من به حریف
     for (let i = this.bullets.length - 1; i >= 0; i--) {
       const bullet = this.bullets[i];
       if (
@@ -784,13 +685,11 @@ export class WarScene {
         bullet.active &&
         this.isColliding(bullet, this.opponentAirplane)
       ) {
-        this.networkManager.sendHit(bullet.damage); // ارسال damage به سرور
+        this.networkManager.sendHit(bullet.damage);
         bullet.remove();
         this.bullets.splice(i, 1);
       }
     }
-
-    // برخورد موشک‌های من به حریف
     for (let i = this.missiles.length - 1; i >= 0; i--) {
       const missile = this.missiles[i];
       if (
@@ -803,8 +702,6 @@ export class WarScene {
         this.missiles.splice(i, 1);
       }
     }
-
-    // برخورد گلوله‌های حریف با هواپیمای من
     for (let i = this.opponentBullets.length - 1; i >= 0; i--) {
       const bullet = this.opponentBullets[i];
       if (
@@ -813,7 +710,6 @@ export class WarScene {
         bullet.active &&
         this.isColliding(bullet, this.airplane)
       ) {
-        // سرور مسئول کم کردن جان است، کلاینت فقط گلوله را حذف می‌کند
         bullet.remove();
         this.opponentBullets.splice(i, 1);
       }
@@ -825,8 +721,6 @@ export class WarScene {
     this.opponentHealth = opponentHealth;
     this.updateHealthDisplay();
     this.updateOpponentHealthDisplay();
-
-    // بررسی پایان بازی محلی (برای موارد قطع ارتباط)
     if (this.health <= 0) {
       this.showGameOver(false);
     } else if (this.opponentHealth <= 0) {
@@ -837,15 +731,9 @@ export class WarScene {
   isColliding(bullet, airplane) {
     const bulletPos = bullet.getPosition();
     const airplanePos = airplane.getPosition();
-
-    // تشخیص برخورد با حاشیه‌های کاهش یافته برای طبیعی‌تر شدن بازی
     const collisionMargin = 15;
-
-    // محاسبه مرکز گلوله
     const bulletCenterX = bulletPos.x + bulletPos.width / 2;
     const bulletCenterY = bulletPos.y + bulletPos.height / 2;
-
-    // بررسی برخورد با استفاده از مرکز گلوله و محدوده هواپیما
     return (
       bulletCenterX > airplanePos.x + collisionMargin &&
       bulletCenterX < airplanePos.x + airplanePos.width - collisionMargin &&
@@ -855,14 +743,17 @@ export class WarScene {
   }
 
   showGameOver(isWinner) {
-    // متوقف کردن intervalها
     clearInterval(this.shootingInterval);
     if (this.wingmanShootingInterval)
       clearInterval(this.wingmanShootingInterval);
     clearInterval(this.opponentShootingInterval);
     clearInterval(this.cloudGenerationInterval);
 
-    // نمایش صفحه پایان بازی
+    // توقف موسیقی بازی
+    if (window.musicManager) {
+      window.musicManager.stop();
+    }
+
     const gameOverDiv = document.createElement("div");
     gameOverDiv.style.position = "fixed";
     gameOverDiv.style.top = "0";
@@ -891,10 +782,7 @@ export class WarScene {
         <button id="play-again-button" style="padding: 15px 30px; margin-top: 20px; font-size: 18px; background: #4CAF50; color: white; border: none; border-radius: 8px; cursor: pointer;">Play Again</button>
       </div>
     `;
-
     document.body.appendChild(gameOverDiv);
-
-    // اضافه کردن event listener برای دکمه Play Again
     document
       .getElementById("play-again-button")
       .addEventListener("click", () => {
@@ -903,7 +791,6 @@ export class WarScene {
   }
 
   showOpponentDisconnected() {
-    // نمایش پیام قطع ارتباط حریف
     const messageDiv = document.createElement("div");
     messageDiv.style.position = "fixed";
     messageDiv.style.top = "50%";
@@ -917,9 +804,7 @@ export class WarScene {
     messageDiv.innerHTML = `<p style="font-size: 18px;">${
       this.opponent?.username || "Opponent"
     } disconnected. You win!</p>`;
-
     document.body.appendChild(messageDiv);
-
     setTimeout(() => {
       messageDiv.remove();
       this.showGameOver(true);
@@ -932,28 +817,28 @@ export class WarScene {
       clearInterval(this.wingmanShootingInterval);
     clearInterval(this.opponentShootingInterval);
     clearInterval(this.cloudGenerationInterval);
-
     if (this.airplane) this.airplane.remove();
     if (this.wingman) this.wingman.remove();
     if (this.opponentAirplane) this.opponentAirplane.remove();
     if (this.playerHealthDisplay) this.playerHealthDisplay.remove();
     if (this.opponentHealthDisplay) this.opponentHealthDisplay.remove();
-
-    // حذف تمام پرتابه‌ها
     this.bullets.forEach((bullet) => bullet.remove());
-    this.missiles.forEach((missile) => missile.remove()); // <<<< این خط جدید است
+    this.missiles.forEach((missile) => missile.remove());
     this.opponentBullets.forEach((bullet) => bullet.remove());
-
     window.networkManager = null;
+
+    // توقف موسیقی هنگام خروج از صحنه بازی
+    if (window.musicManager) {
+      window.musicManager.stop();
+    }
   }
-  // تابع برای به روزرسانی ابعاد صفحه هنگام resize
+
   handleResize() {
     this.screenWidth = window.innerWidth;
     this.screenHeight = window.innerHeight;
   }
 }
 
-// اضافه کردن event listener برای resize
 window.addEventListener("resize", () => {
   if (window.currentWarScene) {
     window.currentWarScene.handleResize();
