@@ -1,6 +1,7 @@
 import { CONFIG } from "./../config.js";
 import { WarScene } from "./warScene.js";
 import { NetworkManager } from "./network.js";
+import { Bullet } from "./bullet.js";
 
 class GameManager {
   constructor() {
@@ -15,10 +16,10 @@ class GameManager {
     this.selectedBullet = null;
     this.userData = null;
     this.allPlanes = [];
+    this.mainMenuShootingInterval = null;
+    this.mainMenuBullets = [];
     this.init();
   }
-
-  // در فایل js/script.js
 
   async init() {
     document
@@ -27,26 +28,21 @@ class GameManager {
 
     await this.fetchAllAssets();
 
-    // <<<< شروع بخش اصلاح‌شده >>>>
     const savedAirplaneData = JSON.parse(
       localStorage.getItem("selectedAirplane")
     );
     if (savedAirplaneData) {
-      // به جای جستجو با id، از tier و style برای پیدا کردن هواپیمای صحیح استفاده می‌کنیم
       const correctAirplaneObject = this.allPlanes.find(
         (p) =>
           p.tier === savedAirplaneData.tier &&
           p.style === savedAirplaneData.style
       );
-
       if (correctAirplaneObject) {
         this.selectedAirplane = correctAirplaneObject;
-        console.log(
-          "Loaded selected airplane from localStorage and verified with master list."
-        );
       }
     }
-    // <<<< پایان بخش اصلاح‌شده >>>>
+
+    this.updateMainMenuAirplaneImage();
 
     try {
       const savedPotion = localStorage.getItem("selectedPotion");
@@ -66,7 +62,6 @@ class GameManager {
           this.username = userData.username;
           this.userData = userData;
           localStorage.setItem("userData", JSON.stringify(userData));
-          this.hideScreen("login-screen");
           this.showScreen("main-menu");
           this.startUserDataSync();
         } else {
@@ -80,8 +75,102 @@ class GameManager {
     }
   }
 
+  updateMainMenuAirplaneImage() {
+    const imgElement = document.querySelector(".main-airplane-art");
+    if (imgElement) {
+      const planeToDisplay =
+        this.selectedAirplane ||
+        this.allPlanes.find((p) => p.tier === 1 && p.style === 1);
+      if (planeToDisplay) {
+        imgElement.src = planeToDisplay.image;
+      }
+    }
+  }
+
+  startMainMenuAnimation() {
+    this.stopMainMenuAnimation();
+
+    const airplaneEl = document.querySelector(".main-airplane-art");
+    const container = document.getElementById("main-menu-animation-container");
+    if (!airplaneEl || !container) return;
+
+    const planeData =
+      this.selectedAirplane ||
+      this.allPlanes.find((p) => p.tier === 1 && p.style === 1);
+    if (!planeData || !planeData.projectiles) return;
+
+    const bulletVisuals = {
+      blue: { filter: "saturate(3) hue-rotate(200deg)" },
+      orange: { filter: "saturate(5) hue-rotate(15deg)" },
+      red: { filter: "saturate(4) hue-rotate(320deg)" },
+      purple: { filter: "saturate(3) hue-rotate(250deg)" },
+    };
+    const bulletSizeMap = { 1: 15, 2: 20, 3: 25, 5: 35 };
+
+    this.mainMenuShootingInterval = setInterval(() => {
+      const menuRect = container.parentElement.getBoundingClientRect();
+      const airplaneRect = airplaneEl.getBoundingClientRect();
+      const airplaneRelativeTop = airplaneRect.top - menuRect.top;
+      const airplaneRelativeLeft = airplaneRect.left - menuRect.left;
+
+      planeData.projectiles.forEach((proj) => {
+        if (proj.type !== "bullet") return;
+        const count = proj.count;
+        for (let i = 0; i < count; i++) {
+          let startX, startY;
+          let angleDeg = -90;
+
+          if (proj.from === "nose") {
+            const offsetFromCenter = count > 1 ? (i - (count - 1) / 2) * 15 : 0;
+            startX =
+              airplaneRelativeLeft + airplaneRect.width / 2 + offsetFromCenter;
+            startY = airplaneRelativeTop + airplaneRect.height * 0.1;
+          } else {
+            // wing
+            const offsetRatio = proj.offset === "near" ? 0.3 : 0.1;
+            const wing = i % 2 === 0 ? -1 : 1;
+            startX =
+              airplaneRelativeLeft +
+              airplaneRect.width / 2 +
+              wing * airplaneRect.width * offsetRatio;
+            startY = airplaneRelativeTop + airplaneRect.height * 0.4;
+          }
+
+          if (proj.pattern === "angled" && count > 1) {
+            const spread = 40;
+            angleDeg = -90 - spread / 2 + i * (spread / (count - 1));
+          }
+
+          const visual = bulletVisuals[proj.color] || {};
+          const size = bulletSizeMap[proj.size] || 20;
+
+          const bullet = new Bullet(
+            "./assets/images/bullets/lvl1.png",
+            startX,
+            startY,
+            size,
+            5,
+            angleDeg,
+            false,
+            visual.filter
+          );
+
+          container.appendChild(bullet.element);
+          this.mainMenuBullets.push(bullet);
+        }
+      });
+    }, 800);
+  }
+
+  stopMainMenuAnimation() {
+    clearInterval(this.mainMenuShootingInterval);
+    this.mainMenuBullets.forEach((bullet) => bullet.remove());
+    this.mainMenuBullets = [];
+    const container = document.getElementById("main-menu-animation-container");
+    if (container) container.innerHTML = "";
+  }
+
   cancelSearch() {
-    console.log("Search cancelled by user.");
     this.hideWaitingMessage();
     if (
       this.networkManager &&
@@ -90,45 +179,43 @@ class GameManager {
     ) {
       this.networkManager.socket.close();
     }
-    this.showScreen("main-menu");
+    document.querySelector(".footer-nav").style.display = "flex";
+    if (window.menuManager) window.menuManager.showMenu("main-menu");
   }
 
   getDeviceType() {
     const ua = navigator.userAgent;
-    if (/(tablet|ipad|playbook|silk)|(android(?!.*mobi))/i.test(ua)) {
+    if (/(tablet|ipad|playbook|silk)|(android(?!.*mobi))/i.test(ua))
       return "tablet";
-    }
     if (
       /Mobile|iP(hone|od)|Android|BlackBerry|IEMobile|Kindle|Silk-Accelerated|(hpw|web)OS|Opera M(obi|ini)/.test(
         ua
       )
-    ) {
+    )
       return "phone";
-    }
     return "pc";
   }
 
-  // در فایل js/script.js
-
+  // **تابع showWaitingMessage با کد اصلاح شده**
   showWaitingMessage(message) {
     const overlay = document.getElementById("waiting-overlay");
-    // const imgElement = document.getElementById('waiting-device-image'); // این خط حذف می‌شود
     const textElement = document.getElementById("waiting-message-text");
 
+    // **اصلاح اصلی: این سه خط کد برای نمایش عکس بازگردانده شد**
     const deviceType = this.getDeviceType();
     const imagePath = `assets/images/waiting/${deviceType}.png`;
-
-    // به جای تنظیم src برای تگ <img>، تصویر را به عنوان background-image تنظیم می‌کنیم
     overlay.style.backgroundImage = `url('${imagePath}')`;
+
     textElement.textContent = message;
 
-    this.hideScreen("main-menu");
+    document.querySelector(".footer-nav").style.display = "none";
+    if (window.menuManager) window.menuManager.showMenu(null);
+
     overlay.classList.remove("hidden");
   }
 
   hideWaitingMessage() {
-    const overlay = document.getElementById("waiting-overlay");
-    overlay.classList.add("hidden");
+    document.getElementById("waiting-overlay").classList.add("hidden");
   }
 
   async fetchAllAssets() {
@@ -166,29 +253,17 @@ class GameManager {
         }
       }
 
-      const today = new Date().setHours(0, 0, 0, 0);
-      const lastReset = new Date(userData.dailyPlay.lastReset).setHours(
-        0,
-        0,
-        0,
-        0
-      );
-      const dailyCount = lastReset < today ? 0 : userData.dailyPlay.count || 0;
-      if (dailyCount >= 25) {
-        alert("شما به سقف مجاز ۲۵ بازی روزانه خود رسیده‌اید.");
-        return;
-      }
-
       this.showWaitingMessage("در حال اتصال به سرور بازی...");
       this.networkManager.connect();
-
       this.networkManager.onGameStart = (gameData) => this.startGame(gameData);
-      this.networkManager.onWaiting = (message) =>
-        this.showWaitingMessage(message);
+      this.networkManager.onWaiting = (message) => {
+        document.getElementById("waiting-message-text").textContent = message;
+      };
       this.networkManager.onGameCancelled = (message) => {
         this.hideWaitingMessage();
         alert(message);
-        this.showScreen("main-menu");
+        document.querySelector(".footer-nav").style.display = "flex";
+        if (window.menuManager) window.menuManager.showMenu("main-menu");
       };
 
       await new Promise((resolve, reject) => {
@@ -218,13 +293,12 @@ class GameManager {
         this.selectedAirplane.tier,
         this.selectedAirplane.style
       );
-
-      this.showWaitingMessage("در انتظار حریف...");
     } catch (error) {
       console.error("Failed to start game:", error);
       alert("خطا در شروع بازی: " + error.message);
       this.hideWaitingMessage();
-      this.showScreen("main-menu");
+      document.querySelector(".footer-nav").style.display = "flex";
+      if (window.menuManager) window.menuManager.showMenu("main-menu");
     }
   }
 
@@ -234,7 +308,10 @@ class GameManager {
       if (!this.userData) throw new Error("User data not found.");
 
       this.hideWaitingMessage();
-      this.showScreen("game-container");
+
+      document.querySelector(".footer-nav").style.display = "none";
+      if (window.menuManager) window.menuManager.showMenu(null);
+      document.getElementById("game-container").classList.remove("hidden");
 
       this.scenes.war = new WarScene(
         CONFIG,
@@ -254,6 +331,7 @@ class GameManager {
     } catch (error) {
       console.error("Failed to start game:", error);
       alert("Failed to start game: " + error.message);
+      document.querySelector(".footer-nav").style.display = "flex";
     }
   }
 
@@ -278,8 +356,14 @@ class GameManager {
   }
 
   showScreen(id) {
+    // This function is now simplified, as footer logic is handled elsewhere.
     const element = document.getElementById(id);
-    if (element) element.classList.remove("hidden");
+    if (element) {
+      element.classList.remove("hidden");
+    }
+    if (window.menuManager && (id === "main-menu" || id === "login-screen")) {
+      window.menuManager.showMenu(id);
+    }
   }
 
   async switchScene(sceneName) {

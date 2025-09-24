@@ -1,23 +1,30 @@
-/* =================================================================
-   Military-Tech UI v2.1 - Bug Fixes & Refinements
-   ================================================================= */
+/*
+=================================================================
+   Military-Tech UI v4.1 - Scenery Layering Fix
+=================================================================
+*/
 
 /* 1. Global Setup & Variables
 /* ================================================================= */
-@import url("https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap");
-
 :root {
   --font-primary: "Orbitron", sans-serif;
-  --color-bg-dark: #0a0e13;
-  --color-border: rgba(118, 255, 128, 0.4);
-  --color-glow: rgba(118, 255, 128, 0.7);
-  --color-accent: #76ff80;
-  --color-primary-text: #e0f2f1;
-  --color-secondary-text: #b0bec5;
+  --font-pixel: "VT323", monospace;
+
+  --color-bg-dark: #050805;
+  --color-bg-medium: #0a100a;
+  --color-border-light: rgba(67, 255, 76, 0.2);
+  --color-border-medium: rgba(67, 255, 76, 0.4);
+  --color-primary-glow: rgba(67, 255, 76, 0.7);
+  --color-accent: #43ff4c;
+  --color-primary-text: #d4e0d5;
+  --color-secondary-text: #8a9e8b;
+
   --color-gold: #ffd700;
   --color-silver: #c0c0c0;
   --color-bronze: #cd7f32;
+
   --transition-fast: 0.2s ease-out;
+  --transition-smooth: 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 * {
@@ -38,124 +45,241 @@ body {
   position: fixed;
 }
 
+/* 2. Background & Overlays
+/* ================================================================= */
+.background-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-image: linear-gradient(
+      rgba(67, 255, 76, 0.05) 1px,
+      transparent 1px
+    ),
+    linear-gradient(90deg, rgba(67, 255, 76, 0.05) 1px, transparent 1px);
+  background-size: 30px 30px;
+  z-index: 0;
+  pointer-events: none;
+  animation: background-pulse 10s infinite alternate;
+}
+
+.scanline-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    0deg,
+    rgba(0, 0, 0, 0) 0%,
+    rgba(0, 0, 0, 0.4) 50%,
+    rgba(0, 0, 0, 0) 100%
+  );
+  background-size: 100% 4px;
+  animation: scanlines 8s linear infinite;
+  z-index: 1;
+  pointer-events: none;
+  opacity: 0.4;
+}
+
+@keyframes scanlines {
+  from {
+    background-position: 0 0;
+  }
+  to {
+    background-position: 0 200%;
+  }
+}
+
+@keyframes background-pulse {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0.8;
+  }
+}
+
+/* 3. Main App & Menu Container (Animation Added)
+/* ================================================================= */
 .app-container {
   width: 100%;
   height: 100%;
-  background: url("https://www.transparenttextures.com/patterns/carbon-fibre.png"),
-    var(--color-bg-dark);
   position: relative;
   display: flex;
   justify-content: center;
   align-items: center;
   padding: 15px;
+  padding-bottom: 90px;
 }
 
-.app-container::after {
-  content: "";
-  position: absolute;
-  width: 200%;
-  height: 200%;
-  top: -50%;
-  left: -50%;
-  background: conic-gradient(
-    transparent,
-    transparent,
-    transparent,
-    rgba(118, 255, 128, 0.15)
-  );
-  animation: radar-sweep 8s linear infinite;
-  z-index: 0;
-}
-@keyframes radar-sweep {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-/* 2. Menu Container
-/* ================================================================= */
 .menu-container {
-  position: relative;
-  z-index: 10;
+  position: absolute;
+  z-index: 20; /* Menus must be on top of the game container */
   width: 100%;
   max-width: 450px;
-  background: rgba(10, 14, 19, 0.85);
-  border: 1px solid var(--color-border);
-  padding: 25px;
+  background: radial-gradient(
+    circle,
+    rgba(10, 20, 10, 0.8),
+    rgba(5, 8, 5, 0.9)
+  );
+  border: 1px solid var(--color-border-medium);
+  padding: 20px;
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
-  box-shadow: 0 0 30px rgba(118, 255, 128, 0.2);
-  clip-path: polygon(
-    0 5%,
-    5% 0,
-    95% 0,
-    100% 5%,
-    100% 95%,
-    95% 100%,
-    5% 100%,
-    0 95%
-  );
-  animation: menu-fade-in 0.6s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+  box-shadow: 0 0 40px rgba(67, 255, 76, 0.2),
+    inset 0 0 15px rgba(67, 255, 76, 0.1);
   display: flex;
   flex-direction: column;
-  max-height: 95vh;
-  text-align: center; /* <<<< تضمین تقارن محتوای داخلی >>>> */
+  max-height: calc(100vh - 120px);
+  clip-path: polygon(
+    0 15px,
+    15px 0,
+    calc(100% - 15px) 0,
+    100% 15px,
+    100% calc(100% - 15px),
+    calc(100% - 15px) 100%,
+    15px 100%,
+    0 calc(100% - 15px)
+  );
+  opacity: 0;
+  transform: scale(0.98) translateY(10px);
+  transition: opacity var(--transition-smooth),
+    transform var(--transition-smooth);
+  pointer-events: none;
 }
-@keyframes menu-fade-in {
-  from {
-    opacity: 0;
-    transform: translateY(30px) scale(0.95);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
+
+.menu-container.active {
+  opacity: 1;
+  transform: scale(1) translateY(0);
+  pointer-events: auto;
 }
 
 .hidden {
-  display: none !important;
+  display: none;
 }
 
 .menu-header {
   text-align: center;
-  margin-bottom: 25px;
+  margin-bottom: 20px;
   flex-shrink: 0;
 }
-.menu-header h1,
+
 .menu-header h2 {
-  font-weight: 700;
-  font-size: 1.8em;
+  font-family: var(--font-pixel);
+  font-size: 2.2em;
   color: var(--color-accent);
   text-transform: uppercase;
-  letter-spacing: 2px;
-  text-shadow: 0 0 10px var(--color-glow), 0 0 20px var(--color-glow);
+  text-shadow: 0 0 10px var(--color-primary-glow);
+  animation: text-flicker 3s infinite alternate;
 }
 
-.user-info {
-  background: rgba(0, 0, 0, 0.3);
-  border: 1px solid var(--color-border);
-  padding: 8px 12px;
-  margin-top: 15px;
-  display: inline-flex;
-  gap: 20px;
-  font-size: 0.9em;
-  clip-path: polygon(10% 0%, 90% 0%, 100% 50%, 90% 100%, 10% 100%, 0% 50%);
+@keyframes text-flicker {
+  0%,
+  18%,
+  22%,
+  25%,
+  53%,
+  57%,
+  100% {
+    text-shadow: 0 0 8px var(--color-accent), 0 0 15px var(--color-accent),
+      0 0 30px var(--color-primary-glow);
+    opacity: 1;
+  }
+  20%,
+  24%,
+  55% {
+    text-shadow: none;
+    opacity: 0.8;
+  }
 }
 
-/* 3. Buttons
+/* 4. Main Menu & Footer Nav
 /* ================================================================= */
-.menu-options {
+#main-menu .main-menu-content {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+.main-airplane-art {
+  width: 60%;
+  max-width: 200px;
+  height: auto;
+  filter: drop-shadow(0 0 25px var(--color-primary-glow));
+  animation: airplane-hover 4s ease-in-out infinite;
+  margin-bottom: 20px;
+}
+@keyframes airplane-hover {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-15px);
+  }
+}
+.game-title {
+  font-size: 2.5em;
+  font-weight: 900;
+  color: var(--color-accent);
+  text-shadow: 0 0 15px var(--color-primary-glow),
+    0 0 30px var(--color-primary-glow);
+  animation: text-flicker 5s infinite alternate;
+  margin-bottom: 25px;
+}
+.footer-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 75px;
+  background: var(--color-bg-medium);
+  border-top: 2px solid var(--color-border-medium);
+  box-shadow: 0 -5px 20px rgba(67, 255, 76, 0.15);
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  z-index: 100;
+}
+.nav-btn {
+  background: transparent;
+  border: none;
+  color: var(--color-secondary-text);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-family: var(--font-primary);
+  cursor: pointer;
+  transition: var(--transition-fast);
+  padding: 5px;
+  font-size: 0.7em;
+  position: relative;
+}
+.nav-btn i {
+  font-size: 1.8em;
+  margin-bottom: 4px;
+  transition: var(--transition-fast);
+}
+.nav-btn:hover i {
+  color: #fff;
+  transform: translateY(-3px);
+  text-shadow: 0 5px 15px var(--color-primary-glow);
+}
+.nav-btn.active {
+  color: var(--color-accent);
+}
+.nav-btn.active i {
+  text-shadow: 0 0 10px var(--color-primary-glow);
 }
 
+/* 5. General Components
+/* ================================================================= */
 .menu-btn {
-  background: transparent;
-  border: 1px solid var(--color-border);
+  background: linear-gradient(rgba(67, 255, 76, 0.05), rgba(67, 255, 76, 0.15));
+  border: 1px solid var(--color-border-medium);
   color: var(--color-primary-text);
   font-family: var(--font-primary);
   font-size: 1em;
@@ -163,9 +287,7 @@ body {
   text-transform: uppercase;
   cursor: pointer;
   position: relative;
-  overflow: hidden;
-  transition: color var(--transition-fast),
-    background-color var(--transition-fast);
+  transition: all var(--transition-fast);
   clip-path: polygon(
     95% 0,
     100% 25%,
@@ -176,6 +298,7 @@ body {
     0 25%,
     5% 0
   );
+  overflow: hidden;
 }
 .menu-btn::before {
   content: "";
@@ -187,59 +310,46 @@ body {
   background: linear-gradient(
     90deg,
     transparent,
-    var(--color-glow),
+    var(--color-primary-glow),
     transparent
   );
-  transition: left 0.4s ease-in-out;
-}
-.menu-btn:hover {
-  color: var(--color-bg-dark);
-  background-color: var(--color-accent);
-  box-shadow: 0 0 20px var(--color-glow);
+  transition: left 0.5s ease;
 }
 .menu-btn:hover::before {
   left: 100%;
 }
+.menu-btn:hover {
+  color: var(--color-bg-dark);
+  background: var(--color-accent);
+  box-shadow: 0 0 20px var(--color-primary-glow);
+}
 .menu-btn:active {
-  transform: scale(0.98);
+  transform: scale(0.97);
 }
-
 .menu-btn.primary {
-  background-color: rgba(118, 255, 128, 0.2);
-  color: var(--color-accent);
+  background: var(--color-accent);
+  color: var(--color-bg-dark);
   font-weight: 700;
-  font-size: 1.2em;
-  padding: 15px;
 }
-.back-btn {
-  margin-top: 25px;
-  background-color: rgba(255, 100, 100, 0.15);
-  border-color: rgba(255, 100, 100, 0.4);
-  flex-shrink: 0;
+.menu-btn:disabled,
+.menu-btn:disabled:hover {
+  background: #555;
+  color: #999;
+  border-color: #777;
+  cursor: not-allowed;
+  box-shadow: none;
 }
-.back-btn:hover {
-  background-color: rgba(255, 100, 100, 0.8);
-  color: #fff;
-  box-shadow: 0 0 20px rgba(255, 100, 100, 0.5);
+.menu-btn:disabled::before {
+  display: none;
 }
-
-/* 4. Leaderboard & Lists
-/* ================================================================= */
-.prize-image img {
-  max-width: 80px; /* <<<< اندازه کاپ اصلاح شد >>>> */
-  height: auto;
-  margin-bottom: 15px;
-  filter: drop-shadow(0 0 10px var(--color-gold));
-}
-
-.leaderboard-content,
+.selections-wrapper,
 .shop-content,
-.upgrade-options,
-.free-options,
-.selection-section {
+.upgrade-content,
+.leaderboard-content,
+.free-options {
   overflow-y: auto;
+  flex-grow: 1;
   padding-right: 8px;
-  margin-bottom: 10px;
 }
 ::-webkit-scrollbar {
   width: 4px;
@@ -250,64 +360,121 @@ body {
 ::-webkit-scrollbar-thumb {
   background: var(--color-accent);
 }
-
-.leaderboard-item {
-  display: flex;
-  align-items: center;
-  background: rgba(0, 0, 0, 0.3);
-  margin-bottom: 8px;
-  padding: 10px;
-  border-left: 3px solid transparent;
-  transition: background-color var(--transition-fast),
-    border-left-color var(--transition-fast);
+.selection-item,
+.leaderboard-item,
+.free-item,
+.podium-item {
+  opacity: 0;
+  transform: translateY(20px);
+  animation: item-fade-in 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
 }
-.leaderboard-item:hover {
-  background-color: rgba(118, 255, 128, 0.1);
-}
-.leaderboard-rank {
-  font-size: 1.2em;
-  font-weight: 700;
-  width: 40px;
-  text-align: center;
-  margin-right: 15px;
-}
-.leaderboard-user {
-  flex-grow: 1;
-  text-align: right;
-} /* <<<< ترازبندی متن به راست >>>> */
-.leaderboard-stars {
-  color: var(--color-gold);
-}
-.leaderboard-item.rank-1 {
-  border-left-color: var(--color-gold);
-}
-.leaderboard-item.rank-1 .leaderboard-rank {
-  color: var(--color-gold);
-}
-.leaderboard-item.rank-2 {
-  border-left-color: var(--color-silver);
-}
-.leaderboard-item.rank-2 .leaderboard-rank {
-  color: var(--color-silver);
-}
-.leaderboard-item.rank-3 {
-  border-left-color: var(--color-bronze);
-}
-.leaderboard-item.rank-3 .leaderboard-rank {
-  color: var(--color-bronze);
-}
-#user-rank-display {
-  margin-top: 20px;
-  border-top: 1px solid var(--color-border);
-  padding-top: 15px;
-  flex-shrink: 0;
+@keyframes item-fade-in {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
-/* 5. Shop & Free Coins
+/* 6. Selection Grids & Loader
 /* ================================================================= */
+.selection-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: 15px;
+}
+.selection-section {
+  margin-bottom: 20px;
+}
+.selection-section h3 {
+  font-family: var(--font-pixel);
+  font-size: 1.5em;
+  color: var(--color-secondary-text);
+  margin-bottom: 15px;
+  text-align: center;
+}
+.selection-item {
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid var(--color-border-light);
+  padding: 10px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  clip-path: polygon(
+    0 8px,
+    8px 0,
+    calc(100% - 8px) 0,
+    100% 8px,
+    100% calc(100% - 8px),
+    calc(100% - 8px) 100%,
+    8px 100%,
+    0 calc(100% - 8px)
+  );
+}
+.selection-item img {
+  width: 100%;
+  max-width: 60px;
+  height: 60px;
+  object-fit: contain;
+  margin-bottom: 8px;
+  transition: transform 0.3s ease;
+}
+.selection-item p {
+  font-size: 0.8em;
+  color: var(--color-primary-text);
+  line-height: 1.3;
+}
+.selection-item:hover {
+  transform: translateY(-5px) scale(1.02);
+  box-shadow: 0 0 15px var(--color-primary-glow);
+  border-color: var(--color-accent);
+}
+.selection-item:hover img {
+  transform: scale(1.1);
+}
+.selection-item.selected {
+  border: 2px solid var(--color-accent);
+  box-shadow: 0 0 15px var(--color-primary-glow),
+    inset 0 0 10px rgba(67, 255, 76, 0.2);
+  background-color: rgba(67, 255, 76, 0.1);
+}
+.selection-item .price {
+  font-family: var(--font-pixel);
+  font-size: 1.2em;
+  color: var(--color-gold);
+  margin-top: 5px;
+}
+.loader {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  border: 3px solid var(--color-border-medium);
+  border-top-color: var(--color-accent);
+  animation: spin 1s linear infinite;
+  margin: 40px auto;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* 7. Other Sections
+/* ================================================================= */
+.user-stats-display {
+  text-align: center;
+  margin-bottom: 15px;
+  font-family: var(--font-pixel);
+  font-size: 1.5em;
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+}
 .shop-tabs {
   display: flex;
-  border-bottom: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border-medium);
   margin-bottom: 20px;
   flex-shrink: 0;
 }
@@ -315,11 +482,13 @@ body {
   background: none;
   border: none;
   color: var(--color-secondary-text);
-  padding: 10px 15px;
+  padding: 12px 15px;
   cursor: pointer;
   flex-grow: 1;
   position: relative;
   transition: color var(--transition-fast);
+  font-family: var(--font-pixel);
+  font-size: 1.5em;
 }
 .tab-btn.active {
   color: var(--color-accent);
@@ -332,163 +501,257 @@ body {
   width: 100%;
   height: 2px;
   background: var(--color-accent);
-  box-shadow: 0 0 10px var(--color-glow);
+  box-shadow: 0 0 10px var(--color-primary-glow);
 }
-
-/* <<<< حل مشکل قاطی شدن تب‌ها >>>> */
 .tab-content {
   display: none;
 }
 .tab-content.active {
-  display: grid; /* استفاده از گرید برای محتوای فعال */
+  display: block;
 }
-
-.selection-grid {
-  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
-  gap: 15px;
+#leaderboard-podium {
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  gap: 5px;
+  margin: 25px 0 30px 0;
+  min-height: 160px;
 }
-
-.selection-item {
+.podium-item {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: space-between;
-  background: rgba(0, 0, 0, 0.4);
-  border: 1px solid var(--color-border);
-  padding: 10px;
-  text-align: center;
-  cursor: pointer;
-  transition: transform var(--transition-fast),
-    box-shadow var(--transition-fast);
+  justify-content: flex-end;
+  width: 32%;
+  padding: 10px 5px;
+  background: rgba(0, 0, 0, 0.3);
+  border-bottom: 3px solid;
 }
-.selection-item img {
-  width: 100%;
-  max-width: 50px; /* <<<< اندازه عکس اصلاح شد >>>> */
-  height: 50px;
-  object-fit: contain;
+.podium-item.rank-1 {
+  order: 2;
+  height: 150px;
+  border-color: var(--color-gold);
+}
+.podium-item.rank-2 {
+  order: 1;
+  height: 120px;
+  border-color: var(--color-silver);
+}
+.podium-item.rank-3 {
+  order: 3;
+  height: 100px;
+  border-color: var(--color-bronze);
+}
+.podium-item::before {
+  font-size: 2.8em;
+  line-height: 1;
   margin-bottom: 8px;
 }
-.selection-item p {
+.podium-item.rank-1::before {
+  content: "🏆";
+  filter: drop-shadow(0 0 8px var(--color-gold));
+}
+.podium-item.rank-2::before {
+  content: "🥈";
+}
+.podium-item.rank-3::before {
+  content: "🥉";
+}
+.podium-name {
+  font-weight: 700;
+  font-size: 0.9em;
+  max-width: 100%;
+  margin-bottom: 5px;
+}
+.podium-score {
   font-size: 0.8em;
   color: var(--color-secondary-text);
-  line-height: 1.4;
-  height: 3.2em;
-  overflow: hidden; /* <<<< کنترل متن طولانی >>>> */
 }
-.selection-item:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 0 15px var(--color-glow);
-}
-.selection-item.selected {
-  border: 2px solid var(--color-accent);
-  box-shadow: 0 0 15px var(--color-glow);
-  background-color: rgba(118, 255, 128, 0.1);
-}
-.selection-item .buy-btn {
-  width: 100%;
-  margin-top: 10px;
-  padding: 8px;
-  font-size: 0.9em;
-}
-
-.exchange-container {
+.leaderboard-item {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: 15px;
+  background: rgba(0, 0, 0, 0.2);
+  margin-bottom: 8px;
   padding: 10px;
+  border-left: 3px solid var(--color-border-light);
 }
-.login-input {
-  /* <<<< استایل فیلد ورودی >>>> */
-  background: rgba(0, 0, 0, 0.5);
-  border: 1px solid var(--color-border);
-  color: var(--color-primary-text);
-  font-family: var(--font-primary);
-  padding: 12px;
+.leaderboard-item.self {
+  background: rgba(67, 255, 76, 0.1);
+  border-left-color: var(--color-accent);
+}
+.leaderboard-rank {
+  font-size: 1.2em;
+  font-weight: 700;
+  width: 40px;
   text-align: center;
-  width: 100%;
+  margin-right: 15px;
 }
-.login-input:focus {
-  outline: none;
-  border-color: var(--color-accent);
-  box-shadow: 0 0 10px var(--color-glow);
+.leaderboard-user {
+  flex-grow: 1;
+  text-align: right;
 }
-
-.free-options {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+.leaderboard-score {
+  color: var(--color-secondary-text);
+  font-size: 0.8em;
 }
 .free-item {
   display: flex;
   align-items: center;
   gap: 15px;
   background: rgba(0, 0, 0, 0.3);
-  padding: 10px;
-  border: 1px solid var(--color-border);
+  padding: 12px;
+  border: 1px solid var(--color-border-light);
+  margin-bottom: 10px;
+  transition: all var(--transition-fast);
 }
-.free-item img {
+.free-item:hover {
+  border-color: var(--color-accent);
+  background: rgba(67, 255, 76, 0.05);
+}
+.free-item-icon {
+  font-size: 2em;
+  color: var(--color-accent);
   width: 40px;
-  height: 40px;
-  flex-shrink: 0;
+  text-align: center;
 }
 .free-item-info {
   flex-grow: 1;
   text-align: right;
 }
 .free-item h3 {
-  margin: 0 0 5px;
-  font-size: 0.9em;
-  color: var(--color-primary-text);
+  margin-bottom: 5px;
+  font-size: 1em;
 }
 .free-item p {
-  margin: 0;
-  font-size: 0.75em;
+  font-size: 0.8em;
   color: var(--color-secondary-text);
 }
 .offer-btn {
-  padding: 10px !important;
-  font-size: 0.9em !important;
-  margin: 0 !important;
+  padding: 8px 12px !important;
+  font-size: 0.8em !important;
   flex-shrink: 0;
 }
-
-/* 6. Notification Styles */
+#waiting-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(5, 8, 5, 0.9);
+  backdrop-filter: blur(10px);
+  z-index: 1001;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  opacity: 0;
+  transition: opacity 0.4s ease;
+  pointer-events: none;
+}
+#waiting-overlay:not(.hidden) {
+  opacity: 1;
+  pointer-events: auto;
+}
+.waiting-content {
+  text-align: center;
+}
+.radar-animation {
+  width: 180px;
+  height: 180px;
+  border-radius: 50%;
+  border: 2px solid rgba(67, 255, 76, 0.3);
+  position: relative;
+  margin: 0 auto 30px auto;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+.radar-sweep {
+  width: 50%;
+  height: 100%;
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform-origin: left center;
+  background: linear-gradient(90deg, transparent, rgba(67, 255, 76, 0.5));
+  animation: radar-spin 2s linear infinite;
+  border-radius: 0 90px 90px 0;
+}
+@keyframes radar-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+.radar-icon {
+  font-size: 4em;
+  color: var(--color-accent);
+  animation: pulse 1.5s infinite;
+}
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 0.7;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+#waiting-message-text {
+  font-size: 1.5em;
+  color: var(--color-primary-text);
+  text-shadow: 0 0 15px var(--color-primary-glow);
+  margin-bottom: 30px;
+}
+.cancel-button {
+  display: inline-block;
+  padding: 12px 25px;
+  border: 1px solid #ff6b6b;
+  color: #ff6b6b;
+  cursor: pointer;
+  text-transform: uppercase;
+  transition: all var(--transition-fast);
+}
+.cancel-button:hover {
+  background: rgba(255, 107, 107, 0.2);
+}
 #notification-container {
   position: fixed;
   top: 20px;
   left: 50%;
   transform: translateX(-50%);
   z-index: 2000;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 10px;
 }
-
 .notification {
   padding: 12px 20px;
   font-family: var(--font-primary);
-  color: #fff;
-  border-radius: 5px;
+  color: var(--color-bg-dark);
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
   opacity: 0;
-  transform: translateY(-20px);
   animation: fadeInOut 4s ease-in-out forwards;
   min-width: 280px;
   text-align: center;
+  clip-path: polygon(
+    95% 0,
+    100% 25%,
+    100% 75%,
+    95% 100%,
+    5% 100%,
+    0 75%,
+    0 25%,
+    5% 0
+  );
 }
-
 .notification.success {
-  background-color: #2e7d32; /* Green */
-  border: 1px solid #66bb6a;
+  background-color: var(--color-accent);
+  border: 1px solid #fff;
 }
-
 .notification.error {
-  background-color: #c62828; /* Red */
+  background-color: #c62828;
   border: 1px solid #ef5350;
+  color: #fff;
 }
-
 @keyframes fadeInOut {
   0% {
     opacity: 0;
@@ -508,234 +771,57 @@ body {
   }
 }
 
-/* در فایل css/style.css */
-.menu-container {
-  /* ...سایر استایل‌ها... */
-  display: flex;
-  flex-direction: column;
-  max-height: 95vh; /* <<<< این خط را چک کنید که وجود داشته باشد */
-  text-align: center;
-}
-#selection-menu {
-  overflow-y: auto; /* اسکرول اصلی به خود منو اضافه می‌شود */
-}
-/* در فایل css/style.css */
-.selections-wrapper {
-  /* غیرفعال کردن اسکرول داخلی و ارتفاع خودکار */
-  flex-grow: 0;
-  overflow-y: visible;
-  min-height: initial;
-}
-
-.selection-section {
-  /* حذف کدهای مربوط به ارتفاع ثابت و flex-basis */
-  background: rgba(0, 0, 0, 0.25);
-  border-radius: 5px;
-  padding: 15px;
-  border-top: 1px solid var(--color-border);
-}
-
-.selection-section {
-  /* حذف ارتفاع ثابت تا محتوا به اندازه نیاز جا بگیرد */
-  flex-basis: auto;
-  min-height: initial;
-}
-
-/* اسکرول داخلی گریدها را حذف می‌کنیم */
-.selection-section .selection-grid {
-  overflow-y: visible;
-  flex-grow: 0;
-}
-
-/* رفع مشکل دکمه بازگشت در منوی ارتقا */
-
-#upgrade-menu {
-  /* ساختار این منو را به فلکس تغییر می‌دهیم */
-  display: flex;
-  flex-direction: column;
-}
-
-#upgrade-content {
-  /* این بخش اصلی‌ترین فضا را اشغال کرده و اسکرول می‌خورد */
-  flex-grow: 1;
-  overflow-y: auto;
-  margin-bottom: 15px; /* فاصله از دکمه بازگشت */
-}
-
-#upgrade-menu .back-btn {
-  /* دکمه بازگشت دیگر رشد نمی‌کند و در جای خود ثابت است */
-  flex-shrink: 0;
-}
-
-/* 7. Game Scene Styles */
-
+/* 8. Game Scene & Layering (FIX)
+/* ================================================================= */
 #game-container {
   position: fixed;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
-  background-color: #0d120d; /* رنگ پس‌زمینه آسمان شب */
+  background-color: #0d120d;
   overflow: hidden;
-  z-index: 1; /* پایین‌تر از منوها */
+  z-index: 5; /* لایه زیر منوها */
 }
 
-.road {
+/* استایل پایه برای تمام اشیاء بازی */
+.road,
+.cloud,
+.airplane,
+.opponent-airplane,
+.wingman,
+.bullet,
+.missile {
   position: absolute;
+  pointer-events: none; /* اشیاء بازی به طور پیش‌فرض قابل کلیک نیستند */
+}
+
+/* لایه‌بندی با z-index */
+.road {
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
-  z-index: 2;
+  z-index: 6; /* عمیق‌ترین لایه در بازی */
 }
 
 .cloud {
-  position: absolute;
   background-size: contain;
   background-repeat: no-repeat;
-  z-index: 3;
+  z-index: 7; /* بالای جاده، زیر هواپیماها */
 }
 
 .airplane,
 .opponent-airplane,
 .wingman {
-  z-index: 4;
+  z-index: 8; /* هواپیماها بالای ابرها هستند */
 }
 
-.bullet {
-  z-index: 4;
+.airplane {
+  pointer-events: auto; /* هواپیمای بازیکن باید قابل کنترل باشد */
 }
 
-/* حذف عکس کاپ قدیمی */
-.prize-image {
-  display: none;
+.bullet,
+.missile {
+  z-index: 9; /* گلوله‌ها و موشک‌ها در بالاترین لایه هستند */
 }
-
-#leaderboard-podium {
-  display: flex;
-  justify-content: center;
-  align-items: flex-end; /* باعث می‌شود آیتم‌ها از پایین تراز شوند */
-  gap: 5px;
-  margin: 25px 0 30px 0;
-  min-height: 160px;
-}
-
-.podium-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: flex-end;
-  width: 32%;
-  padding: 10px 5px;
-  border-radius: 8px;
-  background: rgba(0, 0, 0, 0.3);
-  color: var(--color-primary-text);
-  transition: transform 0.2s ease-out;
-}
-
-/* ترتیب و ارتفاع متفاوت برای ایجاد افکت سکو */
-.podium-item.rank-1 {
-  order: 2;
-  height: 150px;
-  border: 2px solid var(--color-gold);
-}
-.podium-item.rank-2 {
-  order: 1;
-  height: 120px;
-  border: 1px solid var(--color-silver);
-}
-.podium-item.rank-3 {
-  order: 3;
-  height: 100px;
-  border: 1px solid var(--color-bronze);
-}
-
-/* آیکون کاپ با استفاده از شبه‌عنصر */
-.podium-item::before {
-  font-size: 2.8em;
-  line-height: 1;
-  margin-bottom: 8px;
-}
-
-.podium-item.rank-1::before {
-  content: "🏆";
-  filter: drop-shadow(0 0 8px var(--color-gold));
-}
-.podium-item.rank-2::before {
-  content: "🥈";
-}
-.podium-item.rank-3::before {
-  content: "🥉";
-}
-
-.podium-name {
-  font-weight: 700;
-  font-size: 0.9em;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 100%;
-  margin-bottom: 5px;
-}
-
-.podium-score {
-  font-size: 0.8em;
-  color: var(--color-secondary-text);
-}
-
-/* در فایل css/style.css */
-
-#waiting-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-color: rgba(10, 14, 19, 0.9); /* رنگ پیش‌فرض اگر تصویر لود نشد */
-  background-size: cover; /* تصویر تمام صفحه را بپوشاند */
-  background-position: center; /* تصویر در مرکز قرار گیرد */
-  background-repeat: no-repeat; /* تصویر تکرار نشود */
-  z-index: 1001; /* بالاتر از بقیه منوها */
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  opacity: 0;
-  transition: opacity 0.4s ease;
-  pointer-events: none; /* در حالت مخفی قابل کلیک نباشد */
-  /* اگر می‌خواهید تصویر کمی تار باشد: */
-  /* backdrop-filter: blur(5px); */
-}
-
-#waiting-overlay:not(.hidden) {
-  opacity: 1;
-  pointer-events: auto;
-}
-
-.waiting-content {
-  /* نام کلاس از waiting-box به waiting-content تغییر یافته */
-  text-align: center;
-  padding: 20px;
-  background: rgba(0, 0, 0, 0.4); /* پس‌زمینه برای خوانایی متن */
-  border-radius: 10px;
-  box-shadow: 0 0 20px rgba(0, 255, 0, 0.5); /* کمی درخشش */
-  animation: menu-fade-in 0.5s forwards;
-}
-
-/* این کد دیگر نیازی نیست و باید حذف شود */
-/*
-#waiting-device-image {
-    max-width: 250px;
-    height: auto;
-    margin-bottom: 25px;
-    filter: drop-shadow(0 0 15px rgba(118, 255, 128, 0.3));
-}
-*/
-
-#waiting-message-text {
-  font-size: 1.5em; /* کمی بزرگ‌تر برای خوانایی بهتر روی تصویر */
-  color: var(--color-primary-text);
-  text-shadow: 0 0 15px var(--color-glow); /* درخشش بیشتر */
-  margin-bottom: 30px;
-}
-
-/* بقیه استایل‌های progress-bar-container و progress-bar-inner بدون تغییر */

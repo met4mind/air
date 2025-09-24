@@ -36,7 +36,7 @@ class MilitarySoundManager {
     document.addEventListener("click", (e) => {
       if (
         e.target.matches(
-          ".menu-btn, .upgrade-btn, .buy-btn, .offer-btn, .back-btn, .tab-btn"
+          ".menu-btn, .upgrade-btn, .offer-btn, .back-btn, .tab-btn, .nav-btn, .cancel-button"
         )
       ) {
         this.play("buttonClick");
@@ -52,7 +52,11 @@ class MilitarySoundManager {
 
     // ارتقاء
     document.addEventListener("click", (e) => {
-      if (e.target.matches(".upgrade-btn")) {
+      if (
+        e.target.matches(
+          "#confirm-plane-upgrade-btn, #confirm-bullet-upgrade-btn"
+        )
+      ) {
         this.play("upgrade");
       }
     });
