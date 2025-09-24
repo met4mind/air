@@ -604,7 +604,6 @@ body {
 
 .bullet {
   z-index: 4;
-  
 }
 
 /* حذف عکس کاپ قدیمی */
@@ -683,3 +682,60 @@ body {
   font-size: 0.8em;
   color: var(--color-secondary-text);
 }
+
+/* در فایل css/style.css */
+
+#waiting-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(10, 14, 19, 0.9); /* رنگ پیش‌فرض اگر تصویر لود نشد */
+  background-size: cover; /* تصویر تمام صفحه را بپوشاند */
+  background-position: center; /* تصویر در مرکز قرار گیرد */
+  background-repeat: no-repeat; /* تصویر تکرار نشود */
+  z-index: 1001; /* بالاتر از بقیه منوها */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  opacity: 0;
+  transition: opacity 0.4s ease;
+  pointer-events: none; /* در حالت مخفی قابل کلیک نباشد */
+  /* اگر می‌خواهید تصویر کمی تار باشد: */
+  /* backdrop-filter: blur(5px); */
+}
+
+#waiting-overlay:not(.hidden) {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.waiting-content {
+  /* نام کلاس از waiting-box به waiting-content تغییر یافته */
+  text-align: center;
+  padding: 20px;
+  background: rgba(0, 0, 0, 0.4); /* پس‌زمینه برای خوانایی متن */
+  border-radius: 10px;
+  box-shadow: 0 0 20px rgba(0, 255, 0, 0.5); /* کمی درخشش */
+  animation: menu-fade-in 0.5s forwards;
+}
+
+/* این کد دیگر نیازی نیست و باید حذف شود */
+/*
+#waiting-device-image {
+    max-width: 250px;
+    height: auto;
+    margin-bottom: 25px;
+    filter: drop-shadow(0 0 15px rgba(118, 255, 128, 0.3));
+}
+*/
+
+#waiting-message-text {
+  font-size: 1.5em; /* کمی بزرگ‌تر برای خوانایی بهتر روی تصویر */
+  color: var(--color-primary-text);
+  text-shadow: 0 0 15px var(--color-glow); /* درخشش بیشتر */
+  margin-bottom: 30px;
+}
+
+/* بقیه استایل‌های progress-bar-container و progress-bar-inner بدون تغییر */

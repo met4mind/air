@@ -676,14 +676,13 @@ router.post("/shop/buy-potion", auth, async (req, res) => {
 // ارتقاء ویژگی‌ها
 router.post("/upgrade", auth, async (req, res) => {
   try {
-    const { type } = req.body;
+    // airplaneTier و airplaneStyle را هم از بدنه درخواست دریافت می‌کنیم
+    const { type, airplaneTier, airplaneStyle } = req.body;
     const user = req.user;
 
     if (type === "airplane") {
       const currentTier = user.airplaneTier;
       const currentStyle = user.airplaneStyle;
-
-      // پیدا کردن ایندکس هواپیمای بعدی
       const currentIndex = airplanesData.findIndex(
         (p) => p.tier === currentTier && p.style === currentStyle
       );
@@ -703,8 +702,34 @@ router.post("/upgrade", auth, async (req, res) => {
       user.coins -= cost;
       user.airplaneTier = nextPlane.tier;
       user.airplaneStyle = nextPlane.style;
+    } else if (type === "bullet") {
+      // <<<< این بلوک جدید اضافه شده است >>>>
+      const airplaneKey = `${airplaneTier}_${airplaneStyle}`;
+      const currentLevel =
+        (user.airplaneBulletLevels &&
+          user.airplaneBulletLevels.get(airplaneKey)) ||
+        1;
+
+      if (currentLevel >= 4) {
+        return res
+          .status(400)
+          .json({ error: "گلوله به حداکثر سطح ارتقاء رسیده است" });
+      }
+
+      const BaseValue = 1000;
+      const cost = Math.ceil(
+        BaseValue * 0.06 * Math.pow(1.12, currentLevel - 1)
+      );
+
+      if (user.coins < cost) {
+        return res.status(400).json({ error: "سکه شما برای ارتقاء کافی نیست" });
+      }
+
+      user.coins -= cost;
+      user.airplaneBulletLevels.set(airplaneKey, currentLevel + 1);
     } else {
-      return res.status(400).json({ error: "Invalid upgrade type" });
+      // این بخش حالا فقط برای انواع ناشناخته اجرا می‌شود
+      return res.status(400).json({ error: "نوع ارتقاء نامعتبر است" });
     }
 
     await user.save();
@@ -713,7 +738,6 @@ router.post("/upgrade", auth, async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
-
 // دریافت جدول رتبه‌بندی
 // در فایل: routes/api.js
 // این مسیر جدید را قبل از module.exports = router; اضافه کنید

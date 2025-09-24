@@ -842,6 +842,8 @@ class MenuManager {
     }
   }
 
+  // در فایل js/menu.js
+
   async apiRequest(endpoint, options = {}) {
     try {
       const response = await fetch(`${BASEURL}${endpoint}`, {
@@ -853,14 +855,19 @@ class MenuManager {
         ...options,
       });
 
+      // <<<< شروع بخش اصلاح‌شده >>>>
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        // یک خطای سفارشی ایجاد می‌کنیم که حاوی خودِ response باشد
+        const error = new Error(`HTTP error! status: ${response.status}`);
+        error.response = response; // آبجکت response را به خطا ضمیمه می‌کنیم
+        throw error;
       }
+      // <<<< پایان بخش اصلاح‌شده >>>>
 
       return await response.json();
     } catch (error) {
       console.error("API request failed:", error);
-      throw error;
+      throw error; // خطا را برای مدیریت در بخش بالاتر ارسال می‌کنیم
     }
   }
 
