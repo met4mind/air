@@ -1,32 +1,20 @@
-/*
-=================================================================
-   Military-Tech UI v4.1 - Scenery Layering Fix
-=================================================================
-*/
-
-/* 1. Global Setup & Variables
-/* ================================================================= */
 :root {
   --font-primary: "Orbitron", sans-serif;
   --font-pixel: "VT323", monospace;
-
-  --color-bg-dark: #050805;
+  --color-bg-dark: #020402;
   --color-bg-medium: #0a100a;
-  --color-border-light: rgba(67, 255, 76, 0.2);
-  --color-border-medium: rgba(67, 255, 76, 0.4);
-  --color-primary-glow: rgba(67, 255, 76, 0.7);
-  --color-accent: #43ff4c;
-  --color-primary-text: #d4e0d5;
+  --color-border-light: rgba(100, 255, 110, 0.2);
+  --color-border-medium: rgba(100, 255, 110, 0.5);
+  --color-primary-glow: rgba(100, 255, 110, 0.8);
+  --color-accent: #64ff6e;
+  --color-primary-text: #e0f0e1;
   --color-secondary-text: #8a9e8b;
-
-  --color-gold: #ffd700;
-  --color-silver: #c0c0c0;
-  --color-bronze: #cd7f32;
-
+  --color-gold: #ffee77;
+  --color-silver: #d0d0d0;
+  --color-bronze: #e09a69;
   --transition-fast: 0.2s ease-out;
   --transition-smooth: 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
-
 * {
   margin: 0;
   padding: 0;
@@ -34,7 +22,6 @@
   -webkit-tap-highlight-color: transparent;
   user-select: none;
 }
-
 body {
   font-family: var(--font-primary);
   background-color: var(--color-bg-dark);
@@ -42,67 +29,85 @@ body {
   width: 100vw;
   height: 100vh;
   overflow: hidden;
-  position: fixed;
+  position: relative;
 }
-
-/* 2. Background & Overlays
-/* ================================================================= */
-.background-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-image: linear-gradient(
-      rgba(67, 255, 76, 0.05) 1px,
-      transparent 1px
-    ),
-    linear-gradient(90deg, rgba(67, 255, 76, 0.05) 1px, transparent 1px);
-  background-size: 30px 30px;
+body::before,
+body::after {
+  content: "";
+  position: absolute;
+  inset: 0;
   z-index: 0;
   pointer-events: none;
-  animation: background-pulse 10s infinite alternate;
 }
-
+body::before {
+  background-image: radial-gradient(
+      circle at 20% 30%,
+      rgba(0, 50, 20, 0.4),
+      transparent 50%
+    ),
+    radial-gradient(circle at 80% 70%, rgba(0, 40, 30, 0.3), transparent 60%);
+  background-size: 200% 200%;
+  animation: nebula-pan 60s linear infinite;
+}
+body::after {
+  background-image: radial-gradient(
+      circle at 10% 20%,
+      white 0.5px,
+      transparent 1px
+    ),
+    radial-gradient(circle at 50% 30%, white 0.5px, transparent 1px),
+    radial-gradient(circle at 90% 10%, white 0.5px, transparent 1px),
+    radial-gradient(
+      circle at 30% 80%,
+      var(--color-accent) 0.5px,
+      transparent 1px
+    ),
+    radial-gradient(
+      circle at 70% 60%,
+      var(--color-accent) 0.5px,
+      transparent 1px
+    ),
+    radial-gradient(circle at 15% 90%, white 0.5px, transparent 1px);
+  background-size: 100px 100px;
+  opacity: 0.2;
+  animation: star-pan 90s linear infinite;
+}
+@keyframes nebula-pan {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+@keyframes star-pan {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(-200px);
+  }
+}
 .scanline-overlay {
   position: fixed;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
-  background: linear-gradient(
+  background: repeating-linear-gradient(
     0deg,
-    rgba(0, 0, 0, 0) 0%,
-    rgba(0, 0, 0, 0.4) 50%,
-    rgba(0, 0, 0, 0) 100%
+    transparent,
+    transparent 2px,
+    rgba(100, 255, 110, 0.05) 3px,
+    transparent 4px
   );
-  background-size: 100% 4px;
-  animation: scanlines 8s linear infinite;
   z-index: 1;
   pointer-events: none;
-  opacity: 0.4;
+  opacity: 0.5;
 }
-
-@keyframes scanlines {
-  from {
-    background-position: 0 0;
-  }
-  to {
-    background-position: 0 200%;
-  }
-}
-
-@keyframes background-pulse {
-  from {
-    opacity: 1;
-  }
-  to {
-    opacity: 0.8;
-  }
-}
-
-/* 3. Main App & Menu Container (Animation Added)
-/* ================================================================= */
 .app-container {
   width: 100%;
   height: 100%;
@@ -112,24 +117,36 @@ body {
   align-items: center;
   padding: 15px;
   padding-bottom: 90px;
+  z-index: 10;
 }
-
 .menu-container {
   position: absolute;
-  z-index: 20; /* Menus must be on top of the game container */
+  z-index: 20;
   width: 100%;
   max-width: 450px;
-  background: radial-gradient(
-    circle,
-    rgba(10, 20, 10, 0.8),
-    rgba(5, 8, 5, 0.9)
-  );
+  --hex-color: rgba(100, 255, 110, 0.05);
+  background-color: #050805;
+  background-image: radial-gradient(
+      circle at 100% 0%,
+      rgba(100, 255, 110, 0.15) 0%,
+      transparent 40%
+    ),
+    radial-gradient(
+      circle at 0% 100%,
+      rgba(100, 255, 110, 0.1) 0%,
+      transparent 50%
+    ),
+    radial-gradient(var(--hex-color) 1px, transparent 1px),
+    radial-gradient(var(--hex-color) 1px, transparent 1px);
+  background-size: 100% 100%, 100% 100%, 40px 40px, 40px 40px;
+  background-position: 0 0, 0 0, 0 0, 20px 20px;
+  animation: background-pan 15s linear infinite;
   border: 1px solid var(--color-border-medium);
   padding: 20px;
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  box-shadow: 0 0 40px rgba(67, 255, 76, 0.2),
-    inset 0 0 15px rgba(67, 255, 76, 0.1);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 0 50px rgba(100, 255, 110, 0.2),
+    inset 0 0 20px rgba(0, 0, 0, 0.5);
   display: flex;
   flex-direction: column;
   max-height: calc(100vh - 120px);
@@ -144,37 +161,97 @@ body {
     0 calc(100% - 15px)
   );
   opacity: 0;
-  transform: scale(0.98) translateY(10px);
+  transform: scale(0.95) translateY(20px);
   transition: opacity var(--transition-smooth),
     transform var(--transition-smooth);
   pointer-events: none;
 }
-
+@keyframes background-pan {
+  0% {
+    background-position: 0% 0%, 100% 100%, 0 0, 20px 20px;
+  }
+  25% {
+    background-position: 0% 100%, 100% 0%, 0 0, 20px 20px;
+  }
+  50% {
+    background-position: 100% 100%, 0% 0%, 0 0, 20px 20px;
+  }
+  75% {
+    background-position: 100% 0%, 0% 100%, 0 0, 20px 20px;
+  }
+  100% {
+    background-position: 0% 0%, 100% 100%, 0 0, 20px 20px;
+  }
+}
+.menu-scanline {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 3px;
+  background: var(--color-accent);
+  box-shadow: 0 0 15px var(--color-accent), 0 0 30px var(--color-accent);
+  opacity: 0.8;
+  animation: scan-line-anim 6s linear infinite;
+  animation-delay: 2s;
+}
+@keyframes scan-line-anim {
+  0% {
+    top: 0;
+    opacity: 0;
+  }
+  10% {
+    opacity: 0.7;
+  }
+  90% {
+    opacity: 0.7;
+  }
+  100% {
+    top: 100%;
+    opacity: 0;
+  }
+}
+.menu-container::before,
+.menu-container::after {
+  content: "";
+  position: absolute;
+  inset: 5px;
+  pointer-events: none;
+  clip-path: polygon(
+    0 10px,
+    10px 0,
+    calc(100% - 10px) 0,
+    100% 10px,
+    100% calc(100% - 10px),
+    calc(100% - 10px) 100%,
+    10px 100%,
+    0 calc(100% - 10px)
+  );
+}
+.menu-container::before {
+  border: 1px solid var(--color-border-light);
+}
 .menu-container.active {
   opacity: 1;
   transform: scale(1) translateY(0);
   pointer-events: auto;
 }
-
 .hidden {
   display: none;
 }
-
 .menu-header {
   text-align: center;
   margin-bottom: 20px;
   flex-shrink: 0;
 }
-
 .menu-header h2 {
   font-family: var(--font-pixel);
-  font-size: 2.2em;
+  font-size: 2.5em;
   color: var(--color-accent);
   text-transform: uppercase;
-  text-shadow: 0 0 10px var(--color-primary-glow);
-  animation: text-flicker 3s infinite alternate;
+  text-shadow: 0 0 15px var(--color-primary-glow);
+  animation: text-flicker 4s infinite alternate;
 }
-
 @keyframes text-flicker {
   0%,
   18%,
@@ -183,8 +260,8 @@ body {
   53%,
   57%,
   100% {
-    text-shadow: 0 0 8px var(--color-accent), 0 0 15px var(--color-accent),
-      0 0 30px var(--color-primary-glow);
+    text-shadow: 0 0 10px var(--color-accent), 0 0 20px var(--color-accent),
+      0 0 40px var(--color-primary-glow);
     opacity: 1;
   }
   20%,
@@ -194,9 +271,6 @@ body {
     opacity: 0.8;
   }
 }
-
-/* 4. Main Menu & Footer Nav
-/* ================================================================= */
 #main-menu .main-menu-content {
   display: flex;
   flex-direction: column;
@@ -208,7 +282,7 @@ body {
   width: 60%;
   max-width: 200px;
   height: auto;
-  filter: drop-shadow(0 0 25px var(--color-primary-glow));
+  filter: drop-shadow(0 0 30px var(--color-primary-glow));
   animation: airplane-hover 4s ease-in-out infinite;
   margin-bottom: 20px;
 }
@@ -222,11 +296,11 @@ body {
   }
 }
 .game-title {
-  font-size: 2.5em;
+  font-size: 2.8em;
   font-weight: 900;
-  color: var(--color-accent);
-  text-shadow: 0 0 15px var(--color-primary-glow),
-    0 0 30px var(--color-primary-glow);
+  color: #fff;
+  text-shadow: 0 0 10px var(--color-accent), 0 0 20px var(--color-accent),
+    0 0 40px var(--color-primary-glow);
   animation: text-flicker 5s infinite alternate;
   margin-bottom: 25px;
 }
@@ -238,7 +312,7 @@ body {
   height: 75px;
   background: var(--color-bg-medium);
   border-top: 2px solid var(--color-border-medium);
-  box-shadow: 0 -5px 20px rgba(67, 255, 76, 0.15);
+  box-shadow: 0 -5px 30px rgba(100, 255, 110, 0.2);
   display: flex;
   justify-content: space-around;
   align-items: center;
@@ -266,23 +340,24 @@ body {
 .nav-btn:hover i {
   color: #fff;
   transform: translateY(-3px);
-  text-shadow: 0 5px 15px var(--color-primary-glow);
+  text-shadow: 0 5px 20px var(--color-primary-glow);
 }
 .nav-btn.active {
   color: var(--color-accent);
 }
 .nav-btn.active i {
-  text-shadow: 0 0 10px var(--color-primary-glow);
+  text-shadow: 0 0 15px var(--color-primary-glow);
 }
-
-/* 5. General Components
-/* ================================================================= */
 .menu-btn {
-  background: linear-gradient(rgba(67, 255, 76, 0.05), rgba(67, 255, 76, 0.15));
+  background: linear-gradient(
+    rgba(100, 255, 110, 0.05),
+    rgba(100, 255, 110, 0.15)
+  );
   border: 1px solid var(--color-border-medium);
   color: var(--color-primary-text);
   font-family: var(--font-primary);
   font-size: 1em;
+  font-weight: 700;
   padding: 12px;
   text-transform: uppercase;
   cursor: pointer;
@@ -299,6 +374,7 @@ body {
     5% 0
   );
   overflow: hidden;
+  text-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
 }
 .menu-btn::before {
   content: "";
@@ -313,15 +389,28 @@ body {
     var(--color-primary-glow),
     transparent
   );
-  transition: left 0.5s ease;
+  transition: left 0.6s ease;
+  animation: btn-shine 5s infinite linear 2s;
 }
 .menu-btn:hover::before {
   left: 100%;
 }
+@keyframes btn-shine {
+  0% {
+    left: -100%;
+  }
+  20% {
+    left: 100%;
+  }
+  100% {
+    left: 100%;
+  }
+}
 .menu-btn:hover {
   color: var(--color-bg-dark);
   background: var(--color-accent);
-  box-shadow: 0 0 20px var(--color-primary-glow);
+  box-shadow: 0 0 25px var(--color-primary-glow);
+  text-shadow: none;
 }
 .menu-btn:active {
   transform: scale(0.97);
@@ -329,7 +418,7 @@ body {
 .menu-btn.primary {
   background: var(--color-accent);
   color: var(--color-bg-dark);
-  font-weight: 700;
+  font-weight: 900;
 }
 .menu-btn:disabled,
 .menu-btn:disabled:hover {
@@ -360,6 +449,12 @@ body {
 ::-webkit-scrollbar-thumb {
   background: var(--color-accent);
 }
+@keyframes item-fade-in {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
 .selection-item,
 .leaderboard-item,
 .free-item,
@@ -368,15 +463,6 @@ body {
   transform: translateY(20px);
   animation: item-fade-in 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
 }
-@keyframes item-fade-in {
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-/* 6. Selection Grids & Loader
-/* ================================================================= */
 .selection-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
@@ -387,13 +473,14 @@ body {
 }
 .selection-section h3 {
   font-family: var(--font-pixel);
-  font-size: 1.5em;
+  font-size: 1.8em;
   color: var(--color-secondary-text);
   margin-bottom: 15px;
   text-align: center;
+  text-shadow: 0 0 10px var(--color-bg-dark);
 }
 .selection-item {
-  background: rgba(0, 0, 0, 0.4);
+  background: rgba(0, 0, 0, 0.5);
   border: 1px solid var(--color-border-light);
   padding: 10px;
   cursor: pointer;
@@ -412,6 +499,7 @@ body {
     8px 100%,
     0 calc(100% - 8px)
   );
+  position: relative;
 }
 .selection-item img {
   width: 100%;
@@ -427,24 +515,26 @@ body {
   line-height: 1.3;
 }
 .selection-item:hover {
-  transform: translateY(-5px) scale(1.02);
-  box-shadow: 0 0 15px var(--color-primary-glow);
+  transform: translateY(-5px) scale(1.05);
+  box-shadow: 0 0 20px var(--color-primary-glow);
   border-color: var(--color-accent);
 }
 .selection-item:hover img {
   transform: scale(1.1);
+  filter: drop-shadow(0 0 10px var(--color-accent));
 }
 .selection-item.selected {
   border: 2px solid var(--color-accent);
-  box-shadow: 0 0 15px var(--color-primary-glow),
-    inset 0 0 10px rgba(67, 255, 76, 0.2);
-  background-color: rgba(67, 255, 76, 0.1);
+  box-shadow: 0 0 20px var(--color-primary-glow),
+    inset 0 0 15px rgba(100, 255, 110, 0.3);
+  background-color: rgba(100, 255, 110, 0.1);
 }
 .selection-item .price {
   font-family: var(--font-pixel);
   font-size: 1.2em;
   color: var(--color-gold);
   margin-top: 5px;
+  text-shadow: 0 0 5px #000;
 }
 .loader {
   width: 50px;
@@ -460,9 +550,6 @@ body {
     transform: rotate(360deg);
   }
 }
-
-/* 7. Other Sections
-/* ================================================================= */
 .user-stats-display {
   text-align: center;
   margin-bottom: 15px;
@@ -576,7 +663,7 @@ body {
   border-left: 3px solid var(--color-border-light);
 }
 .leaderboard-item.self {
-  background: rgba(67, 255, 76, 0.1);
+  background: rgba(100, 255, 110, 0.1);
   border-left-color: var(--color-accent);
 }
 .leaderboard-rank {
@@ -606,7 +693,7 @@ body {
 }
 .free-item:hover {
   border-color: var(--color-accent);
-  background: rgba(67, 255, 76, 0.05);
+  background: rgba(100, 255, 110, 0.05);
 }
 .free-item-icon {
   font-size: 2em;
@@ -658,7 +745,7 @@ body {
   width: 180px;
   height: 180px;
   border-radius: 50%;
-  border: 2px solid rgba(67, 255, 76, 0.3);
+  border: 2px solid rgba(100, 255, 110, 0.3);
   position: relative;
   margin: 0 auto 30px auto;
   display: flex;
@@ -672,7 +759,7 @@ body {
   top: 0;
   left: 50%;
   transform-origin: left center;
-  background: linear-gradient(90deg, transparent, rgba(67, 255, 76, 0.5));
+  background: linear-gradient(90deg, transparent, rgba(100, 255, 110, 0.5));
   animation: radar-spin 2s linear infinite;
   border-radius: 0 90px 90px 0;
 }
@@ -770,21 +857,16 @@ body {
     transform: translateY(20px);
   }
 }
-
-/* 8. Game Scene & Layering (FIX)
-/* ================================================================= */
 #game-container {
   position: fixed;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
-  background-color: #0d120d;
+  background-color: transparent;
   overflow: hidden;
-  z-index: 5; /* لایه زیر منوها */
+  z-index: 5;
 }
-
-/* استایل پایه برای تمام اشیاء بازی */
 .road,
 .cloud,
 .airplane,
@@ -793,35 +875,267 @@ body {
 .bullet,
 .missile {
   position: absolute;
-  pointer-events: none; /* اشیاء بازی به طور پیش‌فرض قابل کلیک نیستند */
+  pointer-events: none;
 }
-
-/* لایه‌بندی با z-index */
 .road {
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
-  z-index: 6; /* عمیق‌ترین لایه در بازی */
+  z-index: 6;
 }
-
 .cloud {
   background-size: contain;
   background-repeat: no-repeat;
-  z-index: 7; /* بالای جاده، زیر هواپیماها */
+  z-index: 7;
 }
-
 .airplane,
 .opponent-airplane,
 .wingman {
-  z-index: 8; /* هواپیماها بالای ابرها هستند */
+  z-index: 8;
 }
-
 .airplane {
-  pointer-events: auto; /* هواپیمای بازیکن باید قابل کنترل باشد */
+  pointer-events: auto;
 }
-
 .bullet,
 .missile {
-  z-index: 9; /* گلوله‌ها و موشک‌ها در بالاترین لایه هستند */
+  z-index: 9;
+}
+#use-potion-btn {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  width: 65px;
+  height: 65px;
+  background: radial-gradient(
+    circle,
+    rgba(10, 20, 10, 0.7),
+    rgba(5, 8, 5, 0.9)
+  );
+  border: 2px solid var(--color-accent);
+  border-radius: 50%;
+  z-index: 100;
+  cursor: pointer;
+  box-shadow: 0 0 20px var(--color-primary-glow),
+    inset 0 0 10px rgba(100, 255, 110, 0.2);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  transition: all var(--transition-fast);
+  animation: pulse-glow 2.5s infinite;
+}
+#use-potion-btn:hover {
+  transform: scale(1.1);
+  box-shadow: 0 0 30px var(--color-primary-glow);
+}
+#use-potion-btn img {
+  width: 70%;
+  height: 70%;
+  object-fit: contain;
+  filter: drop-shadow(0 0 5px #fff);
+}
+@keyframes pulse-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 20px var(--color-primary-glow);
+  }
+  50% {
+    box-shadow: 0 0 35px var(--color-accent);
+  }
+}
+.airplane,
+.opponent-airplane {
+  position: relative;
+  z-index: 8;
+}
+@keyframes power-flare {
+  0% {
+    transform: translate(-50%, -50%) scale(0.8);
+    opacity: 1;
+  }
+  70% {
+    transform: translate(-50%, -50%) scale(1.4);
+    opacity: 0.7;
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(1.6);
+    opacity: 0;
+  }
+}
+@keyframes power-pulse {
+  0%,
+  100% {
+    transform: translate(-50%, -50%) scale(1);
+    filter: blur(3px);
+  }
+  50% {
+    transform: translate(-50%, -50%) scale(1.05);
+    filter: blur(5px);
+  }
+}
+.power-effect::before,
+.power-effect::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 120%;
+  padding-bottom: 120%;
+  height: 0;
+  border-radius: 50%;
+  pointer-events: none;
+}
+.power-effect::before {
+  background: radial-gradient(
+    circle,
+    rgba(255, 100, 0, 0.4) 0%,
+    rgba(255, 0, 0, 0.2) 60%,
+    transparent 100%
+  );
+  animation: power-pulse 2s ease-in-out infinite;
+}
+.power-effect::after {
+  background: radial-gradient(
+    circle,
+    white 0%,
+    rgba(255, 200, 0, 0.5) 30%,
+    rgba(255, 0, 0, 0.3) 70%,
+    transparent 100%
+  );
+  animation: power-flare 1.5s ease-out infinite;
+}
+@keyframes speed-lines {
+  from {
+    background-position: 0 0;
+  }
+  to {
+    background-position: 0 100px;
+  }
+}
+.speed-effect::after {
+  content: "";
+  position: absolute;
+  top: 40%;
+  left: 10%;
+  width: 80%;
+  height: 100%;
+  background: repeating-linear-gradient(
+    0deg,
+    rgba(0, 220, 255, 0.6) 0px,
+    rgba(0, 220, 255, 0.6) 2px,
+    transparent 2px,
+    transparent 10px
+  );
+  clip-path: polygon(0 0, 100% 0, 80% 100%, 20% 100%);
+  opacity: 0.7;
+  animation: speed-lines 0.5s linear infinite;
+  pointer-events: none;
+}
+@keyframes shield-breathe {
+  0%,
+  100% {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 0.8;
+  }
+  50% {
+    transform: translate(-50%, -50%) scale(1.05);
+    opacity: 1;
+  }
+}
+@keyframes shield-rotate-reverse {
+  from {
+    transform: translate(-50%, -50%) rotate(0deg);
+  }
+  to {
+    transform: translate(-50%, -50%) rotate(-360deg);
+  }
+}
+.shield-effect::before,
+.shield-effect::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: contain;
+  pointer-events: none;
+}
+.shield-effect::before {
+  width: 130%;
+  height: 130%;
+  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><polygon points="50 1, 95 25, 95 75, 50 99, 5 75, 5 25" style="fill:none;stroke:rgba(255,215,0,0.8);stroke-width:2" /></svg>');
+  animation: shield-rotate 10s linear infinite,
+    shield-breathe 3s ease-in-out infinite;
+  box-shadow: 0 0 20px gold;
+  border-radius: 50%;
+}
+.shield-effect::after {
+  width: 110%;
+  height: 110%;
+  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><polygon points="50 1, 95 25, 95 75, 50 99, 5 75, 5 25" style="fill:rgba(255,215,0,0.1);stroke:gold;stroke-width:1" /></svg>');
+  animation: shield-rotate-reverse 8s linear infinite,
+    shield-breathe 3s ease-in-out 0.5s infinite;
+}
+@keyframes heal-float {
+  0% {
+    transform: translateY(0) scale(1) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-100px) scale(0) rotate(180deg);
+    opacity: 0;
+  }
+}
+.heal-particle {
+  position: absolute;
+  font-size: 24px;
+  font-weight: bold;
+  color: #43ff4c;
+  text-shadow: 0 0 15px white, 0 0 5px var(--color-accent);
+  animation: heal-float 2s ease-out forwards;
+  pointer-events: none;
+  z-index: 100;
+}
+.heal-particle::before {
+  content: "+";
+}
+.heal-aura-effect::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 120%;
+  padding-bottom: 120%;
+  height: 0;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    rgba(67, 255, 76, 0.5) 0%,
+    transparent 70%
+  );
+  transform: translate(-50%, -50%);
+  animation: fade-in-out 1.5s ease-out;
+  pointer-events: none;
+}
+@keyframes fade-in-out {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.5);
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(1.2);
+  }
+}
+.opponent-airplane.potion-effect-active::after,
+.opponent-airplane.potion-effect-active::before {
+  transform: translate(-50%, -50%) rotate(180deg);
+}
+
+.app-container.hidden-for-game {
+  display: none;
 }

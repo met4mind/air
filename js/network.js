@@ -7,12 +7,7 @@ export class NetworkManager {
     this.userId = null;
     this.opponent = null;
     this.baseURL = CONFIG.BASEURL;
-
-    // <<<< تغییر ۱: tgid را به عنوان یک پراپرتی کلاس اضافه می‌کنیم >>>>
-    // در ابتدای کار، tgid را از localStorage می‌خوانیم تا لاگین خودکار کار کند
     this.tgid = localStorage.getItem("tgid") || null;
-
-    // event handlers
     this.onHealthUpdate = null;
     this.onGameStart = null;
     this.onWaiting = null;
@@ -21,13 +16,13 @@ export class NetworkManager {
     this.onYouHit = null;
     this.onGameOver = null;
     this.onOpponentDisconnected = null;
+    // <<< پراپرتی جدید برای مدیریت معجون حریف >>>
     this.onOpponentPotionActivate = null;
     this.onGameCancelled = null;
   }
   setTgid(tgid) {
     this.tgid = tgid;
-    localStorage.setItem("tgid", tgid); // برای ذخیره‌سازی بین نشست‌ها (sessions)
-    console.log(`Tgid in NetworkManager was set to: ${this.tgid}`); // برای دیباگ کردن
+    localStorage.setItem("tgid", tgid);
   }
 
   sendPotionActivate(potionId) {
@@ -41,6 +36,7 @@ export class NetworkManager {
       );
     }
   }
+
   async apiRequest(endpoint, options = {}) {
     try {
       const response = await fetch(`${this.baseURL}${endpoint}`, {
@@ -190,7 +186,7 @@ export class NetworkManager {
     bulletName,
     screenWidth,
     screenHeight,
-    potionId,
+    potionId, // جدید
     airplaneTier,
     airplaneStyle
   ) {
@@ -204,13 +200,11 @@ export class NetworkManager {
           airplaneName: airplaneName,
           bullets: bullets,
           bulletName: bulletName,
-          airplaneTier: airplaneTier,
-          airplaneStyle: airplaneStyle,
           screenWidth: screenWidth,
           screenHeight: screenHeight,
           airplaneTier: airplaneTier,
           airplaneStyle: airplaneStyle,
-          potionId: potionId || null, // جدید
+          potionId: potionId || null, // ارسال آیدی معجون
         })
       );
     }

@@ -32,15 +32,22 @@ export class WarScene {
     this.health = initialHealth || 100;
     this.opponentHealth = initialOpponentHealth || 100;
     this.bullets = [];
-    this.isPotionActive = false;
     this.missiles = [];
+    this.isPotionUsed = false;
+    this.boundPotionClickHandler = this.handlePotionClick.bind(this);
     this.isShielded = false;
-    this.originalBulletSpeed = this.CONFIG.bullets.speed;
-    this.originalShootingInterval = this.CONFIG.bullets.interval;
+    this.damageMultiplier = 1;
+    this.baseShootingInterval = 1200;
+    this.activeEffects = {
+      power: 0,
+      speed: 0,
+      shield: 0,
+    };
     window.networkManager = networkManager;
     this.screenWidth = window.innerWidth;
     this.screenHeight = window.innerHeight;
   }
+
   async init() {
     this.setupScene();
     this.createGameObjects();
@@ -48,27 +55,152 @@ export class WarScene {
     this.setupNetworkHandlers();
     this.startGameLoop();
     this.createHealthDisplays();
+    const potionBtn = document.getElementById("use-potion-btn");
+    if (potionBtn) {
+      potionBtn.addEventListener("click", this.boundPotionClickHandler);
+    }
     this.setupPotionButton();
   }
 
-  startShooting() {
+  handlePotionClick() {
+    if (this.isPotionUsed) return;
+    this.activatePotion();
+    this.isPotionUsed = true;
+  }
+
+  setupPotionButton() {
+    const potionBtn = document.getElementById("use-potion-btn");
+    if (!potionBtn) return;
+
+    let shouldShow = false;
+    if (this.selectedPotion && this.selectedPotion._id !== "none") {
+      const ownedPotion = this.userData.ownedPotions.find((p) => {
+        const potionIdInInventory = p.potion._id || p.potion;
+        return potionIdInInventory === this.selectedPotion._id;
+      });
+      if (ownedPotion && ownedPotion.quantity > 0) {
+        shouldShow = true;
+      }
+    }
+
+    // این خط هرگونه استایل inline مثل display:none را پاک می‌کند
+    potionBtn.style.display = "";
+
+    if (shouldShow) {
+      potionBtn.innerHTML = `<img src="${this.selectedPotion.imagePath}" alt="${this.selectedPotion.name}">`;
+      potionBtn.classList.remove("hidden");
+    } else {
+      potionBtn.classList.add("hidden");
+    }
+  }
+
+  updateEffects() {
+    const now = Date.now();
+    if (!this.airplane || !this.airplane.element) return;
+    const airplaneElement = this.airplane.element;
+
+    if (this.activeEffects.power > 0 && now >= this.activeEffects.power) {
+      this.damageMultiplier = 1;
+      airplaneElement.classList.remove("power-effect");
+      this.activeEffects.power = 0;
+    }
+    if (this.activeEffects.speed > 0 && now >= this.activeEffects.speed) {
+      this.setShootingInterval(this.baseShootingInterval);
+      airplaneElement.classList.remove("speed-effect");
+      this.activeEffects.speed = 0;
+    }
+    if (this.activeEffects.shield > 0 && now >= this.activeEffects.shield) {
+      this.isShielded = false;
+      airplaneElement.classList.remove("shield-effect");
+      this.activeEffects.shield = 0;
+    }
+  }
+
+  startGameLoop() {
+    const gameLoop = () => {
+      if (!this.airplane) return;
+      this.updateEffects();
+      this.roadManager.update();
+      this.updateBullets();
+      this.checkCollisions();
+      requestAnimationFrame(gameLoop);
+    };
+    gameLoop();
+  }
+
+  activatePotion() {
+    if (!this.selectedPotion || this.isPotionUsed) return;
+    this.networkManager.sendPotionActivate(this.selectedPotion._id);
+
+    const potionBtn = document.getElementById("use-potion-btn");
+    if (potionBtn) {
+      potionBtn.style.opacity = "0.5";
+      potionBtn.style.cursor = "not-allowed";
+    }
+
+    const airplaneElement = this.airplane.element;
+    let effectClass = "";
+    let soundPath = "";
+    const effectDuration = 8000;
+
+    switch (this.selectedPotion.name) {
+      case "معجون قدرت":
+        soundPath = "assets/sounds/potions/power.mp3";
+        effectClass = "power-effect";
+        airplaneElement.classList.add(effectClass);
+        this.damageMultiplier = 2;
+        this.activeEffects.power = Date.now() + effectDuration;
+        break;
+      case "معجون سرعت":
+        soundPath = "assets/sounds/potions/speed.mp3";
+        effectClass = "speed-effect";
+        airplaneElement.classList.add(effectClass);
+        this.setShootingInterval(this.baseShootingInterval / 4);
+        this.activeEffects.speed = Date.now() + effectDuration;
+        break;
+      case "معجون محافظ":
+        soundPath = "assets/sounds/potions/shield.mp3";
+        effectClass = "shield-effect";
+        airplaneElement.classList.add(effectClass);
+        this.isShielded = true;
+        this.activeEffects.shield = Date.now() + effectDuration;
+        break;
+      case "معجون درمان":
+        soundPath = "assets/sounds/potions/heal.mp3";
+        airplaneElement.classList.add("heal-aura-effect");
+        setTimeout(() => {
+          airplaneElement.classList.remove("heal-aura-effect");
+        }, 1500);
+        for (let i = 0; i < 20; i++) {
+          const particle = document.createElement("div");
+          particle.className = "heal-particle";
+          document.body.appendChild(particle);
+          const airplanePos = this.airplane.getPosition();
+          particle.style.left = `${
+            airplanePos.x + Math.random() * airplanePos.width
+          }px`;
+          particle.style.top = `${
+            airplanePos.y + Math.random() * airplanePos.height
+          }px`;
+          setTimeout(() => particle.remove(), 2000);
+        }
+        // *** این خط که مشکل اصلی بود، حذف شد ***
+        // potionBtn.style.display = "none";
+        break;
+    }
+    if (soundPath) this.playSound(soundPath);
+  }
+
+  setShootingInterval(interval) {
+    if (this.shootingInterval) {
+      clearInterval(this.shootingInterval);
+    }
     const planeData = window.gameManager.allPlanes.find(
       (p) =>
         p.tier === this.selectedAirplane.tier &&
         p.style === this.selectedAirplane.style
     );
-
-    if (
-      !planeData ||
-      !planeData.projectiles ||
-      planeData.projectiles.length === 0
-    ) {
-      console.error(
-        `Shooting data not found for plane: ${this.selectedAirplane.name}.`
-      );
-      return;
-    }
-
+    if (!planeData || !planeData.projectiles) return;
     const bulletVisuals = {
       blue: { filter: "saturate(3) hue-rotate(200deg)" },
       orange: { filter: "saturate(5) hue-rotate(15deg)" },
@@ -81,10 +213,6 @@ export class WarScene {
       (sum, p) => sum + p.count,
       0
     );
-    const damagePerProjectile =
-      totalProjectileCount > 0 ? planeData.damage / totalProjectileCount : 0;
-    const shootingInterval = 1200;
-
     this.shootingInterval = setInterval(() => {
       if (!this.airplane || !this.airplane.element.parentNode) {
         clearInterval(this.shootingInterval);
@@ -93,7 +221,10 @@ export class WarScene {
       const planePos = this.airplane.getPosition();
       const planeCenterX = planePos.x + planePos.width / 2;
       const planeCenterY = planePos.y + planePos.height / 2;
-
+      const damagePerProjectile =
+        totalProjectileCount > 0
+          ? (planeData.damage * this.damageMultiplier) / totalProjectileCount
+          : 0;
       planeData.projectiles.forEach((proj) => {
         const count = proj.count;
         for (let i = 0; i < count; i++) {
@@ -102,7 +233,6 @@ export class WarScene {
             angleDeg = -90;
           let offsetX = 0,
             offsetY = 0;
-
           if (proj.from === "nose") {
             const offsetFromCenter = count > 1 ? (i - (count - 1) / 2) * 15 : 0;
             startX = planeCenterX + offsetFromCenter;
@@ -117,12 +247,10 @@ export class WarScene {
             offsetX = startX - planeCenterX;
             offsetY = startY - planeCenterY;
           }
-
           if (proj.pattern === "angled" && count > 1) {
             const spread = 40;
             angleDeg = -90 - spread / 2 + i * (spread / (count - 1));
           }
-
           let specSize, specFilter;
           if (proj.type === "bullet") {
             const visual = bulletVisuals[proj.color] || {};
@@ -154,13 +282,10 @@ export class WarScene {
             });
             this.missiles.push(missile);
           }
-
           if (this.networkManager) {
-            const planePercentX = planeCenterX / window.innerWidth;
-            const planePercentY = planeCenterY / window.innerHeight;
             this.networkManager.sendShoot(
-              planePercentX,
-              planePercentY,
+              planeCenterX / window.innerWidth,
+              planeCenterY / window.innerHeight,
               offsetX,
               offsetY,
               angleDeg,
@@ -172,118 +297,18 @@ export class WarScene {
         }
       });
       this.playSound(this.CONFIG.assets.sound);
-    }, shootingInterval);
+    }, interval);
   }
 
-  setupPotionButton() {
-    const potionBtn = document.getElementById("use-potion-btn");
-    if (!potionBtn) {
-      console.warn(
-        'Potion button with id "use-potion-btn" not found in the DOM.'
-      );
-      return;
-    }
-
-    if (this.selectedPotion) {
-      potionBtn.classList.remove("hidden");
-      potionBtn.innerHTML = `<img src="${this.selectedPotion.imagePath}" alt="${this.selectedPotion.name}">`;
-      const newPotionBtn = potionBtn.cloneNode(true);
-      potionBtn.parentNode.replaceChild(newPotionBtn, potionBtn);
-      newPotionBtn.addEventListener("click", () => this.activatePotion(), {
-        once: true,
-      });
-    } else {
-      potionBtn.classList.add("hidden");
-    }
+  startShooting() {
+    this.setShootingInterval(this.baseShootingInterval);
   }
 
-  activatePotion() {
-    if (!this.selectedPotion || this.isPotionActive) return;
-
-    if (this.networkManager) {
-      this.networkManager.sendPotionActivate(this.selectedPotion._id);
-    }
-
-    this.isPotionActive = true;
-    const potionBtn = document.getElementById("use-potion-btn");
-    potionBtn.style.opacity = "0.5";
-    potionBtn.style.cursor = "not-allowed";
-
-    const airplaneElement = this.airplane.element;
-    let effectClass = "";
-    let soundPath = "";
-
-    console.log(`Potion Activated: ${this.selectedPotion.name}`);
-
-    switch (this.selectedPotion.name) {
-      case "معجون قدرت":
-        soundPath = "assets/sounds/potions/power.mp3";
-        effectClass = "power-effect";
-        airplaneElement.classList.add(effectClass, "potion-effect-active");
-        setTimeout(() => {
-          airplaneElement.classList.remove(effectClass, "potion-effect-active");
-          this.isPotionActive = false;
-        }, 20000);
-        break;
-
-      case "معجون سرعت":
-        soundPath = "assets/sounds/potions/speed.mp3";
-        effectClass = "speed-effect";
-        airplaneElement.classList.add(effectClass, "potion-effect-active");
-        clearInterval(this.shootingInterval);
-        this.CONFIG.bullets.interval = this.originalShootingInterval / 1.5;
-        this.setupEventListeners();
-        setTimeout(() => {
-          airplaneElement.classList.remove(effectClass, "potion-effect-active");
-          clearInterval(this.shootingInterval);
-          this.CONFIG.bullets.interval = this.originalShootingInterval;
-          this.setupEventListeners();
-          this.isPotionActive = false;
-        }, 30000);
-        break;
-
-      case "معجون محافظ":
-        soundPath = "assets/sounds/potions/shield.mp3";
-        effectClass = "shield-effect";
-        airplaneElement.classList.add(effectClass);
-        this.isShielded = true;
-        setTimeout(() => {
-          airplaneElement.classList.remove(effectClass);
-          this.isShielded = false;
-          this.isPotionActive = false;
-        }, 10000);
-        break;
-
-      case "معجون درمان":
-        soundPath = "assets/sounds/potions/heal.mp3";
-        for (let i = 0; i < 20; i++) {
-          const particle = document.createElement("div");
-          particle.className = "heal-particle";
-          document.body.appendChild(particle);
-          const airplanePos = this.airplane.getPosition();
-          particle.style.left = `${
-            airplanePos.x + Math.random() * airplanePos.width
-          }px`;
-          particle.style.top = `${
-            airplanePos.y + Math.random() * airplanePos.height
-          }px`;
-          setTimeout(() => particle.remove(), 1500);
-        }
-        this.isPotionActive = false;
-        potionBtn.style.display = "none";
-        break;
-    }
-
-    if (soundPath) {
-      this.playSound(soundPath);
-    }
-  }
   applyOpponentPotionEffect(potionName) {
     if (!this.opponentAirplane) return;
-
     const opponentElement = this.opponentAirplane.element;
     let effectClass = "";
-
+    let duration = 8000;
     switch (potionName) {
       case "معجون قدرت":
         effectClass = "power-effect";
@@ -294,14 +319,29 @@ export class WarScene {
       case "معجون محافظ":
         effectClass = "shield-effect";
         break;
+      case "معجون درمان":
+        opponentElement.classList.add("heal-aura-effect");
+        setTimeout(() => {
+          opponentElement.classList.remove("heal-aura-effect");
+        }, 1500);
+        for (let i = 0; i < 20; i++) {
+          const particle = document.createElement("div");
+          particle.className = "heal-particle";
+          document.body.appendChild(particle);
+          const airplanePos = this.opponentAirplane.getPosition();
+          particle.style.left = `${
+            airplanePos.x + Math.random() * airplanePos.width
+          }px`;
+          particle.style.top = `${
+            airplanePos.y + Math.random() * airplanePos.height
+          }px`;
+          setTimeout(() => particle.remove(), 2000);
+        }
+        duration = 0;
+        break;
     }
-
     if (effectClass) {
       opponentElement.classList.add(effectClass, "potion-effect-active");
-      let duration = 20000;
-      if (potionName === "معجون سرعت") duration = 30000;
-      if (potionName === "معجون محافظ") duration = 10000;
-
       setTimeout(() => {
         opponentElement.classList.remove(effectClass, "potion-effect-active");
       }, duration);
@@ -326,7 +366,6 @@ export class WarScene {
         }
       };
       this.networkManager.onGameSettings = (settings) => {
-        window.gameSettings = settings;
         this.updateGameBounds(settings);
       };
       this.networkManager.onHealthUpdate = (health, opponentHealth) => {
@@ -379,7 +418,6 @@ export class WarScene {
   getAirplaneImage(airplanePath) {
     return `./${airplanePath}`;
   }
-
   getBulletImage(bulletPath) {
     return `./${bulletPath}`;
   }
@@ -437,7 +475,6 @@ export class WarScene {
     const playerX = this.screenWidth / 2 - this.CONFIG.airplane.width / 2;
     const playerY = this.screenHeight - this.CONFIG.airplane.height - 50;
     this.airplane.setPosition(playerX, playerY);
-
     if (this.CONFIG.wingmen.enabled) {
       this.wingman = new AirplaneWingman(this.airplane, {
         ...this.CONFIG.wingmen,
@@ -456,7 +493,6 @@ export class WarScene {
   createHealthDisplays() {
     const gameContainer = document.getElementById("game-container");
     if (!gameContainer) return;
-
     this.playerHealthDisplay = document.createElement("div");
     this.playerHealthDisplay.id = "player-health";
     this.playerHealthDisplay.style.position = "fixed";
@@ -471,7 +507,6 @@ export class WarScene {
     this.playerHealthDisplay.style.zIndex = "100";
     this.playerHealthDisplay.innerHTML = `Your Health: ${this.health}%`;
     gameContainer.appendChild(this.playerHealthDisplay);
-
     this.opponentHealthDisplay = document.createElement("div");
     this.opponentHealthDisplay.id = "opponent-health";
     this.opponentHealthDisplay.style.position = "fixed";
@@ -504,7 +539,6 @@ export class WarScene {
       }
     }
   }
-
   updateOpponentHealthDisplay() {
     if (this.opponentHealthDisplay) {
       this.opponentHealthDisplay.innerHTML = `${
@@ -519,7 +553,6 @@ export class WarScene {
       }
     }
   }
-
   updateGameBounds(settings) {
     this.gameBounds = {
       minX: 0,
@@ -538,74 +571,6 @@ export class WarScene {
     );
     this.airplane.setPosition(newX, newY);
   }
-
-  setupEventListeners() {
-    const baseInterval = this.CONFIG.bullets.interval;
-    const userSpeedLevel = this.userData.speedLevel || 1;
-    const actualInterval = baseInterval / (1 + (userSpeedLevel - 1) * 0.1);
-
-    if (this.shootingInterval) {
-      clearInterval(this.shootingInterval);
-    }
-
-    this.shootingInterval = setInterval(() => {
-      const bulletImage = this.getBulletImage(
-        this.selectedBullet?.image || this.CONFIG.assets.bullet
-      );
-
-      const airplaneKey = `${this.selectedAirplane.tier}_${this.selectedAirplane.style}`;
-      const bulletLevel =
-        (this.userData.airplaneBulletLevels &&
-          this.userData.airplaneBulletLevels[airplaneKey]) ||
-        1;
-
-      const bulletSpecs = {
-        1: { size: 20, filter: "saturate(3) hue-rotate(200deg)" },
-        2: { size: 25, filter: "saturate(5) hue-rotate(15deg)" },
-        3: { size: 30, filter: "saturate(4) hue-rotate(320deg)" },
-        4: { size: 40, filter: "saturate(3) hue-rotate(250deg)" },
-      };
-      const spec = bulletSpecs[bulletLevel];
-
-      this.CONFIG.bullets.angles.forEach((angle) => {
-        const bullet = this.airplane.shoot(
-          bulletImage,
-          spec.size,
-          this.CONFIG.bullets.speed,
-          angle,
-          spec.filter
-        );
-        this.bullets.push(bullet);
-      });
-
-      this.playSound(this.CONFIG.assets.sound);
-
-      if (this.networkManager && this.networkManager.sendShoot) {
-        const pos = this.airplane.getPosition();
-        const percentX = pos.x / window.innerWidth;
-        const percentY = pos.y / window.innerHeight;
-        this.networkManager.sendShoot(
-          percentX,
-          percentY,
-          180,
-          false,
-          spec.size,
-          spec.filter
-        );
-      }
-    }, actualInterval);
-  }
-
-  startGameLoop() {
-    const gameLoop = () => {
-      this.roadManager.update();
-      this.updateBullets();
-      this.checkCollisions();
-      requestAnimationFrame(gameLoop);
-    };
-    gameLoop();
-  }
-
   updateBullets() {
     for (let i = this.bullets.length - 1; i >= 0; i--) {
       if (!this.bullets[i].active) {
@@ -618,7 +583,6 @@ export class WarScene {
       }
     }
   }
-
   createClouds() {
     for (let i = 0; i < this.CONFIG.clouds.count; i++) {
       setTimeout(() => {
@@ -661,23 +625,19 @@ export class WarScene {
       });
     }, 5000);
   }
-
   getCloudImage(cloudPath) {
     return `./${cloudPath}`;
   }
-
   playSound(soundPath) {
     try {
       const audio = new Audio(`./${soundPath}`);
       audio.volume = 0.3;
-      audio.play().catch((e) => console.log("Audio play prevented:", e));
-    } catch (e) {
-      console.log("Audio error:", e);
-    }
+      audio.play().catch((e) => {});
+    } catch (e) {}
   }
 
   checkCollisions() {
-    if (!this.opponentAirplane) return;
+    if (!this.opponentAirplane || !this.airplane) return;
     for (let i = this.bullets.length - 1; i >= 0; i--) {
       const bullet = this.bullets[i];
       if (
@@ -716,19 +676,8 @@ export class WarScene {
     }
   }
 
-  setHealth(health, opponentHealth) {
-    this.health = health;
-    this.opponentHealth = opponentHealth;
-    this.updateHealthDisplay();
-    this.updateOpponentHealthDisplay();
-    if (this.health <= 0) {
-      this.showGameOver(false);
-    } else if (this.opponentHealth <= 0) {
-      this.showGameOver(true);
-    }
-  }
-
   isColliding(bullet, airplane) {
+    if (!bullet || !airplane) return false;
     const bulletPos = bullet.getPosition();
     const airplanePos = airplane.getPosition();
     const collisionMargin = 15;
@@ -742,18 +691,22 @@ export class WarScene {
     );
   }
 
+  applyDamage(damage) {
+    if (this.isShielded) return;
+    this.health -= damage;
+    this.updateHealthDisplay();
+    if (this.health <= 0) {
+      this.health = 0;
+    }
+  }
+
   showGameOver(isWinner) {
     clearInterval(this.shootingInterval);
-    if (this.wingmanShootingInterval)
-      clearInterval(this.wingmanShootingInterval);
-    clearInterval(this.opponentShootingInterval);
-    clearInterval(this.cloudGenerationInterval);
-
-    // توقف موسیقی بازی
+    if (this.cloudGenerationInterval)
+      clearInterval(this.cloudGenerationInterval);
     if (window.musicManager) {
       window.musicManager.stop();
     }
-
     const gameOverDiv = document.createElement("div");
     gameOverDiv.style.position = "fixed";
     gameOverDiv.style.top = "0";
@@ -767,21 +720,15 @@ export class WarScene {
     gameOverDiv.style.alignItems = "center";
     gameOverDiv.style.zIndex = "1000";
     gameOverDiv.style.flexDirection = "column";
-    gameOverDiv.innerHTML = `
-      <div style="text-align: center; padding: 30px; background: rgba(0,0,0,0.8); border-radius: 15px;">
-        <h2 style="font-size: 36px; margin-bottom: 20px;">Game Over</h2>
-        <p style="font-size: 24px; margin-bottom: 10px;">You ${
-          isWinner ? "Win! 🎉" : "Lose! 😢"
-        }</p>
-        <p style="font-size: 18px; margin-bottom: 20px;">Opponent: ${
-          this.opponent?.username || "Unknown"
-        }</p>
-        <p style="font-size: 16px; margin-bottom: 10px;">Your Health: ${
-          this.health
-        }% | Opponent Health: ${this.opponentHealth}%</p>
-        <button id="play-again-button" style="padding: 15px 30px; margin-top: 20px; font-size: 18px; background: #4CAF50; color: white; border: none; border-radius: 8px; cursor: pointer;">Play Again</button>
-      </div>
-    `;
+    gameOverDiv.innerHTML = ` <div style="text-align: center; padding: 30px; background: rgba(0,0,0,0.8); border-radius: 15px;"> <h2 style="font-size: 36px; margin-bottom: 20px;">Game Over</h2> <p style="font-size: 24px; margin-bottom: 10px;">You ${
+      isWinner ? "Win! 🎉" : "Lose! 😢"
+    }</p> <p style="font-size: 18px; margin-bottom: 20px;">Opponent: ${
+      this.opponent?.username || "Unknown"
+    }</p> <p style="font-size: 16px; margin-bottom: 10px;">Your Health: ${Math.round(
+      this.health
+    )}% | Opponent Health: ${Math.round(
+      this.opponentHealth
+    )}%</p> <button id="play-again-button" style="padding: 15px 30px; margin-top: 20px; font-size: 18px; background: #4CAF50; color: white; border: none; border-radius: 8px; cursor: pointer;">Play Again</button> </div> `;
     document.body.appendChild(gameOverDiv);
     document
       .getElementById("play-again-button")
@@ -813,12 +760,16 @@ export class WarScene {
 
   cleanup() {
     clearInterval(this.shootingInterval);
-    if (this.wingmanShootingInterval)
-      clearInterval(this.wingmanShootingInterval);
-    clearInterval(this.opponentShootingInterval);
-    clearInterval(this.cloudGenerationInterval);
+    if (this.cloudGenerationInterval)
+      clearInterval(this.cloudGenerationInterval);
+
+    const potionBtn = document.getElementById("use-potion-btn");
+    if (potionBtn) {
+      potionBtn.removeEventListener("click", this.boundPotionClickHandler);
+      potionBtn.classList.add("hidden");
+    }
+
     if (this.airplane) this.airplane.remove();
-    if (this.wingman) this.wingman.remove();
     if (this.opponentAirplane) this.opponentAirplane.remove();
     if (this.playerHealthDisplay) this.playerHealthDisplay.remove();
     if (this.opponentHealthDisplay) this.opponentHealthDisplay.remove();
@@ -826,8 +777,6 @@ export class WarScene {
     this.missiles.forEach((missile) => missile.remove());
     this.opponentBullets.forEach((bullet) => bullet.remove());
     window.networkManager = null;
-
-    // توقف موسیقی هنگام خروج از صحنه بازی
     if (window.musicManager) {
       window.musicManager.stop();
     }

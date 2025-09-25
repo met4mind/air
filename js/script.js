@@ -1,5 +1,3 @@
-// js/script.js
-
 import { CONFIG } from "./../config.js";
 import { WarScene } from "./warScene.js";
 import { NetworkManager } from "./network.js";
@@ -27,12 +25,6 @@ class GameManager {
     document
       .getElementById("cancel-search-container")
       .addEventListener("click", () => this.cancelSearch());
-
-    // <<< تغییر اصلی اینجاست >>>
-    // این خط حذف می‌شود چون musicManager خودش بعد از اولین کلیک، موسیقی را پخش می‌کند
-    // if (window.musicManager) {
-    //     window.musicManager.play('menu');
-    // }
 
     await this.fetchAllAssets();
 
@@ -316,12 +308,18 @@ class GameManager {
     }
   }
 
+  // فایل: js/script.js -> جایگزین این دو تابع شوید
+
   async startGame(gameData) {
     try {
       this.userData = JSON.parse(localStorage.getItem("userData"));
       if (!this.userData) throw new Error("User data not found.");
 
       this.hideWaitingMessage();
+
+      // این دو خط اضافه شده است تا کانتینر منوها مخفی شود
+      const appContainer = document.querySelector(".app-container");
+      if (appContainer) appContainer.classList.add("hidden-for-game");
 
       document.querySelector(".footer-nav").style.display = "none";
       if (window.menuManager) window.menuManager.showMenu(null);
@@ -350,6 +348,28 @@ class GameManager {
       console.error("Failed to start game:", error);
       alert("Failed to start game: " + error.message);
       document.querySelector(".footer-nav").style.display = "flex";
+    }
+  }
+
+  cancelSearch() {
+    this.hideWaitingMessage();
+    if (
+      this.networkManager &&
+      this.networkManager.socket &&
+      this.networkManager.socket.readyState === WebSocket.OPEN
+    ) {
+      this.networkManager.socket.close();
+    }
+
+    // این دو خط اضافه شده است تا کانتینر منوها دوباره نمایش داده شود
+    const appContainer = document.querySelector(".app-container");
+    if (appContainer) appContainer.classList.remove("hidden-for-game");
+
+    document.querySelector(".footer-nav").style.display = "flex";
+    if (window.menuManager) window.menuManager.showMenu("main-menu");
+
+    if (window.musicManager) {
+      window.musicManager.play("menu");
     }
   }
 

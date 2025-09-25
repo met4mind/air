@@ -101,7 +101,6 @@ wss.on("connection", (ws) => {
 
       switch (message.type) {
         case "login":
-          // --- اضافه کردن لاگ برای دیباگ ---
           console.log(`\n--- [LOGIN] Message Received ---`);
           console.log(`> User ID attempting to log in: ${message.userId}`);
           console.log(
@@ -164,7 +163,6 @@ wss.on("connection", (ws) => {
             )}]`
           );
           console.log(`--- [LOGIN] End of processing ---\n`);
-          // --- پایان بخش لاگ ---
           break;
         case "move":
           if (players[message.userId] && players[message.userId].opponent) {
@@ -180,9 +178,6 @@ wss.on("connection", (ws) => {
             }
           }
           break;
-
-        // در فایل backend/server.js
-        // در فایل backend/server.js -> داخل wss.on("message", ...)
 
         case "shoot":
           if (players[message.userId] && players[message.userId].opponent) {
@@ -205,31 +200,32 @@ wss.on("connection", (ws) => {
           break;
 
         case "hit":
-          // اطمینان از اینکه بازیکن در یک اتاق معتبر قرار دارد
           const hittingPlayer = players[message.userId];
           if (!hittingPlayer || !hittingPlayer.roomId) break;
 
           const room = gameRooms[hittingPlayer.roomId];
           if (room && !room.gameOver) {
             const opponentId = hittingPlayer.opponent;
+            const targetPlayer =
+              room.player1.id === opponentId ? room.player1 : room.player2;
+
+            if (
+              targetPlayer.shieldEndTime &&
+              Date.now() < targetPlayer.shieldEndTime
+            ) {
+              return;
+            }
+
+            targetPlayer.health = Math.max(
+              0,
+              targetPlayer.health - (message.damage || 0)
+            );
 
             (async () => {
               try {
                 const User = require("./models/user");
                 const Leaderboard = require("./models/leaderboard");
 
-                // پیدا کردن بازیکن هدف در اتاق بازی
-                const targetPlayer =
-                  room.player1.id === opponentId ? room.player1 : room.player2;
-
-                // *** منطق اصلی جدید ***
-                // Damage مستقیماً از پیام کلاینت خوانده شده و اعمال می‌شود
-                targetPlayer.health = Math.max(
-                  0,
-                  targetPlayer.health - (message.damage || 0)
-                );
-
-                // ارسال وضعیت جدید سلامتی به هر دو بازیکن
                 const player1Health =
                   room.player1.id === hittingPlayer.userId
                     ? room.player1.health
@@ -258,14 +254,11 @@ wss.on("connection", (ws) => {
                   );
                 }
 
-                // بررسی پایان بازی
                 if (targetPlayer.health <= 0) {
                   room.gameOver = true;
-
                   const winnerId = hittingPlayer.userId;
                   const loserId = opponentId;
 
-                  // آپدیت آمار و سکه‌ها
                   await User.findByIdAndUpdate(winnerId, {
                     $inc: { wins: 1, coins: 20 },
                   });
@@ -273,7 +266,6 @@ wss.on("connection", (ws) => {
                     $inc: { losses: 1, coins: 5 },
                   });
 
-                  // آپدیت لیدربوردها
                   const leaderboardTypes = ["daily", "weekly", "monthly"];
                   const now = new Date();
                   for (const type of leaderboardTypes) {
@@ -313,7 +305,6 @@ wss.on("connection", (ws) => {
                     );
                   }
 
-                  // ارسال پیام پایان بازی و پاکسازی
                   if (players[winnerId])
                     players[winnerId].ws.send(
                       JSON.stringify({ type: "game_over", result: "win" })
@@ -333,84 +324,79 @@ wss.on("connection", (ws) => {
             })();
           }
           break;
+
         case "potion_activate":
           const activator = players[message.userId];
-          if (!activator) break;
+          if (!activator || !activator.roomId) break;
 
           const potionId = message.potionId;
           const opponentId = activator.opponent;
 
-          // آپدیت دیتابیس به صورت async (بازی منتظر نمی‌ماند)
           (async () => {
             try {
               const User = require("./models/user");
               const Potion = require("./models/potion");
-
-              // اطلاعات معجون را برای ارسال نام آن به حریف پیدا می‌کنیم
               const potionInfo = await Potion.findById(potionId);
               if (!potionInfo) return;
 
-              // کم کردن یکی از تعداد معجون کاربر
               await User.updateOne(
                 { _id: message.userId, "ownedPotions.potion": potionId },
                 { $inc: { "ownedPotions.$.quantity": -1 } }
               );
 
-              // اگر معجون درمان بود، منطق درمان را اجرا کن
-              if (potionInfo.name === "معجون درمان") {
-                const room = gameRooms[activator.roomId];
-                if (room) {
-                  let playerInRoom =
-                    room.player1.id === message.userId
+              const room = gameRooms[activator.roomId];
+              if (room) {
+                let playerInRoom =
+                  room.player1.id === message.userId
+                    ? room.player1
+                    : room.player2;
+
+                if (potionInfo.name === "معجون محافظ") {
+                  playerInRoom.shieldEndTime = Date.now() + 8000;
+                }
+
+                if (potionInfo.name === "معجون درمان") {
+                  playerInRoom.health = playerInRoom.maxHealth;
+                  const opponentInRoom =
+                    room.player1.id === opponentId
                       ? room.player1
                       : room.player2;
-                  playerInRoom.health = Math.min(100, playerInRoom.health + 50);
-                  // ارسال آپدیت سلامتی به هر دو بازیکن
                   activator.ws.send(
                     JSON.stringify({
                       type: "health_update",
                       health: playerInRoom.health,
-                      opponentHealth:
-                        room.player1.id === opponentId
-                          ? room.player1.health
-                          : room.player2.health,
+                      opponentHealth: opponentInRoom.health,
                     })
                   );
                   if (players[opponentId]) {
                     players[opponentId].ws.send(
                       JSON.stringify({
                         type: "health_update",
-                        health:
-                          room.player1.id === opponentId
-                            ? room.player1.health
-                            : room.player2.health,
+                        health: opponentInRoom.health,
                         opponentHealth: playerInRoom.health,
                       })
                     );
                   }
                 }
-              } else {
-                // برای بقیه معجون‌ها، فقط به حریف اطلاع بده تا افکت را نمایش دهد
-                if (players[opponentId]) {
-                  players[opponentId].ws.send(
-                    JSON.stringify({
-                      type: "opponent_potion_activate",
-                      potionName: potionInfo.name,
-                    })
-                  );
-                }
+              }
+
+              if (players[opponentId]) {
+                players[opponentId].ws.send(
+                  JSON.stringify({
+                    type: "opponent_potion_activate",
+                    potionName: potionInfo.name,
+                  })
+                );
               }
             } catch (error) {
               console.error("Error processing potion activation:", error);
             }
           })();
           break;
+
         case "game_over":
-          // پایان بازی و ثبت نتیجه
           if (players[message.userId] && players[message.userId].opponent) {
             const opponentId = players[message.userId].opponent;
-
-            // آپدیت آمار برد و باخت
             try {
               const User = require("./models/user");
               await User.findByIdAndUpdate(message.userId, {
@@ -420,24 +406,15 @@ wss.on("connection", (ws) => {
             } catch (error) {
               console.error("Error updating user stats:", error);
             }
-
             if (players[opponentId]) {
               players[opponentId].ws.send(
-                JSON.stringify({
-                  type: "game_over",
-                  result: "lose",
-                })
+                JSON.stringify({ type: "game_over", result: "lose" })
               );
             }
-
-            // حذف بازیکنان از لیست
             delete players[message.userId];
             delete players[opponentId];
-
-            // حذف از لیست انتظار در صورت وجود
             const index1 = waitingPlayers.indexOf(message.userId);
             if (index1 > -1) waitingPlayers.splice(index1, 1);
-
             const index2 = waitingPlayers.indexOf(opponentId);
             if (index2 > -1) waitingPlayers.splice(index2, 1);
           }
@@ -449,49 +426,30 @@ wss.on("connection", (ws) => {
   });
 
   ws.on("close", () => {
-    // مدیریت قطع ارتباط
     for (const userId in players) {
       if (players[userId].ws === ws) {
-        // --- شروع بخش اصلاح شده ---
-        const playerInfo = players[userId]; // اطلاعات بازیکن را قبل از حذف ذخیره می‌کنیم
-
-        // اگر حریفی وجود داشت، به او اطلاع می‌دهیم
+        const playerInfo = players[userId];
         if (playerInfo.opponent && players[playerInfo.opponent]) {
           players[playerInfo.opponent].ws.send(
-            JSON.stringify({
-              type: "opponent_disconnected",
-            })
+            JSON.stringify({ type: "opponent_disconnected" })
           );
-          // حذف حریف
           delete players[playerInfo.opponent];
         }
-
-        // حذف بازیکن اصلی از لیست بازیکنان آنلاین
         delete players[userId];
-
-        // حذف بازیکن از صف انتظار (اگر در صف بود)
         const index = waitingPlayers.indexOf(userId);
         if (index > -1) {
           waitingPlayers.splice(index, 1);
         }
-
-        // حذف اتاق بازی (اگر در بازی بود)
         if (playerInfo.roomId) {
           delete gameRooms[playerInfo.roomId];
         }
-
         console.log(`Player ${userId} disconnected and cleaned up.`);
-        // --- پایان بخش اصلاح شده ---
-
-        break; // از حلقه خارج می‌شویم چون بازیکن پیدا و حذف شد
+        break;
       }
     }
   });
 });
 
-// در فایل backend/server.js
-
-// در فایل backend/server.js
 async function startGame(player1Id, player2Id) {
   console.log(
     `[startGame] Attempting to start game between ${player1Id} and ${player2Id}`
@@ -512,7 +470,6 @@ async function startGame(player1Id, player2Id) {
     if (!player1.data || !player2.data)
       throw new Error("Player not found in DB.");
 
-    // --- لاگ جدید برای دیباگ ---
     console.log(
       `[startGame] P1 wants plane (Tier: ${player1.wsInfo.airplaneTier}, Style: ${player1.wsInfo.airplaneStyle})`
     );
@@ -532,7 +489,6 @@ async function startGame(player1Id, player2Id) {
     );
 
     if (!p1Plane || !p2Plane) {
-      // لاگ برای اینکه بدانیم کدام هواپیما پیدا نشده است
       if (!p1Plane)
         console.error(`[startGame] FAILED to find data for P1's plane.`);
       if (!p2Plane)
@@ -620,6 +576,7 @@ async function startGame(player1Id, player2Id) {
     console.log(`[startGame] Cleaned up players due to failure.`);
   }
 }
+
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error(err.stack);
