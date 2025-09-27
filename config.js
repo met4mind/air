@@ -50,6 +50,7 @@ export const CONFIG = {
     height: 2160,
   },
   wingmen: {
+    enabled:true,
     images: {
       left: "./assets/images/sideAirs/1.png",
       right: "./assets/images/sideAirs/2.png",

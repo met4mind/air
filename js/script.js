@@ -14,8 +14,10 @@ class GameManager {
     this.selectedPotion = null;
     this.selectedAirplane = null;
     this.selectedBullet = null;
+    this.selectedWingman = null; // <<<< پراپرتی جدید
     this.userData = null;
     this.allPlanes = [];
+    this.allWingmen = []; // <<<< پراپرتی جدید
     this.mainMenuShootingInterval = null;
     this.mainMenuBullets = [];
     this.init();
@@ -40,6 +42,24 @@ class GameManager {
       if (correctAirplaneObject) {
         this.selectedAirplane = correctAirplaneObject;
       }
+    }
+
+    const savedWingmanData = JSON.parse(
+      localStorage.getItem("selectedWingman")
+    );
+    if (savedWingmanData) {
+      this.selectedWingman = this.allWingmen.find(
+        (w) => w.level === savedWingmanData.level
+      );
+    }
+
+    // اصلاح: انتخاب همراه پیش‌فرض برای ورود اول
+    if (!this.selectedWingman && this.allWingmen.length > 0) {
+      this.selectedWingman = this.allWingmen.find((w) => w.level === 1);
+      localStorage.setItem(
+        "selectedWingman",
+        JSON.stringify(this.selectedWingman)
+      );
     }
 
     this.updateMainMenuAirplaneImage();
@@ -236,9 +256,16 @@ class GameManager {
         }
         return plane;
       });
+
+      // <<<< دریافت اطلاعات همراهان >>>>
+      this.allWingmen = await this.networkManager.apiRequest(
+        "/api/game-data/wingmen"
+      );
+      // <<<< پایان >>>>
     } catch (e) {
-      console.error("Failed to fetch all airplanes list.", e);
+      console.error("Failed to fetch all assets.", e);
       this.allPlanes = [];
+      this.allWingmen = [];
     }
   }
 
@@ -251,10 +278,10 @@ class GameManager {
         this.selectedAirplane = this.allPlanes.find(
           (p) => p.tier === 1 && p.style === 1
         );
-        if (!this.selectedAirplane) {
-          alert("خطا: اطلاعات هواپیمای پیش‌فرض یافت نشد!");
-          return;
-        }
+      }
+      // اطمینان از وجود همراه پیش‌فرض
+      if (!this.selectedWingman) {
+        this.selectedWingman = this.allWingmen.find((w) => w.level === 1);
       }
 
       this.showWaitingMessage("در حال اتصال به سرور بازی...");
@@ -296,7 +323,8 @@ class GameManager {
         window.innerHeight,
         this.selectedPotion ? this.selectedPotion._id : null,
         this.selectedAirplane.tier,
-        this.selectedAirplane.style
+        this.selectedAirplane.style,
+        this.selectedWingman // ارسال آبجکت کامل همراه
       );
     } catch (error) {
       console.error("Failed to start game:", error);
@@ -308,8 +336,6 @@ class GameManager {
     }
   }
 
-  // فایل: js/script.js -> جایگزین این دو تابع شوید
-
   async startGame(gameData) {
     try {
       this.userData = JSON.parse(localStorage.getItem("userData"));
@@ -317,7 +343,6 @@ class GameManager {
 
       this.hideWaitingMessage();
 
-      // این دو خط اضافه شده است تا کانتینر منوها مخفی شود
       const appContainer = document.querySelector(".app-container");
       if (appContainer) appContainer.classList.add("hidden-for-game");
 
@@ -337,7 +362,8 @@ class GameManager {
         this.selectedPotion,
         this.userData,
         gameData.health,
-        gameData.opponentHealth
+        gameData.opponentHealth,
+        this.selectedWingman // <<<< ارسال همراه انتخاب شده به صحنه جنگ
       );
 
       await this.switchScene("war");
@@ -361,7 +387,6 @@ class GameManager {
       this.networkManager.socket.close();
     }
 
-    // این دو خط اضافه شده است تا کانتینر منوها دوباره نمایش داده شود
     const appContainer = document.querySelector(".app-container");
     if (appContainer) appContainer.classList.remove("hidden-for-game");
 

@@ -3,7 +3,12 @@ const router = express.Router();
 const User = require("../models/user");
 const Potion = require("../models/potion");
 const Game = require("../models/game");
-const { airplanesData, potionsData, bulletsData } = require("../gameData");
+const {
+  airplanesData,
+  potionsData,
+  bulletsData,
+  wingmenData,
+} = require("../gameData");
 const Leaderboard = require("../models/leaderboard");
 
 // Middleware برای احراز هویت کاربر تلگرام
@@ -672,7 +677,9 @@ router.post("/shop/buy-potion", auth, async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
-
+router.get("/game-data/wingmen", (req, res) => {
+  res.json(wingmenData);
+});
 // ارتقاء ویژگی‌ها
 router.post("/upgrade", auth, async (req, res) => {
   try {
@@ -727,8 +734,33 @@ router.post("/upgrade", auth, async (req, res) => {
 
       user.coins -= cost;
       user.airplaneBulletLevels.set(airplaneKey, currentLevel + 1);
+    } else if (type === "wingman") {
+      // <<<< منطق جدید برای ارتقاء همراهان >>>>
+      const currentLevel = user.wingmanLevel || 1;
+      if (currentLevel >= 12) {
+        return res
+          .status(400)
+          .json({ error: "همراه شما به حداکثر سطح رسیده است" });
+      }
+
+      const nextWingmanData = wingmenData.find(
+        (w) => w.level === currentLevel + 1
+      );
+      if (!nextWingmanData) {
+        return res.status(404).json({ error: "اطلاعات سطح بعدی یافت نشد" });
+      }
+
+      const cost = wingmenData.find(
+        (w) => w.level === currentLevel
+      ).upgradeCost;
+      if (user.coins < cost) {
+        return res.status(400).json({ error: "سکه کافی برای ارتقا نیست" });
+      }
+
+      user.coins -= cost;
+      user.wingmanLevel += 1;
+      // <<<< پایان منطق جدید >>>>
     } else {
-      // این بخش حالا فقط برای انواع ناشناخته اجرا می‌شود
       return res.status(400).json({ error: "نوع ارتقاء نامعتبر است" });
     }
 

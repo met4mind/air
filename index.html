@@ -58,6 +58,10 @@
             <div id="airplane-selection-container" class="selection-grid"></div>
           </div>
           <div class="selection-section">
+            <h3>[ همراهان ]</h3>
+            <div id="wingman-selection-container" class="selection-grid"></div>
+          </div>
+          <div class="selection-section">
             <h3>[ معجون‌ها ]</h3>
             <div id="potion-selection-container" class="selection-grid"></div>
           </div>
@@ -87,7 +91,26 @@
           <h2>//: ارتقاء</h2>
           <div class="user-stats-display"></div>
         </div>
-        <div id="upgrade-content" class="upgrade-content"></div>
+        <div id="upgrade-content" class="upgrade-content">
+          <div class="shop-tabs">
+            <button class="tab-btn active" data-tab="airplane-upgrade">
+              هواپیما
+            </button>
+            <button class="tab-btn" data-tab="bullet-upgrade">گلوله</button>
+            <button class="tab-btn" data-tab="wingman-upgrade">همراه</button>
+          </div>
+          <div class="upgrade-tabs-content">
+            <div id="airplane-upgrade-tab" class="tab-content active">
+              <div class="loader"></div>
+            </div>
+            <div id="bullet-upgrade-tab" class="tab-content">
+              <div class="loader"></div>
+            </div>
+            <div id="wingman-upgrade-tab" class="tab-content">
+              <div class="loader"></div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div id="shop-menu" class="menu-container hidden">

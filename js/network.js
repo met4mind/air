@@ -133,16 +133,10 @@ export class NetworkManager {
       // در فایل js/network.js -> داخل تابع handleMessage
 
       case "opponent_shoot":
-        if (this.onOpponentShoot)
-          this.onOpponentShoot(
-            message.planePercentX,
-            message.planePercentY,
-            message.offsetX,
-            message.offsetY,
-            message.rotation,
-            message.isWingman,
-            message.bulletSpec
-          );
+        if (this.onOpponentShoot) {
+          // Pass the entire message object which contains 'source' and 'details'
+          this.onOpponentShoot(message);
+        }
         break;
       case "you_hit":
         if (this.onYouHit) this.onYouHit(message.damage);
@@ -186,9 +180,10 @@ export class NetworkManager {
     bulletName,
     screenWidth,
     screenHeight,
-    potionId, // جدید
+    potionId,
     airplaneTier,
-    airplaneStyle
+    airplaneStyle,
+    wingman // پارامتر جدید
   ) {
     if (this.connected) {
       this.socket.send(
@@ -198,13 +193,14 @@ export class NetworkManager {
           username: username,
           airplane: airplane,
           airplaneName: airplaneName,
+          wingman: wingman, // ارسال اطلاعات همراه به سرور
           bullets: bullets,
           bulletName: bulletName,
           screenWidth: screenWidth,
           screenHeight: screenHeight,
           airplaneTier: airplaneTier,
           airplaneStyle: airplaneStyle,
-          potionId: potionId || null, // ارسال آیدی معجون
+          potionId: potionId || null,
         })
       );
     }
@@ -229,33 +225,15 @@ export class NetworkManager {
   // در فایل js/network.js
   // در فایل js/network.js -> داخل کلاس NetworkManager
 
-  sendShoot(
-    planePercentX,
-    planePercentY,
-    offsetX,
-    offsetY,
-    rotation,
-    isWingman = false,
-    size,
-    filter
-  ) {
+  sendShoot(source, details) {
     if (this.connected) {
-      this.socket.send(
-        JSON.stringify({
-          type: "shoot",
-          userId: this.userId,
-          planePercentX: planePercentX,
-          planePercentY: planePercentY,
-          offsetX: offsetX,
-          offsetY: offsetY,
-          rotation: rotation,
-          isWingman: isWingman,
-          bulletSpec: {
-            size: size,
-            filter: filter,
-          },
-        })
-      );
+      const message = {
+        type: "shoot",
+        userId: this.userId,
+        source: source, // e.g., 'main_plane', 'left_wingman', 'right_wingman'
+        details: details,
+      };
+      this.socket.send(JSON.stringify(message));
     }
   }
   // در فایل: js/network.js

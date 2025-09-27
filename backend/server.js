@@ -122,6 +122,7 @@ wss.on("connection", (ws) => {
             userId: message.userId,
             username: message.username,
             airplane: message.airplane,
+            wingman: message.wingman, // ذخیره اطلاعات همراه
             airplaneTier: message.airplaneTier,
             airplaneStyle: message.airplaneStyle,
             bullets: message.bullets,
@@ -186,13 +187,8 @@ wss.on("connection", (ws) => {
               players[opponentId].ws.send(
                 JSON.stringify({
                   type: "opponent_shoot",
-                  planePercentX: message.planePercentX,
-                  planePercentY: message.planePercentY,
-                  offsetX: message.offsetX,
-                  offsetY: message.offsetY,
-                  rotation: message.rotation,
-                  isWingman: message.isWingman || false,
-                  bulletSpec: message.bulletSpec,
+                  source: message.source, // Relay source
+                  details: message.details, // Relay details
                 })
               );
             }
@@ -531,6 +527,7 @@ async function startGame(player1Id, player2Id) {
           opponent: {
             username: player2.wsInfo.username,
             airplane: player2.wsInfo.airplane,
+            wingman: player2.wsInfo.wingman, // ارسال اطلاعات همراه حریف
           },
           health: p1Plane.health,
           maxHealth: p1Plane.health,
@@ -544,6 +541,7 @@ async function startGame(player1Id, player2Id) {
           opponent: {
             username: player1.wsInfo.username,
             airplane: player1.wsInfo.airplane,
+            wingman: player1.wsInfo.wingman, // ارسال اطلاعات همراه حریف
           },
           health: p2Plane.health,
           maxHealth: p2Plane.health,

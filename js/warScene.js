@@ -18,16 +18,19 @@ export class WarScene {
     selectedPotion,
     userData,
     initialHealth,
-    initialOpponentHealth
+    initialOpponentHealth,
+    selectedWingman
   ) {
     this.CONFIG = CONFIG;
     this.networkManager = networkManager;
     this.selectedAirplane = selectedAirplane;
     this.selectedBullet = selectedBullet;
     this.selectedPotion = selectedPotion || null;
+    this.selectedWingman = selectedWingman || null;
     this.userData = userData;
     this.opponent = null;
     this.opponentAirplane = null;
+    this.opponentWingman = null; // پراپرتی جدید برای همراهان حریف
     this.opponentBullets = [];
     this.health = initialHealth || 100;
     this.opponentHealth = initialOpponentHealth || 100;
@@ -225,6 +228,8 @@ export class WarScene {
         totalProjectileCount > 0
           ? (planeData.damage * this.damageMultiplier) / totalProjectileCount
           : 0;
+
+      // --- شلیک هواپیمای اصلی ---
       planeData.projectiles.forEach((proj) => {
         const count = proj.count;
         for (let i = 0; i < count; i++) {
@@ -282,24 +287,44 @@ export class WarScene {
             });
             this.missiles.push(missile);
           }
+          // ارسال پیام شلیک هواپیمای اصلی
           if (this.networkManager) {
-            this.networkManager.sendShoot(
-              planeCenterX / window.innerWidth,
-              planeCenterY / window.innerHeight,
-              offsetX,
-              offsetY,
-              angleDeg,
-              false,
-              specSize,
-              specFilter || "none"
-            );
+            this.networkManager.sendShoot("main_plane", {
+              planePercentX: planeCenterX / window.innerWidth,
+              planePercentY: planeCenterY / window.innerHeight,
+              offsetX: offsetX,
+              offsetY: offsetY,
+              rotation: angleDeg,
+              bulletSpec: { size: specSize, filter: specFilter || "none" },
+            });
           }
         }
       });
+
+      // --- شلیک همراهان ---
+      if (this.wingman) {
+        // ایجاد گلوله‌ها برای نمایش در صفحه خودمان
+        const wingmanBullets = this.wingman.shoot();
+        this.bullets.push(...wingmanBullets);
+
+        // ارسال پیام‌های شلیک برای حریف، بدون ارسال مختصات
+        if (this.networkManager) {
+          const wingmanConfig = this.wingman.config;
+          const bulletSpec = { size: wingmanConfig.bulletSize, filter: "none" };
+          // پیام برای همراه چپ
+          this.networkManager.sendShoot("left_wingman", {
+            bulletSpec: bulletSpec,
+          });
+          // پیام برای همراه راست
+          this.networkManager.sendShoot("right_wingman", {
+            bulletSpec: bulletSpec,
+          });
+        }
+      }
+
       this.playSound(this.CONFIG.assets.sound);
     }, interval);
   }
-
   startShooting() {
     this.setShootingInterval(this.baseShootingInterval);
   }
@@ -348,12 +373,23 @@ export class WarScene {
     }
   }
 
-  setOpponent(opponent) {
-    this.opponent = opponent;
+  setOpponent(opponentData) {
+    this.opponent = opponentData;
     this.createOpponentAirplane();
     this.updateOpponentHealthDisplay();
-  }
 
+    // منطق جدید برای ساخت همراهان حریف
+    if (opponentData.wingman && this.CONFIG.wingmen.enabled) {
+      this.opponentWingman = new AirplaneWingman(this.opponentAirplane, {
+        ...this.CONFIG.wingmen,
+        images: {
+          left: opponentData.wingman.image,
+          right: opponentData.wingman.image,
+        },
+        isOpponent: true, // <<<< این خط اضافه شد
+      });
+    }
+  }
   setupNetworkHandlers() {
     if (this.networkManager) {
       this.networkManager.onOpponentMove = (percentX, percentY) => {
@@ -374,26 +410,54 @@ export class WarScene {
         this.updateHealthDisplay();
         this.updateOpponentHealthDisplay();
       };
-      this.networkManager.onOpponentShoot = (
-        planePercentX,
-        planePercentY,
-        offsetX,
-        offsetY,
-        rotation,
-        isWingman,
-        bulletSpec
-      ) => {
+      this.networkManager.onOpponentShoot = (message) => {
         if (!this.opponentAirplane) return;
-        const opponentPlaneCenterX = (1 - planePercentX) * window.innerWidth;
-        const opponentPlaneCenterY = (1 - planePercentY) * window.innerHeight;
-        const bulletX = opponentPlaneCenterX - offsetX;
-        const bulletY = opponentPlaneCenterY - offsetY;
-        const mirroredRotation = -rotation;
+
+        const source = message.source;
+        const details = message.details;
+        let bulletX, bulletY, rotation;
+
+        switch (source) {
+          case "main_plane":
+            // بازسازی موقعیت گلوله از روی آفست‌های هواپیمای اصلی حریف
+            const opponentPlaneCenterX =
+              (1 - details.planePercentX) * window.innerWidth;
+            const opponentPlaneCenterY =
+              (1 - details.planePercentY) * window.innerHeight;
+            bulletX = opponentPlaneCenterX - details.offsetX;
+            bulletY = opponentPlaneCenterY - details.offsetY;
+            rotation = -details.rotation;
+            break;
+
+          case "left_wingman":
+          case "right_wingman":
+            if (!this.opponentWingman) return; // اگر همراه حریف وجود نداشت، شلیک نکن
+
+            // گرفتن المنت همراه (چپ یا راست) بر اساس پیام دریافتی
+            const wingmanElement =
+              source === "left_wingman"
+                ? this.opponentWingman.leftWingman
+                : this.opponentWingman.rightWingman;
+
+            // گرفتن موقعیت لحظه‌ای و دقیق همان همراه روی صفحه ما
+            const pos = this.opponentWingman.getWingmanPosition(wingmanElement);
+
+            // گلوله از نوک (پایین) همراه شلیک می‌شود چون ۱۸۰ درجه چرخیده است
+            bulletX = pos.x + pos.width / 2;
+            bulletY = pos.y + pos.height;
+            rotation = 90; // برای حریف، زاویه مستقیم به سمت پایین ۹۰ درجه است
+            break;
+
+          default:
+            return; // منبع شلیک نامشخص
+        }
+
+        // ایجاد گلوله در موقعیت محاسبه‌شده
         this.createOpponentBullet(
           bulletX,
           bulletY,
-          mirroredRotation,
-          bulletSpec
+          rotation,
+          details.bulletSpec
         );
       };
       this.networkManager.onYouHit = (damage) => {
@@ -427,7 +491,9 @@ export class WarScene {
     this.opponentAirplane = new OpponentAirplane(
       this.getAirplaneImage(this.opponent.airplane),
       this.CONFIG.airplane.width,
-      this.CONFIG.airplane.height
+      this.CONFIG.airplane.height,
+      // +++ FIX: Pass the entire CONFIG object +++
+      this.CONFIG
     );
     const initialX = this.screenWidth / 2 - this.CONFIG.airplane.width / 2;
     const initialY = 50;
@@ -475,18 +541,22 @@ export class WarScene {
     const playerX = this.screenWidth / 2 - this.CONFIG.airplane.width / 2;
     const playerY = this.screenHeight - this.CONFIG.airplane.height - 50;
     this.airplane.setPosition(playerX, playerY);
-    if (this.CONFIG.wingmen.enabled) {
+
+    // <<<< منطق ساخت همراهان آپدیت شد >>>>
+    if (this.CONFIG.wingmen.enabled && this.selectedWingman) {
       this.wingman = new AirplaneWingman(this.airplane, {
         ...this.CONFIG.wingmen,
         images: {
-          left: this.getAirplaneImage(this.CONFIG.assets.wingmen.left),
-          right: this.getAirplaneImage(this.CONFIG.assets.wingmen.right),
+          left: this.selectedWingman.image,
+          right: this.selectedWingman.image,
         },
         bulletImage: this.getBulletImage(
           this.selectedBullet?.image || this.CONFIG.assets.bullet
         ),
+        damage: this.selectedWingman.damage, // <<<< ارسال قدرت حمله
       });
     }
+    // <<<< پایان تغییرات >>>>
     this.createClouds();
   }
 
@@ -771,6 +841,11 @@ export class WarScene {
 
     if (this.airplane) this.airplane.remove();
     if (this.opponentAirplane) this.opponentAirplane.remove();
+
+    // حذف همراهان از صحنه
+    if (this.wingman) this.wingman.remove();
+    if (this.opponentWingman) this.opponentWingman.remove();
+
     if (this.playerHealthDisplay) this.playerHealthDisplay.remove();
     if (this.opponentHealthDisplay) this.opponentHealthDisplay.remove();
     this.bullets.forEach((bullet) => bullet.remove());

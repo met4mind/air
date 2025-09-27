@@ -18,8 +18,12 @@ const userSchema = new mongoose.Schema({
     of: Number, // سطح گلوله (e.g., 1, 2, 3, 4)
     default: {}, // مقدار پیش‌فرض یک آبجکت خالی است
   },
-  wins: { type: Number, default: 0 }, // <<<< جدید
-  losses: { type: Number, default: 0 }, // <<<< جدید
+  // <<<< تغییرات جدید >>>>
+  wingmanLevel: { type: Number, default: 1 }, // سطح فعلی همراهان کاربر
+  selectedWingman: { type: String, default: "1" }, // ID (سطح) همراه انتخاب شده
+  // <<<< پایان تغییرات >>>>
+  wins: { type: Number, default: 0 },
+  losses: { type: Number, default: 0 },
   ownedPotions: [
     {
       potion: { type: mongoose.Schema.Types.ObjectId, ref: "Potion" },

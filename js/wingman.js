@@ -5,15 +5,13 @@ export class AirplaneWingman {
     this.mainAirplane = mainAirplane;
     this.config = config;
     this.movementTime = 0;
-    this.currentOffset = config.baseXOffset; // استفاده از یک متغیر برای فاصله هر دو طرف
+    this.currentOffset = config.baseXOffset;
     this.lastMainX = this.mainAirplane.getPosition().x;
     this.lastMainY = this.mainAirplane.getPosition().y;
 
-    // ایجاد همراهان با فاصله یکسان
     this.leftWingman = this.createWingman("left");
     this.rightWingman = this.createWingman("right");
 
-    // شروع انیمیشن
     this.startFollowing();
   }
 
@@ -23,7 +21,12 @@ export class AirplaneWingman {
     wingman.style.width = `${this.config.width}px`;
     wingman.style.height = `${this.config.height}px`;
     wingman.style.position = "absolute";
-    wingman.style.transition = `transform ${this.config.followDelay}ms ease-out`;
+    wingman.style.transition = `left ${this.config.followDelay}ms ease-out, top ${this.config.followDelay}ms ease-out`;
+
+    // چرخش همراهان حریف
+    if (this.config.isOpponent) {
+      wingman.style.transform = "rotate(180deg)";
+    }
 
     const imgUrl = this.config.images?.[side] || this.config.image;
     if (imgUrl) {
@@ -33,39 +36,49 @@ export class AirplaneWingman {
       wingman.style.backgroundPosition = "center";
     }
 
-    document.body.appendChild(wingman);
+    document.getElementById("game-container").appendChild(wingman);
     return wingman;
   }
 
   startFollowing() {
     const followLoop = () => {
-      const mainPos = this.mainAirplane.getPosition();
-      const dx = mainPos.x - this.lastMainX;
-      const dy = mainPos.y - this.lastMainY;
-      const distanceMoved = Math.sqrt(dx * dx + dy * dy);
-
-      // محاسبه شدت حرکت
-      const movementIntensity = Math.min(
-        1,
-        distanceMoved * 0.01 * this.config.movementSensitivity
-      );
-
-      if (distanceMoved > 2) {
-        // کشیده شدن به سمت هواپیما
-        this.currentOffset =
-          this.config.baseXOffset -
-          movementIntensity * this.config.maxPullDistance;
-      } else {
-        // بازگشت به موقعیت اصلی
-        this.currentOffset +=
-          (this.config.baseXOffset - this.currentOffset) *
-          this.config.snapBackSpeed;
+      if (!this.mainAirplane || !this.mainAirplane.element.parentNode) {
+        this.remove();
+        return;
       }
 
-      this.lastMainX = mainPos.x;
-      this.lastMainY = mainPos.y;
-      this.updateWingmanPositions(mainPos);
+      const mainPos = this.mainAirplane.getPosition();
 
+      // برای همراهان بازیکن، از منطق نرم و پویای دنبال کردن استفاده می‌شود.
+      // برای همراهان حریف، از یک فاصله ثابت استفاده می‌شود تا تداخلی پیش نیاید.
+      if (!this.config.isOpponent) {
+        // منطق حرکت برای بازیکن اصلی
+        const dx = mainPos.x - this.lastMainX;
+        const dy = mainPos.y - this.lastMainY;
+        const distanceMoved = Math.sqrt(dx * dx + dy * dy);
+        const movementIntensity = Math.min(
+          1,
+          distanceMoved * 0.01 * this.config.movementSensitivity
+        );
+
+        if (distanceMoved > 2) {
+          this.currentOffset =
+            this.config.baseXOffset -
+            movementIntensity * this.config.maxPullDistance;
+        } else {
+          this.currentOffset +=
+            (this.config.baseXOffset - this.currentOffset) *
+            this.config.snapBackSpeed;
+        }
+
+        this.lastMainX = mainPos.x;
+        this.lastMainY = mainPos.y;
+      } else {
+        // برای همراهان حریف، همیشه یک فاصله ثابت در نظر بگیر
+        this.currentOffset = 20;
+      }
+
+      this.updateWingmanPositions(mainPos);
       requestAnimationFrame(followLoop);
     };
 
@@ -75,31 +88,39 @@ export class AirplaneWingman {
   updateWingmanPositions(mainPos) {
     this.movementTime += this.config.movementSpeed;
 
-    // محاسبه موقعیت همراه چپ
-    const leftWaveX =
-      Math.sin(this.movementTime) * this.config.movementAmplitude;
-    const leftWaveY =
+    const waveX = Math.sin(this.movementTime) * this.config.movementAmplitude;
+    const waveY =
       Math.cos(this.movementTime * 0.8) * this.config.movementAmplitude * 0.5;
-    const leftX =
-      mainPos.x - this.currentOffset - mainPos.width / 2 + leftWaveX; // تنظیم دقیق موقعیت چپ
-    const leftY = mainPos.y + this.config.yOffset + leftWaveY;
 
-    // محاسبه موقعیت همراه راست
-    const rightWaveX =
-      Math.sin(this.movementTime * 1.2) * this.config.movementAmplitude;
-    const rightWaveY =
-      Math.cos(this.movementTime * 0.7) * this.config.movementAmplitude * 0.5;
-    const rightX =
-      mainPos.x +
-      mainPos.width +
-      this.currentOffset -
-      mainPos.width / 2 +
-      rightWaveX; // تنظیم دقیق موقعیت راست
-    const rightY = mainPos.y + this.config.yOffset + rightWaveY;
+    // منطق موقعیت‌یابی بر اساس اینکه همراه برای بازیکن است یا حریف
+    if (this.config.isOpponent) {
+      // منطق موقعیت‌یابی برای حریف (که هواپیمایش 180 درجه چرخیده)
+      const opponentLeftX =
+        mainPos.x + mainPos.width + this.currentOffset + waveX;
+      const opponentRightX =
+        mainPos.x - this.currentOffset - this.config.width + waveX;
 
-    // اعمال موقعیت‌ها
-    this.leftWingman.style.transform = `translate(${leftX}px, ${leftY}px)`;
-    this.rightWingman.style.transform = `translate(${rightX}px, ${rightY}px)`;
+      // +++ FIX: The Y position was calculated incorrectly from the bottom of the plane. +++
+      // It should be calculated from the top, just like the player's wingman.
+      const opponentYPos = mainPos.y + this.config.yOffset + waveY;
+
+      this.leftWingman.style.left = `${opponentLeftX}px`;
+      this.leftWingman.style.top = `${opponentYPos}px`;
+      this.rightWingman.style.left = `${opponentRightX}px`;
+      this.rightWingman.style.top = `${opponentYPos}px`;
+    } else {
+      // منطق موقعیت‌یابی برای بازیکن اصلی
+      const playerLeftX =
+        mainPos.x - this.currentOffset - this.config.width + waveX;
+      const playerRightX =
+        mainPos.x + mainPos.width + this.currentOffset + waveX;
+      const playerYPos = mainPos.y + this.config.yOffset + waveY;
+
+      this.leftWingman.style.left = `${playerLeftX}px`;
+      this.leftWingman.style.top = `${playerYPos}px`;
+      this.rightWingman.style.left = `${playerRightX}px`;
+      this.rightWingman.style.top = `${playerYPos}px`;
+    }
   }
 
   shoot() {
@@ -107,44 +128,46 @@ export class AirplaneWingman {
     const rightPos = this.getWingmanPosition(this.rightWingman);
 
     const bullets = [];
+    const angle = -90; // زاویه شلیک رو به بالا
 
-    bullets.push(
-      new Bullet(
-        this.config.bulletImage,
-        leftPos.x + leftPos.width / 2,
-        leftPos.y + leftPos.height / 2,
-        this.config.bulletSize,
-        this.config.bulletSpeed,
-        this.config.bulletAngle
-      )
+    const leftBullet = new Bullet(
+      this.config.bulletImage,
+      leftPos.x + leftPos.width / 2,
+      leftPos.y,
+      this.config.bulletSize,
+      this.config.bulletSpeed,
+      angle
     );
+    leftBullet.damage = this.config.damage || 1;
+    bullets.push(leftBullet);
 
-    bullets.push(
-      new Bullet(
-        this.config.bulletImage,
-        rightPos.x + rightPos.width / 2,
-        rightPos.y + rightPos.height / 2,
-        this.config.bulletSize,
-        this.config.bulletSpeed,
-        this.config.bulletAngle
-      )
+    const rightBullet = new Bullet(
+      this.config.bulletImage,
+      rightPos.x + rightPos.width / 2,
+      rightPos.y,
+      this.config.bulletSize,
+      this.config.bulletSpeed,
+      angle
     );
+    rightBullet.damage = this.config.damage || 1;
+    bullets.push(rightBullet);
 
     return bullets;
   }
 
   getWingmanPosition(wingman) {
-    const rect = wingman.getBoundingClientRect();
     return {
-      x: rect.left,
-      y: rect.top,
-      width: rect.width,
-      height: rect.height,
+      x: wingman.offsetLeft,
+      y: wingman.offsetTop,
+      width: wingman.offsetWidth,
+      height: wingman.offsetHeight,
     };
   }
 
   remove() {
-    if (this.leftWingman.parentNode) this.leftWingman.remove();
-    if (this.rightWingman.parentNode) this.rightWingman.remove();
+    if (this.leftWingman && this.leftWingman.parentNode)
+      this.leftWingman.remove();
+    if (this.rightWingman && this.rightWingman.parentNode)
+      this.rightWingman.remove();
   }
 }

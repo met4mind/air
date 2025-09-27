@@ -143,18 +143,25 @@ class MenuManager {
     const airplaneContainer = document.getElementById(
       "airplane-selection-container"
     );
+    // <<<< کانتینر جدید برای همراهان >>>>
+    const wingmanContainer = document.getElementById(
+      "wingman-selection-container"
+    );
     const potionContainer = document.getElementById(
       "potion-selection-container"
     );
-    if (!airplaneContainer || !potionContainer) return;
+    if (!airplaneContainer || !potionContainer || !wingmanContainer) return;
 
     this.insertLoader(airplaneContainer);
+    this.insertLoader(wingmanContainer);
     this.insertLoader(potionContainer);
 
     try {
-      const [userData, allPotions] = await Promise.all([
+      // <<<< دریافت دیتای همراهان از API >>>>
+      const [userData, allPotions, allWingmen] = await Promise.all([
         this.apiRequest("/api/user"),
         this.apiRequest("/api/potions"),
+        this.apiRequest("/api/game-data/wingmen"),
       ]);
       this.userData = userData;
       const allPlanes = window.gameManager.allPlanes;
@@ -171,6 +178,17 @@ class MenuManager {
         airplaneContainer.appendChild(this.createSelectItem(p, "airplane"))
       );
       this.animateListItems("#airplane-selection-container");
+
+      // <<<< کد جدید برای نمایش همراهان >>>>
+      wingmanContainer.innerHTML = "";
+      const availableWingmen = allWingmen.filter(
+        (w) => w.level <= userData.wingmanLevel
+      );
+      availableWingmen.forEach((w) =>
+        wingmanContainer.appendChild(this.createSelectItem(w, "wingman"))
+      );
+      this.animateListItems("#wingman-selection-container");
+      // <<<< پایان کد جدید >>>>
 
       potionContainer.innerHTML = "";
       const nonePotion = {
@@ -192,10 +210,11 @@ class MenuManager {
       }
       this.animateListItems("#potion-selection-container");
 
-      this.applySavedSelections({ allPlanes, allPotions });
+      this.applySavedSelections({ allPlanes, allPotions, allWingmen });
     } catch (error) {
       console.error("Failed to load equipment:", error);
       airplaneContainer.innerHTML = "<p>خطا در بارگذاری.</p>";
+      wingmanContainer.innerHTML = "<p>خطا در بارگذاری.</p>";
       potionContainer.innerHTML = "<p>خطا در بارگذاری.</p>";
     }
   }
@@ -209,10 +228,12 @@ class MenuManager {
             <div class="shop-tabs">
                 <button class="tab-btn active" data-tab="airplane-upgrade">هواپیما</button>
                 <button class="tab-btn" data-tab="bullet-upgrade">گلوله</button>
+                <button class="tab-btn" data-tab="wingman-upgrade">همراه</button>
             </div>
             <div class="upgrade-tabs-content">
                 <div id="airplane-upgrade-tab" class="tab-content active"><div class="loader"></div></div>
                 <div id="bullet-upgrade-tab" class="tab-content"><div class="loader"></div></div>
+                <div id="wingman-upgrade-tab" class="tab-content"><div class="loader"></div></div>
             </div>`;
 
     container.querySelectorAll(".tab-btn").forEach((tab) => {
@@ -232,8 +253,100 @@ class MenuManager {
 
     this.renderAirplaneUpgradeTab();
     this.renderBulletUpgradeTab();
+    this.renderWingmanUpgradeTab();
   }
 
+  async renderWingmanUpgradeTab() {
+    const container = document.getElementById("wingman-upgrade-tab");
+    if (!container) return;
+
+    try {
+      const allWingmen = window.gameManager.allWingmen;
+      const userData = await this.apiRequest("/api/user");
+      this.userData = userData;
+
+      const currentLevel = userData.wingmanLevel || 1;
+      const currentWingman = allWingmen.find((w) => w.level === currentLevel);
+
+      if (!currentWingman) {
+        container.innerHTML = "<p>خطا در دریافت اطلاعات همراه.</p>";
+        return;
+      }
+
+      const nextWingman = allWingmen.find((w) => w.level === currentLevel + 1);
+
+      let upgradeHTML = "";
+      if (nextWingman) {
+        const cost = currentWingman.upgradeCost;
+        const canAfford = userData.coins >= cost;
+        upgradeHTML = `
+                <div class="upgrade-info" style="display: flex; justify-content: space-around; align-items: center; margin-bottom: 20px;">
+                    <div class="plane-display" style="text-align: center;">
+                        <h4>فعلی: ${currentWingman.name}</h4>
+                        <img src="${currentWingman.image}" alt="${
+          currentWingman.name
+        }" style="width:100px; height:auto;">
+                        <p style="font-size: 0.9em;">قدرت: ${
+                          currentWingman.damage
+                        }</p>
+                    </div>
+                    <div class="upgrade-arrow" style="font-size: 2.5em;">→</div>
+                    <div class="plane-display" style="text-align: center;">
+                        <h4>بعدی: ${nextWingman.name}</h4>
+                        <img src="${nextWingman.image}" alt="${
+          nextWingman.name
+        }" style="width:100px; height:auto;">
+                        <p style="font-size: 0.9em;">قدرت: ${
+                          nextWingman.damage
+                        }</p>
+                    </div>
+                </div>
+                <div class="upgrade-action" style="text-align:center;">
+                    <p class="cost" style="margin-bottom: 10px;">هزینه ارتقا: ${cost} سکه</p>
+                    <button id="confirm-wingman-upgrade-btn" class="menu-btn primary" ${
+                      !canAfford ? "disabled" : ""
+                    }>
+                        ${canAfford ? "ارتقا" : "سکه ناکافی"}
+                    </button>
+                </div>`;
+      } else {
+        upgradeHTML = `
+                <div class="upgrade-info" style="text-align:center;">
+                    <div class="plane-display">
+                        <h4>همراه شما</h4>
+                        <img src="${currentWingman.image}" alt="${currentWingman.name}" style="width:120px; height:auto;">
+                        <p>${currentWingman.name}</p>
+                    </div>
+                </div>
+                <p class="max-level" style="text-align:center; margin-top: 20px; color: var(--color-accent);">همراه شما به آخرین سطح ارتقا رسیده است!</p>`;
+      }
+
+      container.innerHTML = upgradeHTML;
+
+      if (nextWingman) {
+        document
+          .getElementById("confirm-wingman-upgrade-btn")
+          .addEventListener("click", async () => {
+            try {
+              const result = await this.apiRequest("/api/upgrade", {
+                method: "POST",
+                body: JSON.stringify({ type: "wingman" }),
+              });
+              this.userData = result.user;
+              localStorage.setItem("userData", JSON.stringify(result.user));
+              this.updateUI();
+              this.showNotification("همراه با موفقیت ارتقا یافت!", "success");
+              this.renderWingmanUpgradeTab(); // رفرش کردن تب
+            } catch (error) {
+              this.showNotification("ارتقا ناموفق بود.", "error");
+            }
+          });
+      }
+    } catch (error) {
+      container.innerHTML = "<p>خطا در بارگذاری اطلاعات ارتقا.</p>";
+      console.error("Error rendering wingman upgrade tab:", error);
+    }
+  }
   async loadMasterData() {
     try {
       this.allPotions = await this.apiRequest(`/api/potions`);
@@ -251,7 +364,7 @@ class MenuManager {
     await this.loadLeaderboard(clickedTab.dataset.type);
   }
 
-  applySavedSelections({ allPlanes }) {
+  applySavedSelections({ allPlanes, allWingmen }) {
     if (!window.gameManager || !this.userData) return;
 
     const airplaneContainer = document.getElementById(
@@ -294,6 +407,40 @@ class MenuManager {
       window.gameManager.updateMainMenuAirplaneImage();
     }
 
+    // <<<< کد جدید برای اعمال انتخاب ذخیره شده همراه >>>>
+    const wingmanContainer = document.getElementById(
+      "wingman-selection-container"
+    );
+    wingmanContainer
+      .querySelectorAll(".selection-item")
+      .forEach((el) => el.classList.remove("selected"));
+
+    let wingmanToSelect = null;
+    const savedWingmanData = JSON.parse(
+      localStorage.getItem("selectedWingman")
+    );
+    if (savedWingmanData && allWingmen) {
+      wingmanToSelect = allWingmen.find(
+        (w) => w.level === savedWingmanData.level
+      );
+    }
+    // اگر کاربر همراهی با سطح بالاتر داشت، آن را به عنوان پیش‌فرض انتخاب کن
+    if (!wingmanToSelect) {
+      wingmanToSelect = allWingmen.find(
+        (w) => w.level === this.userData.wingmanLevel
+      );
+    }
+
+    if (wingmanToSelect) {
+      const itemElement = wingmanContainer.querySelector(
+        `.selection-item[data-asset-id="${wingmanToSelect.level}"]`
+      );
+      if (itemElement) itemElement.classList.add("selected");
+      window.gameManager.selectedWingman = wingmanToSelect;
+      localStorage.setItem("selectedWingman", JSON.stringify(wingmanToSelect));
+    }
+    // <<<< پایان کد جدید >>>>
+
     const potionContainer = document.getElementById(
       "potion-selection-container"
     );
@@ -325,6 +472,8 @@ class MenuManager {
     const assetId =
       type === "airplane"
         ? `${asset.tier}_${asset.style}`
+        : type === "wingman"
+        ? asset.level
         : asset._id || asset.id;
     item.dataset.assetId = assetId;
     const imageSrc = asset.imagePath || asset.image;

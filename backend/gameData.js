@@ -1684,4 +1684,91 @@ const bulletsData = [
   { id: 1, name: "Level 1", image: "assets/images/bullets/lvl1.png" },
 ];
 
-module.exports = { airplanesData, potionsData, bulletsData };
+const wingmenData = [
+  {
+    level: 1,
+    name: "همراه سطح ۱",
+    image: "assets/images/sideAirs/1.png",
+    damage: 2,
+    upgradeCost: 500,
+  },
+  {
+    level: 2,
+    name: "همراه سطح ۲",
+    image: "assets/images/sideAirs/2.png",
+    damage: 3,
+    upgradeCost: 1000,
+  },
+  {
+    level: 3,
+    name: "همراه سطح ۳",
+    image: "assets/images/sideAirs/3.png",
+    damage: 4,
+    upgradeCost: 2200,
+  },
+  {
+    level: 4,
+    name: "همراه سطح ۴",
+    image: "assets/images/sideAirs/4.png",
+    damage: 5,
+    upgradeCost: 4500,
+  },
+  {
+    level: 5,
+    name: "همراه سطح ۵",
+    image: "assets/images/sideAirs/5.png",
+    damage: 7,
+    upgradeCost: 9000,
+  },
+  {
+    level: 6,
+    name: "همراه سطح ۶",
+    image: "assets/images/sideAirs/6.png",
+    damage: 8,
+    upgradeCost: 18000,
+  },
+  {
+    level: 7,
+    name: "همراه سطح ۷",
+    image: "assets/images/sideAirs/7.png",
+    damage: 10,
+    upgradeCost: 35000,
+  },
+  {
+    level: 8,
+    name: "همراه سطح ۸",
+    image: "assets/images/sideAirs/8.png",
+    damage: 12,
+    upgradeCost: 70000,
+  },
+  {
+    level: 9,
+    name: "همراه سطح ۹",
+    image: "assets/images/sideAirs/9.png",
+    damage: 14,
+    upgradeCost: 150000,
+  },
+  {
+    level: 10,
+    name: "همراه سطح ۱۰",
+    image: "assets/images/sideAirs/10.png",
+    damage: 16,
+    upgradeCost: 300000,
+  },
+  {
+    level: 11,
+    name: "همراه سطح ۱۱",
+    image: "assets/images/sideAirs/11.png",
+    damage: 18,
+    upgradeCost: 600000,
+  },
+  {
+    level: 12,
+    name: "همراه سطح ۱۲",
+    image: "assets/images/sideAirs/12.png",
+    damage: 20,
+    upgradeCost: 0,
+  }, // سطح آخر هزینه ارتقا ندارد
+];
+
+module.exports = { airplanesData, potionsData, bulletsData, wingmenData };
