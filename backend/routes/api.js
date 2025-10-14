@@ -10,7 +10,7 @@ const {
   wingmenData,
 } = require("../gameData");
 const Leaderboard = require("../models/leaderboard");
-
+const crypto = require("crypto");
 // Middleware برای احراز هویت کاربر تلگرام
 // در فایل: routes/api.js
 
@@ -770,6 +770,101 @@ router.post("/upgrade", auth, async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+
+router.post("/auth/telegram", async (req, res) => {
+  const { initData, referrerTgid } = req.body;
+  // از فایل .env خوانده می‌شود یا از مقدار پیش‌فرض استفاده می‌کند
+  const BOT_TOKEN = process.env.BOT_TOKEN || "YOUR_BOT_TOKEN";
+
+  // --- لاگ‌های جدید برای عیب‌یابی ---
+  console.log("--- [AUTH/TELEGRAM] Request Received ---");
+  console.log("Received initData:", initData);
+  // برای امنیت، فقط بخش کوچکی از توکن را لاگ می‌گیریم
+  console.log("Using BOT_TOKEN starting with:", BOT_TOKEN.substring(0, 8));
+
+  try {
+    const urlParams = new URLSearchParams(initData);
+    const hash = urlParams.get("hash");
+    urlParams.delete("hash");
+    const dataCheckString = Array.from(urlParams.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([key, value]) => `${key}=${value}`)
+      .join("\n");
+
+    const secretKey = crypto
+      .createHmac("sha256", "WebAppData")
+      .update(BOT_TOKEN)
+      .digest();
+    const calculatedHash = crypto
+      .createHmac("sha256", secretKey)
+      .update(dataCheckString)
+      .digest("hex");
+
+    console.log("Hash from Telegram:", hash);
+    console.log("Calculated Hash:", calculatedHash);
+
+    if (calculatedHash !== hash) {
+      console.error("HASH MISMATCH! Authentication failed.");
+      // این خطا به فرانت‌اند ارسال می‌شود
+      return res.status(403).json({ error: "Authentication failed: Invalid hash" });
+    }
+
+    console.log("Hash validation successful.");
+    // --- پایان لاگ‌های عیب‌یابی ---
+
+    const user_data = JSON.parse(urlParams.get("user"));
+    const tgid = user_data.id.toString();
+
+    let user = await User.findOne({ tgid });
+    let isNewUser = false;
+
+    if (!user) {
+      isNewUser = true;
+      user = new User({
+        tgid: tgid,
+        username: user_data.username || `user_${tgid}`,
+        first_name: user_data.first_name,
+        last_name: user_data.last_name || "",
+      });
+      await user.save();
+      console.log("New user created:", tgid);
+    }
+
+    if (isNewUser && referrerTgid && referrerTgid !== tgid) {
+      const referrer = await User.findOne({ tgid: referrerTgid });
+      if (referrer) {
+        referrer.coins += 10;
+        referrer.referrals.push(tgid);
+        await referrer.save();
+
+        user.coins += 5;
+        await user.save();
+        console.log(`Referral processed for user ${tgid} by ${referrerTgid}`);
+      }
+    }
+
+    console.log("Authentication successful for user:", tgid);
+    res.json(user);
+
+  } catch (error) {
+    console.error("Error in Telegram authentication logic:", error);
+    res.status(500).json({ error: "Server error during authentication." });
+  }
+});
+// اندپوینت قدیمی /api/user هنوز نیاز به یک روش احراز هویت امن دارد
+// ما از tgid که در هدر ارسال می‌شود استفاده می‌کنیم
+const secureAuth = async (req, res, next) => {
+  const tgid = req.headers["x-tgid"];
+  if (!tgid) {
+    return res.status(401).json({ error: "TGID missing" });
+  }
+  const user = await User.findOne({ tgid });
+  if (!user) {
+    return res.status(404).json({ error: "User not found" });
+  }
+  req.user = user;
+  next();
+};
 // دریافت جدول رتبه‌بندی
 // در فایل: routes/api.js
 // این مسیر جدید را قبل از module.exports = router; اضافه کنید

@@ -87,7 +87,7 @@ export class NetworkManager {
   connect() {
     const protocol = this.baseURL.startsWith("https") ? "wss:" : "ws:";
     const host = this.baseURL.replace(/^https?:\/\//, "");
-    this.socket = new WebSocket(`${protocol}//${host}`);
+    this.socket = new WebSocket(`${protocol}//${host}/ws`);
 
     this.socket.onopen = () => {
       this.connected = true;
@@ -106,6 +106,13 @@ export class NetworkManager {
         this.onOpponentDisconnected();
       }
     };
+  }
+
+  async authenticateWithTelegram(initData, referrerTgid) {
+    return this.apiRequest("/api/auth/telegram", {
+      method: "POST",
+      body: JSON.stringify({ initData, referrerTgid }),
+    });
   }
 
   handleMessage(message) {

@@ -4,7 +4,7 @@ export const CONFIG = {
   telegramChannel: "@your_channel",
   youtubeChannel: "@your_youtube",
   instagramPage: "@your_instagram",
-  BASEURL: "http://localhost:3000",
+  BASEURL: "https://airclash.top",
   assets: {
     airplane: "./assets/images/airplanes/Tier 1/1.png",
     bullet: "./assets/images/bullets/lvl1.png",
@@ -50,7 +50,7 @@ export const CONFIG = {
     height: 2160,
   },
   wingmen: {
-    enabled:true,
+    enabled: true,
     images: {
       left: "./assets/images/sideAirs/1.png",
       right: "./assets/images/sideAirs/2.png",

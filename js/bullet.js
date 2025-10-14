@@ -8,13 +8,13 @@ export class Bullet {
 
   // در فایل js/bullet.js
 
-  constructor(
+constructor(
     imageUrl,
     x,
     y,
     size = 20,
     speed = 5,
-    rotationDeg = 0, // این زاویه، زاویه حرکت است
+    rotationDeg = 0,
     isOpponent = false,
     filter = "none"
   ) {
@@ -27,10 +27,12 @@ export class Bullet {
 
     this.element = document.createElement("div");
     this.element.className = "bullet";
-    // ... (سایر استایل‌ها بدون تغییر)
     this.element.style.width = `${size}px`;
     this.element.style.height = `${size}px`;
     this.element.style.position = "absolute";
+    // این دو خط حذف یا کامنت می‌شوند چون دیگر به صورت مستقیم استفاده نمی‌شوند
+    // this.element.style.left = '0px';
+    // this.element.style.top = '0px';
     this.element.style.transformOrigin = "center center";
     this.element.style.filter = filter;
 
@@ -43,17 +45,13 @@ export class Bullet {
       this.element.style.backgroundSize = "contain";
       this.element.style.backgroundRepeat = "no-repeat";
       this.element.style.backgroundPosition = "center";
-
-      // <<<< اصلاح نهایی چرخش بصری >>>>
-      // فرض می‌کنیم تصویر اصلی گلوله رو به بالا است.
-      // برای چرخاندن آن در جهت حرکت، باید ۹۰ درجه به زاویه حرکت اضافه کنیم.
-      // این فرمول هم برای شما و هم برای حریف به درستی کار می‌کند.
-      const visualRotation = rotationDeg;
-      this.element.style.transform = `rotate(${visualRotation}deg)`;
     } else {
       this.element.style.backgroundColor = isOpponent ? "red" : "yellow";
     }
 
+    // مقدار اولیه transform را اینجا ست می‌کنیم
+    this.element.style.transform = `rotate(${rotationDeg}deg)`;
+    
     this.setPosition(x, y);
 
     const gameContainer = document.getElementById("game-container");
@@ -65,14 +63,12 @@ export class Bullet {
 
     this.animate();
   }
-
-  setPosition(x, y) {
+setPosition(x, y) {
     this.x = x;
     this.y = y;
-    this.element.style.left = `${x - this.size / 2}px`;
-    this.element.style.top = `${y - this.size / 2}px`;
+    // به جای top و left، از transform استفاده می‌کنیم
+    this.element.style.transform = `translate3d(${x - this.size / 2}px, ${y - this.size / 2}px, 0) rotate(${this.rotationDeg}deg)`;
   }
-
   animate() {
     if (!this.active) return;
 

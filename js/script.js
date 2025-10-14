@@ -23,78 +23,94 @@ class GameManager {
     this.init();
   }
 
-  async init() {
+async init() {
     document
       .getElementById("cancel-search-container")
       .addEventListener("click", () => this.cancelSearch());
 
     await this.fetchAllAssets();
 
-    const savedAirplaneData = JSON.parse(
-      localStorage.getItem("selectedAirplane")
-    );
-    if (savedAirplaneData) {
-      const correctAirplaneObject = this.allPlanes.find(
-        (p) =>
-          p.tier === savedAirplaneData.tier &&
-          p.style === savedAirplaneData.style
-      );
-      if (correctAirplaneObject) {
-        this.selectedAirplane = correctAirplaneObject;
-      }
-    }
+    // این شرط بررسی می‌کند که آیا برنامه داخل محیط تلگرام اجرا شده است یا خیر
+    if (window.Telegram && window.Telegram.WebApp) {
+      const tg = window.Telegram.WebApp;
+      tg.ready(); // به تلگرام اعلام می‌کنیم که اپ آماده است
+      tg.expand(); // اپ را تمام صفحه می‌کنیم
 
-    const savedWingmanData = JSON.parse(
-      localStorage.getItem("selectedWingman")
-    );
-    if (savedWingmanData) {
-      this.selectedWingman = this.allWingmen.find(
-        (w) => w.level === savedWingmanData.level
-      );
-    }
+      const initData = tg.initData || "";
+      const initDataUnsafe = tg.initDataUnsafe || {};
 
-    // اصلاح: انتخاب همراه پیش‌فرض برای ورود اول
-    if (!this.selectedWingman && this.allWingmen.length > 0) {
-      this.selectedWingman = this.allWingmen.find((w) => w.level === 1);
-      localStorage.setItem(
-        "selectedWingman",
-        JSON.stringify(this.selectedWingman)
-      );
-    }
+      // استخراج کد معرف (referrer) از پارامترهای شروع اپ
+      const referrerTgid = initDataUnsafe.start_param || null;
 
-    this.updateMainMenuAirplaneImage();
-
-    try {
-      const savedPotion = localStorage.getItem("selectedPotion");
-      this.selectedPotion =
-        savedPotion && savedPotion !== "null" ? JSON.parse(savedPotion) : null;
-    } catch (error) {
-      this.selectedPotion = null;
-    }
-
-    const tgid = localStorage.getItem("tgid");
-    if (tgid) {
-      this.networkManager.setTgid(tgid);
       try {
-        const userData = await this.networkManager.apiRequest("/api/user");
-        if (userData && userData.username) {
+        // تلاش برای احراز هویت با ارسال داده‌های تلگرام به بک‌اند
+        const userData = await this.networkManager.authenticateWithTelegram(
+          initData,
+          referrerTgid
+        );
+
+        if (userData && userData.tgid) {
+          this.networkManager.setTgid(userData.tgid);
           this.networkManager.userId = userData._id;
           this.username = userData.username;
           this.userData = userData;
           localStorage.setItem("userData", JSON.stringify(userData));
-          this.showScreen("main-menu");
+
+          // به‌روزرسانی هواپیما و تجهیزات پیش‌فرض بر اساس داده‌های کاربر
+          this.updateDefaultSelections();
+          this.updateMainMenuAirplaneImage();
+
           this.startUserDataSync();
+          // نمایش منوی اصلی بازی
+          if (window.menuManager) window.menuManager.showMenu("main-menu");
         } else {
-          this.showScreen("login-screen");
+          // اگر بک‌اند اطلاعات کاربر را برنگرداند
+          throw new Error("اطلاعات کاربری از سرور دریافت نشد.");
         }
       } catch (error) {
-        this.showScreen("login-screen");
+        // در صورت شکست درخواست احراز هویت، این پیام نمایش داده می‌شود
+        console.error("Authentication failed:", error);
+        document.body.innerHTML =
+          "<h1>خطا در احراز هویت. لطفا اپ را مجددا راه‌اندازی کنید.</h1>";
       }
     } else {
-      this.showScreen("login-screen");
+      // این بخش فقط زمانی اجرا می‌شود که اپ مستقیماً در مرورگر باز شود
+      document.body.innerHTML =
+        "<h1>این اپلیکیشن باید از طریق تلگرام اجرا شود.</h1>";
+      console.error("Telegram WebApp context not found.");
     }
   }
+  updateDefaultSelections() {
+    if (!this.userData) return;
 
+    // انتخاب هواپیمای کاربر
+    const savedAirplane = JSON.parse(localStorage.getItem("selectedAirplane"));
+    if (savedAirplane) {
+      this.selectedAirplane = this.allPlanes.find(
+        (p) => p.tier === savedAirplane.tier && p.style === savedAirplane.style
+      );
+    }
+    if (!this.selectedAirplane) {
+      this.selectedAirplane = this.allPlanes.find(
+        (p) =>
+          p.tier === this.userData.airplaneTier &&
+          p.style === this.userData.airplaneStyle
+      );
+    }
+
+    // انتخاب همراه کاربر
+    const savedWingman = JSON.parse(localStorage.getItem("selectedWingman"));
+    if (savedWingman) {
+      this.selectedWingman = this.allWingmen.find(
+        (w) => w.level === savedWingman.level
+      );
+    }
+    if (!this.selectedWingman) {
+      this.selectedWingman = this.allWingmen.find(
+        (w) => w.level === this.userData.wingmanLevel
+      );
+    }
+  }
   updateMainMenuAirplaneImage() {
     const imgElement = document.querySelector(".main-airplane-art");
     if (imgElement) {

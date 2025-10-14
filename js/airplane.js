@@ -94,7 +94,7 @@ export class Airplane {
     document.removeEventListener("touchend", this.boundHandleEnd);
   }
 
-  updatePosition(clientX, clientY) {
+updatePosition(clientX, clientY) {
     let x = clientX - this.offsetX;
     let y = clientY - this.offsetY;
 
@@ -104,8 +104,8 @@ export class Airplane {
     x = Math.max(0, Math.min(x, maxX));
     y = Math.max(0, Math.min(y, maxY));
 
-    this.element.style.left = `${x}px`;
-    this.element.style.top = `${y}px`;
+    // به جای left و top، تابع setPosition جدید را فراخوانی می‌کنیم
+    this.setPosition(x, y);
 
     const percentX = x / window.innerWidth;
     const percentY = y / window.innerHeight;
@@ -114,12 +114,9 @@ export class Airplane {
       window.networkManager.sendMove(percentX, percentY);
     }
   }
-
-  setPosition(x, y) {
-    this.element.style.left = `${x}px`;
-    this.element.style.top = `${y}px`;
+setPosition(x, y) {
+    this.element.style.transform = `translate3d(${x}px, ${y}px, 0)`;
   }
-
   getPosition() {
     return {
       x: parseInt(this.element.style.left) || 0,

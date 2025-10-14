@@ -1,4 +1,4 @@
-const BASEURL = "http://localhost:3000";
+const BASEURL = "https://airclash.top";
 
 class MenuManager {
   constructor() {
@@ -107,11 +107,47 @@ class MenuManager {
     const leaderboardTabsContainer = document.querySelector(
       "#leaderboard-menu .leaderboard-tabs"
     );
+    const inviteButton = document.getElementById("invite-btn");
+    if (inviteButton) {
+      inviteButton.addEventListener("click", () => this.shareReferralLink());
+    }
     if (leaderboardTabsContainer) {
       leaderboardTabsContainer.addEventListener("click", (e) => {
         const clickedTab = e.target.closest(".tab-btn");
         if (clickedTab) this.switchLeaderboardTab(clickedTab);
       });
+    }
+  }
+
+  shareReferralLink() {
+    if (!this.userData || !this.userData.tgid) {
+      this.showNotification("ابتدا باید وارد شوید!", "error");
+      return;
+    }
+
+    // ساخت لینک دعوت
+    // آدرس دامنه خود را جایگزین 'https://your-domain.com' کنید
+    const referrerTgid = this.userData.tgid;
+    const botUsername = "YOUR_BOT_USERNAME"; // نام کاربری ربات تلگرام خود را اینجا قرار دهید
+    const url = `https://t.me/${botUsername}/app?startapp=${referrerTgid}`;
+
+    const text = "به بازی جنگنده‌های هوایی بپیوند و کلی جایزه بگیر!";
+
+    // استفاده از API تلگرام برای اشتراک‌گذاری
+    if (window.Telegram && window.Telegram.WebApp) {
+      window.Telegram.WebApp.openTelegramLink(
+        `https://t.me/share/url?url=${encodeURIComponent(
+          url
+        )}&text=${encodeURIComponent(text)}`
+      );
+      this.showNotification("لینک دعوت برای اشتراک‌گذاری آماده شد.", "success");
+    } else {
+      // برای تست در مرورگر
+      navigator.clipboard.writeText(url);
+      this.showNotification(
+        "لینک دعوت در کلیپ‌بورد کپی شد (حالت تست).",
+        "info"
+      );
     }
   }
 
@@ -815,7 +851,7 @@ class MenuManager {
     }
   }
 
-  renderLeaderboard(leaderboard) {
+renderLeaderboard(leaderboard) {
     const podiumContainer = document.getElementById("leaderboard-podium");
     const listContainer = document.getElementById("leaderboard-content");
     const userRankContainer = document.getElementById("user-rank-display");
@@ -833,15 +869,28 @@ class MenuManager {
     }
     this.updateResetTimer(leaderboard.endDate);
     const rankings = leaderboard.rankings;
+    
+    // مرتب‌سازی مجدد برای اطمینان
+    rankings.sort((a, b) => {
+        const scoreA = (a.wins || 0) - (a.losses || 0);
+        const scoreB = (b.wins || 0) - (b.losses || 0);
+        return scoreB - scoreA;
+    });
+
     const podiumPlayers = rankings.slice(0, 3);
     podiumPlayers.forEach((player, index) => {
       const rank = index + 1;
       const podiumItem = document.createElement("div");
       podiumItem.className = `podium-item rank-${rank}`;
-      const score = (player.wins || 0) - (player.losses || 0);
+      const wins = player.wins || 0;
+      const losses = player.losses || 0;
+      const score = wins - losses;
+      
+      // --- تغییر در اینجا ---
       podiumItem.innerHTML = `<div class="podium-name">${
         player.user?.username || "Unknown"
-      }</div><div class="podium-score">امتیاز: ${score}</div>`;
+      }</div><div class="podium-score">امتیاز: ${score}</div><small>(برد: ${wins} / باخت: ${losses})</small>`;
+      
       podiumContainer.appendChild(podiumItem);
     });
     this.animateListItems("#leaderboard-podium");
@@ -854,9 +903,12 @@ class MenuManager {
       const wins = player.wins || 0;
       const losses = player.losses || 0;
       const score = wins - losses;
+
+      // --- این بخش از قبل درست بود و نیازی به تغییر ندارد ---
       listItem.innerHTML = `<div class="leaderboard-rank">${rank}</div><div class="leaderboard-user"><strong>${
         player.user?.username || "Unknown"
       }</strong><div class="leaderboard-score"><span>امتیاز: ${score}</span> <small>(برد: ${wins} / باخت: ${losses})</small></div></div>`;
+      
       listContainer.appendChild(listItem);
     });
     this.animateListItems("#leaderboard-content");
@@ -870,10 +922,11 @@ class MenuManager {
       const wins = userRankData.wins || 0;
       const losses = userRankData.losses || 0;
       const score = wins - losses;
+
+      // --- این بخش هم از قبل درست بود ---
       userRankContainer.innerHTML = `<div class="leaderboard-rank">${rank}</div><div class="leaderboard-user"><strong>(شما) ${this.userData.username}</strong><div class="leaderboard-score"><span>امتیاز: ${score}</span> <small>(برد: ${wins} / باخت: ${losses})</small></div></div>`;
     }
   }
-
   updateResetTimer(endDate) {
     const timerElement = document.getElementById("reset-timer");
     if (!timerElement) return;
