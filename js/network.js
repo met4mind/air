@@ -179,40 +179,41 @@ export class NetworkManager {
   }
 
   // در network.js
-  sendLogin(
-    username,
-    airplane,
-    airplaneName,
-    bullets,
-    bulletName,
-    screenWidth,
-    screenHeight,
-    potionId,
-    airplaneTier,
-    airplaneStyle,
-    wingman // پارامتر جدید
-  ) {
-    if (this.connected) {
-      this.socket.send(
-        JSON.stringify({
-          type: "login",
-          userId: this.userId,
-          username: username,
-          airplane: airplane,
-          airplaneName: airplaneName,
-          wingman: wingman, // ارسال اطلاعات همراه به سرور
-          bullets: bullets,
-          bulletName: bulletName,
-          screenWidth: screenWidth,
-          screenHeight: screenHeight,
-          airplaneTier: airplaneTier,
-          airplaneStyle: airplaneStyle,
-          potionId: potionId || null,
-        })
-      );
-    }
+ sendLogin(
+  userId, // <<-- پارامتر جدید و مهم
+  username,
+  airplane,
+  airplaneName,
+  bullets,
+  bulletName,
+  screenWidth,
+  screenHeight,
+  potionId,
+  airplaneTier,
+  airplaneStyle,
+  wingman // پارامتر جدید
+) {
+  if (this.connected) {
+    // <<-- اینجا از userId ورودی استفاده می‌کنیم، نه از this.userId
+    this.socket.send(
+      JSON.stringify({
+        type: "login",
+        userId: userId, 
+        username: username,
+        airplane: airplane,
+        airplaneName: airplaneName,
+        wingman: wingman,
+        bullets: bullets,
+        bulletName: bulletName,
+        screenWidth: screenWidth,
+        screenHeight: screenHeight,
+        airplaneTier: airplaneTier,
+        airplaneStyle: airplaneStyle,
+        potionId: potionId || null,
+      })
+    );
   }
-
+}
   // در network.js - تابع sendMove
   // در network.js - تابع sendMove
   sendMove(percentX, percentY) {

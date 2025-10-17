@@ -285,72 +285,80 @@ async init() {
     }
   }
 
-  async initiateGameConnection() {
-    try {
-      const userData = JSON.parse(localStorage.getItem("userData"));
-      if (!userData) throw new Error("اطلاعات کاربر یافت نشد.");
+ // در فایل script.js
+async initiateGameConnection() {
+  try {
+    const userData = JSON.parse(localStorage.getItem("userData"));
+    if (!userData || !userData._id) { // <<-- بررسی می‌کنیم که _id حتما وجود داشته باشد
+      throw new Error("اطلاعات کاربر یافت نشد یا ناقص است.");
+    }
 
-      if (!this.selectedAirplane) {
-        this.selectedAirplane = this.allPlanes.find(
-          (p) => p.tier === 1 && p.style === 1
-        );
-      }
-      // اطمینان از وجود همراه پیش‌فرض
-      if (!this.selectedWingman) {
-        this.selectedWingman = this.allWingmen.find((w) => w.level === 1);
-      }
-
-      this.showWaitingMessage("در حال اتصال به سرور بازی...");
-      this.networkManager.connect();
-      this.networkManager.onGameStart = (gameData) => this.startGame(gameData);
-      this.networkManager.onWaiting = (message) => {
-        document.getElementById("waiting-message-text").textContent = message;
-      };
-      this.networkManager.onGameCancelled = (message) => {
-        this.hideWaitingMessage();
-        alert(message);
-        document.querySelector(".footer-nav").style.display = "flex";
-        if (window.menuManager) window.menuManager.showMenu("main-menu");
-        if (window.musicManager) window.musicManager.play("menu");
-      };
-
-      await new Promise((resolve, reject) => {
-        const checkConnection = () => {
-          if (this.networkManager.connected) resolve();
-          else if (
-            this.networkManager.socket &&
-            this.networkManager.socket.readyState === WebSocket.CLOSED
-          ) {
-            reject(new Error("اتصال به سرور برقرار نشد."));
-          } else {
-            setTimeout(checkConnection, 100);
-          }
-        };
-        checkConnection();
-      });
-
-      this.networkManager.sendLogin(
-        userData.username,
-        this.selectedAirplane.image,
-        this.selectedAirplane.name,
-        "assets/images/bullets/lvl1.png",
-        "Standard Bullet",
-        window.innerWidth,
-        window.innerHeight,
-        this.selectedPotion ? this.selectedPotion._id : null,
-        this.selectedAirplane.tier,
-        this.selectedAirplane.style,
-        this.selectedWingman // ارسال آبجکت کامل همراه
+    if (!this.selectedAirplane) {
+      this.selectedAirplane = this.allPlanes.find(
+        (p) => p.tier === 1 && p.style === 1
       );
-    } catch (error) {
-      console.error("Failed to start game:", error);
-      alert("خطا در شروع بازی: " + error.message);
+    }
+    if (!this.selectedWingman) {
+      this.selectedWingman = this.allWingmen.find((w) => w.level === 1);
+    }
+
+    this.showWaitingMessage("در حال اتصال به سرور بازی...");
+    this.networkManager.connect();
+    this.networkManager.onGameStart = (gameData) => this.startGame(gameData);
+    this.networkManager.onWaiting = (message) => {
+      document.getElementById("waiting-message-text").textContent = message;
+    };
+    this.networkManager.onGameCancelled = (message) => {
       this.hideWaitingMessage();
+      // به جای alert از یک نوتیفیکیشن بهتر استفاده می‌کنیم
+      if(window.menuManager) window.menuManager.showNotification(message, "error");
+
       document.querySelector(".footer-nav").style.display = "flex";
       if (window.menuManager) window.menuManager.showMenu("main-menu");
       if (window.musicManager) window.musicManager.play("menu");
-    }
+    };
+
+    await new Promise((resolve, reject) => {
+      const checkConnection = () => {
+        if (this.networkManager.connected) resolve();
+        else if (
+          this.networkManager.socket &&
+          this.networkManager.socket.readyState === WebSocket.CLOSED
+        ) {
+          reject(new Error("اتصال به سرور برقرار نشد."));
+        } else {
+          setTimeout(checkConnection, 100);
+        }
+      };
+      checkConnection();
+    });
+
+    // <<-- تغییر اصلی اینجاست: userData._id را به عنوان اولین پارامتر ارسال می‌کنیم
+    this.networkManager.sendLogin(
+      userData._id, 
+      userData.username,
+      this.selectedAirplane.image,
+      this.selectedAirplane.name,
+      "assets/images/bullets/lvl1.png",
+      "Standard Bullet",
+      window.innerWidth,
+      window.innerHeight,
+      this.selectedPotion ? this.selectedPotion._id : null,
+      this.selectedAirplane.tier,
+      this.selectedAirplane.style,
+      this.selectedWingman
+    );
+  } catch (error) {
+    console.error("Failed to start game:", error);
+    // به جای alert از یک نوتیفیکیشن بهتر استفاده می‌کنیم
+    if(window.menuManager) window.menuManager.showNotification("خطا در شروع بازی: " + error.message, "error");
+
+    this.hideWaitingMessage();
+    document.querySelector(".footer-nav").style.display = "flex";
+    if (window.menuManager) window.menuManager.showMenu("main-menu");
+    if (window.musicManager) window.musicManager.play("menu");
   }
+}
 
   async startGame(gameData) {
     try {
