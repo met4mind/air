@@ -6,29 +6,29 @@
       name="viewport"
       content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover"
     />
-
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
       href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=VT323&display=swap"
       rel="stylesheet"
     />
-
     <link rel="stylesheet" href="css/style.css" />
     <link
       rel="stylesheet"
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css"
     />
-
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
-
     <title>جنگنده‌های هوایی</title>
   </head>
-  <body class="military-theme">
+  <body>
+    <div id="loading-screen">
+      <img src="assets/images/loading.jpg" alt="Loading Game..." />
+    </div>
+
     <div class="background-overlay"></div>
     <div class="scanline-overlay"></div>
 
-    <div class="app-container">
+    <div class="app-container hidden">
       <div id="main-menu" class="menu-container">
         <div class="menu-scanline"></div>
         <div id="main-menu-animation-container"></div>
@@ -125,7 +125,7 @@
           <div id="potions-tab" class="selection-grid"></div>
         </div>
       </div>
-
+      
       <div id="free-coins-menu" class="menu-container hidden">
         <div class="menu-scanline"></div>
         <div class="menu-header">
@@ -134,71 +134,45 @@
         </div>
         <div class="free-options">
           <div class="free-item">
-            <div class="free-item-icon">
-              <i class="fa-solid fa-user-plus"></i>
-            </div>
+            <div class="free-item-icon"><i class="fa-solid fa-user-plus"></i></div>
             <div class="free-item-info">
               <h3>دعوت از دوستان</h3>
               <p>برای هر دعوت موفق ۱۰ سکه دریافت کنید.</p>
             </div>
             <button class="offer-btn menu-btn" id="invite-btn">دعوت</button>
           </div>
-          <div class="free-item">
-            <div class="free-item-icon">
-              <i class="fa-brands fa-telegram"></i>
-            </div>
+          <div class="free-item" data-channel-id="@metabuilders_clients_fa">
+            <div class="free-item-icon"><i class="fa-brands fa-telegram"></i></div>
             <div class="free-item-info">
-              <h3>عضویت تلگرام</h3>
+              <h3>عضویت در کانال فارسی</h3>
               <p>۱۰ سکه رایگان دریافت کنید.</p>
             </div>
-            <button class="offer-btn menu-btn" data-platform="telegram">
-              بررسی
-            </button>
+            <div class="offer-buttons">
+              <button class="offer-btn menu-btn join-btn">عضویت</button>
+              <button class="offer-btn menu-btn primary reward-btn">بررسی</button>
+            </div>
           </div>
-          <div class="free-item">
-            <div class="free-item-icon">
-              <i class="fa-brands fa-instagram"></i>
-            </div>
+          <div class="free-item" data-channel-id="@metabuilders_clients_en">
+            <div class="free-item-icon"><i class="fa-brands fa-telegram"></i></div>
             <div class="free-item-info">
-              <h3>عضویت اینستاگرام</h3>
-              <p>۱۵ سکه رایگان دریافت کنید.</p>
+              <h3>عضویت در کانال انگلیسی</h3>
+              <p>۱۰ سکه رایگان دریافت کنید.</p>
             </div>
-            <button class="offer-btn menu-btn" data-platform="instagram">
-              بررسی
-            </button>
-          </div>
-          <div class="free-item">
-            <div class="free-item-icon">
-              <i class="fa-brands fa-youtube"></i>
+            <div class="offer-buttons">
+              <button class="offer-btn menu-btn join-btn">عضویت</button>
+              <button class="offer-btn menu-btn primary reward-btn">بررسی</button>
             </div>
-            <div class="free-item-info">
-              <h3>سابسکرایب یوتیوب</h3>
-              <p>۲۰ سکه رایگان دریافت کنید.</p>
-            </div>
-            <button class="offer-btn menu-btn" data-platform="youtube">
-              بررسی
-            </button>
           </div>
         </div>
       </div>
     </div>
 
-    <div class="footer-nav">
-      <button class="nav-btn" id="shop-btn">
-        <i class="fa-solid fa-cart-shopping"></i><span>فروشگاه</span>
-      </button>
-      <button class="nav-btn" id="selection-btn">
-        <i class="fa-solid fa-paper-plane"></i><span>تجهیزات</span>
-      </button>
-      <button class="nav-btn active" id="main-menu-btn">
-        <i class="fa-solid fa-gamepad"></i><span>اصلی</span>
-      </button>
-      <button class="nav-btn" id="leaderboard-btn">
-        <i class="fa-solid fa-trophy"></i><span>رتبه‌بندی</span>
-      </button>
-      <button class="nav-btn" id="free-coins-btn">
-        <i class="fa-solid fa-coins"></i><span>سکه رایگان</span>
-      </button>
+    <div class="footer-nav hidden">
+      <button class="nav-btn" id="shop-btn"><i class="fa-solid fa-cart-shopping"></i><span>فروشگاه</span></button>
+      <button class="nav-btn" id="selection-btn"><i class="fa-solid fa-paper-plane"></i><span>تجهیزات</span></button>
+      <button class="nav-btn active" id="main-menu-btn"><i class="fa-solid fa-gamepad"></i><span>اصلی</span></button>
+      <button class="nav-btn" id="leaderboard-btn"><i class="fa-solid fa-trophy"></i><span>رتبه‌بندی</span></button>
+      <button class="nav-btn" id="free-coins-btn"><i class="fa-solid fa-coins"></i><span>سکه رایگان</span></button>
     </div>
 
     <div id="waiting-overlay" class="hidden">
@@ -214,10 +188,7 @@
       </div>
     </div>
 
-    <div id="game-container" class="hidden">
-      <button id="use-potion-btn" class="hidden"></button>
-    </div>
-
+    <div id="game-container" class="hidden"></div>
     <div id="notification-container"></div>
 
     <script type="module" src="js/musicManager.js"></script>

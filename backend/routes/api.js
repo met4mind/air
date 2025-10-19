@@ -11,6 +11,7 @@ const {
 } = require("../gameData");
 const Leaderboard = require("../models/leaderboard");
 const crypto = require("crypto");
+const fetch = require('node-fetch');
 // Middleware برای احراز هویت کاربر تلگرام
 // در فایل: routes/api.js
 
@@ -964,24 +965,46 @@ router.post("/referral", auth, async (req, res) => {
 
 // بررسی عضویت در کانال و دریافت پاداش
 router.post("/check-membership", auth, async (req, res) => {
+  const { channelId } = req.body;
+  const user = req.user;
+  const BOT_TOKEN = process.env.BOT_TOKEN;
+
+  if (!channelId) {
+    return res.status(400).json({ error: "Channel ID is required." });
+  }
+
+  // چک می‌کنیم که آیا کاربر قبلاً این پاداش را دریافت کرده است
+  if (user.completedOffers.includes(channelId)) {
+    return res.status(400).json({ error: "شما قبلاً پاداش این کانال را دریافت کرده‌اید." });
+  }
+
   try {
-    const { platform, username } = req.body;
+    const response = await fetch(
+      `https://api.telegram.org/bot${BOT_TOKEN}/getChatMember?chat_id=${channelId}&user_id=${user.tgid}`
+    );
+    const data = await response.json();
 
-    // در اینجا باید با API پلتفرم مربوطه بررسی شود
-    // برای نمونه، فرض می‌کنیم کاربر عضو شده است
-    const offerId = `${platform}-${username}`;
+    if (data.ok) {
+      const status = data.result.status;
+      // اگر کاربر عضو، ادمین یا سازنده کانال باشد
+      if (['member', 'administrator', 'creator'].includes(status)) {
+        
+        user.coins += 10; // مقدار پاداش
+        user.completedOffers.push(channelId); // ثبت کردن پیشنهاد انجام شده
+        await user.save();
 
-    if (req.user.completedOffers.includes(offerId)) {
-      return res.status(400).json({ error: "Already completed this offer" });
+        return res.json({
+          message: "عضویت شما تایید شد! ۱۰ سکه پاداش گرفتید.",
+          coins: user.coins,
+        });
+      }
     }
+    // اگر کاربر عضو نبود
+    return res.status(400).json({ error: "شما هنوز در کانال عضو نشده‌اید." });
 
-    req.user.completedOffers.push(offerId);
-    req.user.coins += 10;
-    await req.user.save();
-
-    res.json({ message: "Membership verified", coins: req.user.coins });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error("Error checking membership:", error);
+    return res.status(500).json({ error: "خطا در برقراری ارتباط با سرور تلگرام." });
   }
 });
 

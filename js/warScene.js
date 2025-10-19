@@ -11,15 +11,8 @@ import { Bullet } from "./bullet.js";
 
 export class WarScene {
   constructor(
-    CONFIG,
-    networkManager,
-    selectedAirplane,
-    selectedBullet,
-    selectedPotion,
-    userData,
-    initialHealth,
-    initialOpponentHealth,
-    selectedWingman
+    CONFIG, networkManager, selectedAirplane, selectedBullet, selectedPotion,
+    userData, initialHealth, initialOpponentHealth, selectedWingman
   ) {
     this.CONFIG = CONFIG;
     this.networkManager = networkManager;
@@ -29,26 +22,33 @@ export class WarScene {
     this.selectedWingman = selectedWingman || null;
     this.userData = userData;
     this.opponent = null;
+    this.airplane = null;
     this.opponentAirplane = null;
-    this.opponentWingman = null; // پراپرتی جدید برای همراهان حریف
+    this.opponentWingman = null;
+    this.wingman = null;
+    this.roadManager = null;
+    
+    this.bullets = [];
     this.opponentBullets = [];
+    this.missiles = [];
+    this.clouds = [];
+    
     this.health = initialHealth || 100;
     this.opponentHealth = initialOpponentHealth || 100;
-    this.bullets = [];
-    this.missiles = [];
+    
     this.isPotionUsed = false;
-    this.boundPotionClickHandler = this.handlePotionClick.bind(this);
     this.isShielded = false;
     this.damageMultiplier = 1;
     this.baseShootingInterval = 1200;
-    this.activeEffects = {
-      power: 0,
-      speed: 0,
-      shield: 0,
-    };
+    this.shootingInterval = null;
+    
+    this.activeEffects = { power: 0, speed: 0, shield: 0 };
     window.networkManager = networkManager;
-    this.screenWidth = window.innerWidth;
-    this.screenHeight = window.innerHeight;
+
+    this.gameLoopId = null;
+    this.lastFrameTime = performance.now();
+    
+    this.boundPotionClickHandler = this.handlePotionClick.bind(this);
   }
 
   async init() {
@@ -56,13 +56,9 @@ export class WarScene {
     this.createGameObjects();
     this.startShooting();
     this.setupNetworkHandlers();
-    this.startGameLoop();
     this.createHealthDisplays();
-    const potionBtn = document.getElementById("use-potion-btn");
-    if (potionBtn) {
-      potionBtn.addEventListener("click", this.boundPotionClickHandler);
-    }
     this.setupPotionButton();
+    this.startGameLoop();
   }
 
   handlePotionClick() {
@@ -119,16 +115,29 @@ export class WarScene {
     }
   }
 
-  startGameLoop() {
-    const gameLoop = () => {
-      if (!this.airplane) return;
+startGameLoop() {
+    const gameLoop = (timestamp) => {
+      if (!this.airplane) { // Stop the loop if scene is cleaned up
+        return;
+      }
+      const deltaTime = (timestamp - this.lastFrameTime) / 1000; // Delta time in seconds
+      this.lastFrameTime = timestamp;
+
+      // Update all game components with delta time
       this.updateEffects();
-      this.roadManager.update();
-      this.updateBullets();
+      if(this.roadManager) this.roadManager.update(deltaTime);
+      this.clouds.forEach(cloud => cloud.update(deltaTime));
+      this.updateBullets(deltaTime);
+      this.missiles.forEach(missile => missile.update(deltaTime));
+
+      if (this.wingman) this.wingman.update(deltaTime);
+      if (this.opponentWingman) this.opponentWingman.update(deltaTime);
+      
       this.checkCollisions();
-      requestAnimationFrame(gameLoop);
+
+      this.gameLoopId = requestAnimationFrame(gameLoop);
     };
-    gameLoop();
+    this.gameLoopId = requestAnimationFrame(gameLoop);
   }
 
   activatePotion() {
@@ -194,7 +203,7 @@ export class WarScene {
     if (soundPath) this.playSound(soundPath);
   }
 
-  setShootingInterval(interval) {
+setShootingInterval(interval) {
     if (this.shootingInterval) {
       clearInterval(this.shootingInterval);
     }
@@ -204,6 +213,11 @@ export class WarScene {
         p.style === this.selectedAirplane.style
     );
     if (!planeData || !planeData.projectiles) return;
+    
+    // Speed is now defined in pixels per second
+    const BULLET_SPEED_MULTIPLIER = 3;
+    const MISSILE_SPEED_MULTIPLIER = 2.5;
+
     const bulletVisuals = {
       blue: { filter: "saturate(3) hue-rotate(200deg)" },
       orange: { filter: "saturate(5) hue-rotate(15deg)" },
@@ -212,10 +226,12 @@ export class WarScene {
     };
     const bulletSizeMap = { 1: 15, 2: 20, 3: 25, 5: 35 };
     const missileSizeMap = { 1: 20, 2: 25, 3: 30, 4: 40, 5: 50 };
+
     const totalProjectileCount = planeData.projectiles.reduce(
       (sum, p) => sum + p.count,
       0
     );
+
     this.shootingInterval = setInterval(() => {
       if (!this.airplane || !this.airplane.element.parentNode) {
         clearInterval(this.shootingInterval);
@@ -229,15 +245,10 @@ export class WarScene {
           ? (planeData.damage * this.damageMultiplier) / totalProjectileCount
           : 0;
 
-      // --- شلیک هواپیمای اصلی ---
       planeData.projectiles.forEach((proj) => {
         const count = proj.count;
         for (let i = 0; i < count; i++) {
-          let startX,
-            startY,
-            angleDeg = -90;
-          let offsetX = 0,
-            offsetY = 0;
+          let startX, startY, angleDeg = -90, offsetX = 0, offsetY = 0;
           if (proj.from === "nose") {
             const offsetFromCenter = count > 1 ? (i - (count - 1) / 2) * 15 : 0;
             startX = planeCenterX + offsetFromCenter;
@@ -262,14 +273,8 @@ export class WarScene {
             specSize = bulletSizeMap[proj.size] || 20;
             specFilter = visual.filter;
             const bullet = new Bullet(
-              "./assets/images/bullets/lvl1.png",
-              startX,
-              startY,
-              specSize,
-              planeData.bulletSpeed / 20,
-              angleDeg,
-              false,
-              specFilter
+              "./assets/images/bullets/lvl1.png", startX, startY, specSize,
+              planeData.bulletSpeed * BULLET_SPEED_MULTIPLIER, angleDeg, false, specFilter
             );
             bullet.damage = damagePerProjectile;
             this.bullets.push(bullet);
@@ -277,55 +282,36 @@ export class WarScene {
             specSize = missileSizeMap[proj.size] || 30;
             specFilter = "none";
             const missile = new Missile({
-              x: startX,
-              y: startY,
-              target: this.opponentAirplane,
-              missileType: proj.missileType,
-              speed: planeData.bulletSpeed / 30,
-              damage: damagePerProjectile,
-              size: specSize,
+              x: startX, y: startY, target: this.opponentAirplane,
+              missileType: proj.missileType, speed: planeData.bulletSpeed * MISSILE_SPEED_MULTIPLIER,
+              damage: damagePerProjectile, size: specSize,
             });
             this.missiles.push(missile);
           }
-          // ارسال پیام شلیک هواپیمای اصلی
           if (this.networkManager) {
             this.networkManager.sendShoot("main_plane", {
               planePercentX: planeCenterX / window.innerWidth,
               planePercentY: planeCenterY / window.innerHeight,
-              offsetX: offsetX,
-              offsetY: offsetY,
-              rotation: angleDeg,
+              offsetX: offsetX, offsetY: offsetY, rotation: angleDeg,
               bulletSpec: { size: specSize, filter: specFilter || "none" },
             });
           }
         }
       });
-
-      // --- شلیک همراهان ---
       if (this.wingman) {
-        // ایجاد گلوله‌ها برای نمایش در صفحه خودمان
         const wingmanBullets = this.wingman.shoot();
         this.bullets.push(...wingmanBullets);
-
-        // ارسال پیام‌های شلیک برای حریف، بدون ارسال مختصات
         if (this.networkManager) {
           const wingmanConfig = this.wingman.config;
           const bulletSpec = { size: wingmanConfig.bulletSize, filter: "none" };
-          // پیام برای همراه چپ
-          this.networkManager.sendShoot("left_wingman", {
-            bulletSpec: bulletSpec,
-          });
-          // پیام برای همراه راست
-          this.networkManager.sendShoot("right_wingman", {
-            bulletSpec: bulletSpec,
-          });
+          this.networkManager.sendShoot("left_wingman", { bulletSpec });
+          this.networkManager.sendShoot("right_wingman", { bulletSpec });
         }
       }
-
       this.playSound(this.CONFIG.assets.sound);
     }, interval);
   }
-  startShooting() {
+startShooting() {
     this.setShootingInterval(this.baseShootingInterval);
   }
 
@@ -524,42 +510,34 @@ export class WarScene {
     this.playSound(this.CONFIG.assets.sound);
   }
 
-  setupScene() {
+setupScene() {
     this.roadManager = new RoadManager(this.CONFIG);
     this.roadManager.init();
-    this.bullets = [];
   }
 
-  createGameObjects() {
+ createGameObjects() {
     this.airplane = new Airplane(
-      this.getAirplaneImage(
-        this.selectedAirplane?.image || this.CONFIG.assets.airplane
-      ),
+      this.selectedAirplane?.image || this.CONFIG.assets.airplane,
       this.CONFIG.airplane.width,
       this.CONFIG.airplane.height
     );
-    const playerX = this.screenWidth / 2 - this.CONFIG.airplane.width / 2;
-    const playerY = this.screenHeight - this.CONFIG.airplane.height - 50;
+    const playerX = window.innerWidth / 2 - this.CONFIG.airplane.width / 2;
+    const playerY = window.innerHeight - this.CONFIG.airplane.height - 50;
     this.airplane.setPosition(playerX, playerY);
 
-    // <<<< منطق ساخت همراهان آپدیت شد >>>>
     if (this.CONFIG.wingmen.enabled && this.selectedWingman) {
       this.wingman = new AirplaneWingman(this.airplane, {
         ...this.CONFIG.wingmen,
+        damage: this.selectedWingman.damage,
         images: {
           left: this.selectedWingman.image,
           right: this.selectedWingman.image,
         },
-        bulletImage: this.getBulletImage(
-          this.selectedBullet?.image || this.CONFIG.assets.bullet
-        ),
-        damage: this.selectedWingman.damage, // <<<< ارسال قدرت حمله
+        bulletImage: this.selectedBullet?.image || this.CONFIG.assets.bullet,
       });
     }
-    // <<<< پایان تغییرات >>>>
     this.createClouds();
   }
-
   createHealthDisplays() {
     const gameContainer = document.getElementById("game-container");
     if (!gameContainer) return;
@@ -641,59 +619,35 @@ export class WarScene {
     );
     this.airplane.setPosition(newX, newY);
   }
-  updateBullets() {
+updateBullets(deltaTime) {
     for (let i = this.bullets.length - 1; i >= 0; i--) {
-      if (!this.bullets[i].active) {
-        this.bullets.splice(i, 1);
-      }
+        const bullet = this.bullets[i];
+        if (bullet.active) {
+            bullet.update(deltaTime);
+        } else {
+            this.bullets.splice(i, 1);
+        }
     }
     for (let i = this.opponentBullets.length - 1; i >= 0; i--) {
-      if (!this.opponentBullets[i].active) {
-        this.opponentBullets.splice(i, 1);
-      }
+        const bullet = this.opponentBullets[i];
+        if (bullet.active) {
+            bullet.update(deltaTime);
+        } else {
+            this.opponentBullets.splice(i, 1);
+        }
     }
   }
-  createClouds() {
+createClouds() {
     for (let i = 0; i < this.CONFIG.clouds.count; i++) {
-      setTimeout(() => {
-        new Cloud({
-          backwardSpeed:
-            this.CONFIG.clouds.minSpeed +
-            Math.random() *
-              (this.CONFIG.clouds.maxSpeed - this.CONFIG.clouds.minSpeed),
-          horizontalSpeed: (Math.random() - 0.5) * 2.5,
-          size:
-            this.CONFIG.clouds.minSize +
-            Math.random() *
-              (this.CONFIG.clouds.maxSize - this.CONFIG.clouds.minSize),
-          imageUrl: this.getCloudImage(
-            this.CONFIG.assets.clouds[i % this.CONFIG.assets.clouds.length]
-          ),
-          startX: Math.random() * this.screenWidth,
-          rotation: (Math.random() - 0.5) * 45,
+        const cloud = new Cloud({
+            speed: (this.CONFIG.clouds.minSpeed + Math.random() * (this.CONFIG.clouds.maxSpeed - this.CONFIG.clouds.minSpeed)),
+            horizontalSpeed: (Math.random() - 0.5) * 2.5,
+            size: (this.CONFIG.clouds.minSize + Math.random() * (this.CONFIG.clouds.maxSize - this.CONFIG.clouds.minSize)),
+            imageUrl: `./${this.CONFIG.assets.clouds[i % this.CONFIG.assets.clouds.length]}`,
+            startX: Math.random() * window.innerWidth,
         });
-      }, i * 1500);
+        this.clouds.push(cloud);
     }
-    this.cloudGenerationInterval = setInterval(() => {
-      new Cloud({
-        backwardSpeed:
-          this.CONFIG.clouds.minSpeed +
-          Math.random() *
-            (this.CONFIG.clouds.maxSpeed - this.CONFIG.clouds.minSpeed),
-        horizontalSpeed: (Math.random() - 0.5) * 2.5,
-        size:
-          this.CONFIG.clouds.minSize +
-          Math.random() *
-            (this.CONFIG.clouds.maxSize - this.CONFIG.clouds.minSize),
-        imageUrl: this.getCloudImage(
-          this.CONFIG.assets.clouds[
-            Math.floor(Math.random() * this.CONFIG.assets.clouds.length)
-          ]
-        ),
-        startX: Math.random() * this.screenWidth,
-        rotation: Math.random() * 360,
-      });
-    }, 5000);
   }
   getCloudImage(cloudPath) {
     return `./${cloudPath}`;
@@ -828,33 +782,44 @@ export class WarScene {
     }, 2000);
   }
 
-  cleanup() {
-    clearInterval(this.shootingInterval);
-    if (this.cloudGenerationInterval)
-      clearInterval(this.cloudGenerationInterval);
-
-    const potionBtn = document.getElementById("use-potion-btn");
-    if (potionBtn) {
-      potionBtn.removeEventListener("click", this.boundPotionClickHandler);
-      potionBtn.classList.add("hidden");
+ cleanup() {
+    if (this.gameLoopId) {
+      cancelAnimationFrame(this.gameLoopId);
+      this.gameLoopId = null;
     }
-
+    if (this.shootingInterval) {
+      clearInterval(this.shootingInterval);
+      this.shootingInterval = null;
+    }
+    
+    // Remove all DOM elements
     if (this.airplane) this.airplane.remove();
     if (this.opponentAirplane) this.opponentAirplane.remove();
-
-    // حذف همراهان از صحنه
     if (this.wingman) this.wingman.remove();
     if (this.opponentWingman) this.opponentWingman.remove();
+    this.bullets.forEach(b => b.remove());
+    this.opponentBullets.forEach(b => b.remove());
+    this.missiles.forEach(m => m.remove());
+    this.clouds.forEach(c => c.remove());
+    
+    // Clear arrays
+    this.bullets = [];
+    this.opponentBullets = [];
+    this.missiles = [];
+    this.clouds = [];
+    this.airplane = null;
 
-    if (this.playerHealthDisplay) this.playerHealthDisplay.remove();
-    if (this.opponentHealthDisplay) this.opponentHealthDisplay.remove();
-    this.bullets.forEach((bullet) => bullet.remove());
-    this.missiles.forEach((missile) => missile.remove());
-    this.opponentBullets.forEach((bullet) => bullet.remove());
-    window.networkManager = null;
     if (window.musicManager) {
       window.musicManager.stop();
     }
+    
+    // Remove network handlers to prevent memory leaks
+    if(this.networkManager) {
+      this.networkManager.onOpponentMove = null;
+      this.networkManager.onOpponentShoot = null;
+      // ... and so on for all other handlers
+    }
+    window.networkManager = null;
   }
 
   handleResize() {

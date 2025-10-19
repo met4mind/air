@@ -8,46 +8,37 @@ class GameManager {
     this.currentScene = null;
     this.scenes = { war: null };
     this.networkManager = new NetworkManager();
-    this.isRegistering = false;
     this.username = "";
     this.userDataInterval = null;
     this.selectedPotion = null;
     this.selectedAirplane = null;
     this.selectedBullet = null;
-    this.selectedWingman = null; // <<<< پراپرتی جدید
+    this.selectedWingman = null;
     this.userData = null;
     this.allPlanes = [];
-    this.allWingmen = []; // <<<< پراپرتی جدید
+    this.allWingmen = [];
     this.mainMenuShootingInterval = null;
     this.mainMenuBullets = [];
-    this.init();
   }
 
-async init() {
-    document
-      .getElementById("cancel-search-container")
-      .addEventListener("click", () => this.cancelSearch());
+  async init() {
+    if (document.getElementById("cancel-search-container")) {
+      document.getElementById("cancel-search-container").addEventListener("click", () => this.cancelSearch());
+    }
 
     await this.fetchAllAssets();
 
-    // این شرط بررسی می‌کند که آیا برنامه داخل محیط تلگرام اجرا شده است یا خیر
     if (window.Telegram && window.Telegram.WebApp) {
       const tg = window.Telegram.WebApp;
-      tg.ready(); // به تلگرام اعلام می‌کنیم که اپ آماده است
-      tg.expand(); // اپ را تمام صفحه می‌کنیم
+      tg.ready();
+      tg.expand();
 
       const initData = tg.initData || "";
       const initDataUnsafe = tg.initDataUnsafe || {};
-
-      // استخراج کد معرف (referrer) از پارامترهای شروع اپ
       const referrerTgid = initDataUnsafe.start_param || null;
 
       try {
-        // تلاش برای احراز هویت با ارسال داده‌های تلگرام به بک‌اند
-        const userData = await this.networkManager.authenticateWithTelegram(
-          initData,
-          referrerTgid
-        );
+        const userData = await this.networkManager.authenticateWithTelegram(initData, referrerTgid);
 
         if (userData && userData.tgid) {
           this.networkManager.setTgid(userData.tgid);
@@ -56,67 +47,73 @@ async init() {
           this.userData = userData;
           localStorage.setItem("userData", JSON.stringify(userData));
 
-          // به‌روزرسانی هواپیما و تجهیزات پیش‌فرض بر اساس داده‌های کاربر
           this.updateDefaultSelections();
           this.updateMainMenuAirplaneImage();
-
           this.startUserDataSync();
-          // نمایش منوی اصلی بازی
-          if (window.menuManager) window.menuManager.showMenu("main-menu");
+
+          if (window.menuManager) {
+            window.menuManager.showMenu("main-menu");
+          }
+
+          this.showGameContent();
+          
         } else {
-          // اگر بک‌اند اطلاعات کاربر را برنگرداند
           throw new Error("اطلاعات کاربری از سرور دریافت نشد.");
         }
       } catch (error) {
-        // در صورت شکست درخواست احراز هویت، این پیام نمایش داده می‌شود
         console.error("Authentication failed:", error);
-        document.body.innerHTML =
-          "<h1>خطا در احراز هویت. لطفا اپ را مجددا راه‌اندازی کنید.</h1>";
+        document.body.innerHTML = "<h1>خطا در احراز هویت. لطفا اپ را مجددا راه‌اندازی کنید.</h1>";
+        this.showGameContent();
       }
     } else {
-      // این بخش فقط زمانی اجرا می‌شود که اپ مستقیماً در مرورگر باز شود
-      document.body.innerHTML =
-        "<h1>این اپلیکیشن باید از طریق تلگرام اجرا شود.</h1>";
+      document.body.innerHTML = "<h1>این اپلیکیشن باید از طریق تلگرام اجرا شود.</h1>";
       console.error("Telegram WebApp context not found.");
+      this.showGameContent();
     }
   }
-  updateDefaultSelections() {
-    if (!this.userData) return;
+  
+  showGameContent() {
+    const loadingScreen = document.getElementById('loading-screen');
+    const appContainer = document.querySelector('.app-container');
+    const footerNav = document.querySelector('.footer-nav');
 
-    // انتخاب هواپیمای کاربر
+    if (appContainer) appContainer.classList.remove('hidden');
+    if (footerNav) footerNav.classList.remove('hidden');
+    
+    if (loadingScreen) {
+      loadingScreen.classList.add('loaded');
+      setTimeout(() => {
+          if (loadingScreen.parentNode) {
+              loadingScreen.parentNode.removeChild(loadingScreen);
+          }
+      }, 500);
+    }
+  }
+
+  updateDefaultSelections() {
+    if (!this.userData || !this.allPlanes || this.allPlanes.length === 0) return;
     const savedAirplane = JSON.parse(localStorage.getItem("selectedAirplane"));
     if (savedAirplane) {
-      this.selectedAirplane = this.allPlanes.find(
-        (p) => p.tier === savedAirplane.tier && p.style === savedAirplane.style
-      );
+      this.selectedAirplane = this.allPlanes.find((p) => p.tier === savedAirplane.tier && p.style === savedAirplane.style);
     }
     if (!this.selectedAirplane) {
-      this.selectedAirplane = this.allPlanes.find(
-        (p) =>
-          p.tier === this.userData.airplaneTier &&
-          p.style === this.userData.airplaneStyle
-      );
+      this.selectedAirplane = this.allPlanes.find((p) => p.tier === this.userData.airplaneTier && p.style === this.userData.airplaneStyle);
     }
-
-    // انتخاب همراه کاربر
-    const savedWingman = JSON.parse(localStorage.getItem("selectedWingman"));
-    if (savedWingman) {
-      this.selectedWingman = this.allWingmen.find(
-        (w) => w.level === savedWingman.level
-      );
-    }
-    if (!this.selectedWingman) {
-      this.selectedWingman = this.allWingmen.find(
-        (w) => w.level === this.userData.wingmanLevel
-      );
+    if (this.allWingmen && this.allWingmen.length > 0) {
+      const savedWingman = JSON.parse(localStorage.getItem("selectedWingman"));
+      if (savedWingman) {
+        this.selectedWingman = this.allWingmen.find((w) => w.level === savedWingman.level);
+      }
+      if (!this.selectedWingman) {
+        this.selectedWingman = this.allWingmen.find((w) => w.level === this.userData.wingmanLevel);
+      }
     }
   }
+
   updateMainMenuAirplaneImage() {
     const imgElement = document.querySelector(".main-airplane-art");
     if (imgElement) {
-      const planeToDisplay =
-        this.selectedAirplane ||
-        this.allPlanes.find((p) => p.tier === 1 && p.style === 1);
+      const planeToDisplay = this.selectedAirplane || (this.allPlanes && this.allPlanes.find((p) => p.tier === 1 && p.style === 1));
       if (planeToDisplay) {
         imgElement.src = planeToDisplay.image;
       }
@@ -125,16 +122,11 @@ async init() {
 
   startMainMenuAnimation() {
     this.stopMainMenuAnimation();
-
     const airplaneEl = document.querySelector(".main-airplane-art");
     const container = document.getElementById("main-menu-animation-container");
     if (!airplaneEl || !container) return;
-
-    const planeData =
-      this.selectedAirplane ||
-      this.allPlanes.find((p) => p.tier === 1 && p.style === 1);
+    const planeData = this.selectedAirplane || this.allPlanes.find((p) => p.tier === 1 && p.style === 1);
     if (!planeData || !planeData.projectiles) return;
-
     const bulletVisuals = {
       blue: { filter: "saturate(3) hue-rotate(200deg)" },
       orange: { filter: "saturate(5) hue-rotate(15deg)" },
@@ -142,55 +134,34 @@ async init() {
       purple: { filter: "saturate(3) hue-rotate(250deg)" },
     };
     const bulletSizeMap = { 1: 15, 2: 20, 3: 25, 5: 35 };
-
     this.mainMenuShootingInterval = setInterval(() => {
       const menuRect = container.parentElement.getBoundingClientRect();
       const airplaneRect = airplaneEl.getBoundingClientRect();
       const airplaneRelativeTop = airplaneRect.top - menuRect.top;
       const airplaneRelativeLeft = airplaneRect.left - menuRect.left;
-
       planeData.projectiles.forEach((proj) => {
         if (proj.type !== "bullet") return;
         const count = proj.count;
         for (let i = 0; i < count; i++) {
           let startX, startY;
           let angleDeg = -90;
-
           if (proj.from === "nose") {
             const offsetFromCenter = count > 1 ? (i - (count - 1) / 2) * 15 : 0;
-            startX =
-              airplaneRelativeLeft + airplaneRect.width / 2 + offsetFromCenter;
+            startX = airplaneRelativeLeft + airplaneRect.width / 2 + offsetFromCenter;
             startY = airplaneRelativeTop + airplaneRect.height * 0.1;
           } else {
-            // wing
             const offsetRatio = proj.offset === "near" ? 0.3 : 0.1;
             const wing = i % 2 === 0 ? -1 : 1;
-            startX =
-              airplaneRelativeLeft +
-              airplaneRect.width / 2 +
-              wing * airplaneRect.width * offsetRatio;
+            startX = airplaneRelativeLeft + airplaneRect.width / 2 + wing * airplaneRect.width * offsetRatio;
             startY = airplaneRelativeTop + airplaneRect.height * 0.4;
           }
-
           if (proj.pattern === "angled" && count > 1) {
             const spread = 40;
             angleDeg = -90 - spread / 2 + i * (spread / (count - 1));
           }
-
           const visual = bulletVisuals[proj.color] || {};
           const size = bulletSizeMap[proj.size] || 20;
-
-          const bullet = new Bullet(
-            "./assets/images/bullets/lvl1.png",
-            startX,
-            startY,
-            size,
-            5,
-            angleDeg,
-            false,
-            visual.filter
-          );
-
+          const bullet = new Bullet("./assets/images/bullets/lvl1.png", startX, startY, size, 5, angleDeg, false, visual.filter);
           container.appendChild(bullet.element);
           this.mainMenuBullets.push(bullet);
         }
@@ -206,63 +177,102 @@ async init() {
     if (container) container.innerHTML = "";
   }
 
-  cancelSearch() {
-    this.hideWaitingMessage();
-    if (
-      this.networkManager &&
-      this.networkManager.socket &&
-      this.networkManager.socket.readyState === WebSocket.OPEN
-    ) {
-      this.networkManager.socket.close();
-    }
-    document.querySelector(".footer-nav").style.display = "flex";
-    if (window.menuManager) window.menuManager.showMenu("main-menu");
-
-    if (window.musicManager) {
-      window.musicManager.play("menu");
+  async initiateGameConnection() {
+    try {
+      const userData = JSON.parse(localStorage.getItem("userData"));
+      if (!userData || !userData._id) {
+        throw new Error("اطلاعات کاربر یافت نشد یا ناقص است.");
+      }
+      if (!this.selectedAirplane) {
+        this.selectedAirplane = this.allPlanes.find((p) => p.tier === 1 && p.style === 1);
+      }
+      if (!this.selectedWingman) {
+        this.selectedWingman = this.allWingmen.find((w) => w.level === 1);
+      }
+      this.showWaitingMessage("در حال اتصال به سرور بازی...");
+      this.networkManager.connect();
+      this.networkManager.onGameStart = (gameData) => this.startGame(gameData);
+      this.networkManager.onWaiting = (message) => {
+        if (document.getElementById("waiting-message-text")) {
+          document.getElementById("waiting-message-text").textContent = message;
+        }
+      };
+      this.networkManager.onGameCancelled = (message) => {
+        this.hideWaitingMessage();
+        if (window.menuManager) window.menuManager.showNotification(message, "error");
+        document.querySelector(".footer-nav").style.display = "flex";
+        if (window.menuManager) window.menuManager.showMenu("main-menu");
+        if (window.musicManager) window.musicManager.play("menu");
+      };
+      await new Promise((resolve, reject) => {
+        const checkConnection = () => {
+          if (this.networkManager.connected) resolve();
+          else if (this.networkManager.socket && this.networkManager.socket.readyState === WebSocket.CLOSED) {
+            reject(new Error("اتصال به سرور برقرار نشد."));
+          } else {
+            setTimeout(checkConnection, 100);
+          }
+        };
+        checkConnection();
+      });
+      this.networkManager.sendLogin(
+        userData._id,
+        userData.username,
+        this.selectedAirplane.image,
+        this.selectedAirplane.name,
+        "assets/images/bullets/lvl1.png",
+        "Standard Bullet",
+        window.innerWidth,
+        window.innerHeight,
+        this.selectedPotion ? this.selectedPotion._id : null,
+        this.selectedAirplane.tier,
+        this.selectedAirplane.style,
+        this.selectedWingman
+      );
+    } catch (error) {
+      console.error("Failed to start game:", error);
+      if (window.menuManager) window.menuManager.showNotification("خطا در شروع بازی: " + error.message, "error");
+      this.hideWaitingMessage();
+      document.querySelector(".footer-nav").style.display = "flex";
+      if (window.menuManager) window.menuManager.showMenu("main-menu");
+      if (window.musicManager) window.musicManager.play("menu");
     }
   }
 
-  getDeviceType() {
-    const ua = navigator.userAgent;
-    if (/(tablet|ipad|playbook|silk)|(android(?!.*mobi))/i.test(ua))
-      return "tablet";
-    if (
-      /Mobile|iP(hone|od)|Android|BlackBerry|IEMobile|Kindle|Silk-Accelerated|(hpw|web)OS|Opera M(obi|ini)/.test(
-        ua
-      )
-    )
-      return "phone";
-    return "pc";
+  cancelSearch() {
+    this.hideWaitingMessage();
+    if (this.networkManager && this.networkManager.socket && this.networkManager.socket.readyState === WebSocket.OPEN) {
+      this.networkManager.socket.close();
+    }
+    const appContainer = document.querySelector(".app-container");
+    if (appContainer) appContainer.classList.remove("hidden-for-game");
+    document.querySelector(".footer-nav").style.display = "flex";
+    if (window.menuManager) window.menuManager.showMenu("main-menu");
+    if (window.musicManager) window.musicManager.play("menu");
   }
 
   showWaitingMessage(message) {
     const overlay = document.getElementById("waiting-overlay");
     const textElement = document.getElementById("waiting-message-text");
-    const deviceType = this.getDeviceType();
-    const imagePath = `assets/images/waiting/${deviceType}.png`;
-    overlay.style.backgroundImage = `url('${imagePath}')`;
-    textElement.textContent = message;
-
+    if (textElement) {
+      textElement.textContent = message;
+    }
     document.querySelector(".footer-nav").style.display = "none";
     if (window.menuManager) window.menuManager.showMenu(null);
-
-    overlay.classList.remove("hidden");
-
+    if (overlay) overlay.classList.remove("hidden");
     if (window.musicManager) {
       window.musicManager.play("waiting");
     }
   }
 
   hideWaitingMessage() {
-    document.getElementById("waiting-overlay").classList.add("hidden");
+    const overlay = document.getElementById("waiting-overlay");
+    if (overlay) overlay.classList.add("hidden");
   }
 
   async fetchAllAssets() {
     try {
-      let planes = await this.networkManager.apiRequest(
-        "/api/game-data/airplanes"
-      );
+      let planes = await this.networkManager.apiRequest("/api/game-data/airplanes");
       this.allPlanes = planes.map((plane) => {
         const nameMatch = plane.name.match(/Tier (\d+) - Model (\d+)/);
         if (nameMatch) {
@@ -272,12 +282,7 @@ async init() {
         }
         return plane;
       });
-
-      // <<<< دریافت اطلاعات همراهان >>>>
-      this.allWingmen = await this.networkManager.apiRequest(
-        "/api/game-data/wingmen"
-      );
-      // <<<< پایان >>>>
+      this.allWingmen = await this.networkManager.apiRequest("/api/game-data/wingmen");
     } catch (e) {
       console.error("Failed to fetch all assets.", e);
       this.allPlanes = [];
@@ -285,99 +290,19 @@ async init() {
     }
   }
 
- // در فایل script.js
-async initiateGameConnection() {
-  try {
-    const userData = JSON.parse(localStorage.getItem("userData"));
-    if (!userData || !userData._id) { // <<-- بررسی می‌کنیم که _id حتما وجود داشته باشد
-      throw new Error("اطلاعات کاربر یافت نشد یا ناقص است.");
-    }
-
-    if (!this.selectedAirplane) {
-      this.selectedAirplane = this.allPlanes.find(
-        (p) => p.tier === 1 && p.style === 1
-      );
-    }
-    if (!this.selectedWingman) {
-      this.selectedWingman = this.allWingmen.find((w) => w.level === 1);
-    }
-
-    this.showWaitingMessage("در حال اتصال به سرور بازی...");
-    this.networkManager.connect();
-    this.networkManager.onGameStart = (gameData) => this.startGame(gameData);
-    this.networkManager.onWaiting = (message) => {
-      document.getElementById("waiting-message-text").textContent = message;
-    };
-    this.networkManager.onGameCancelled = (message) => {
-      this.hideWaitingMessage();
-      // به جای alert از یک نوتیفیکیشن بهتر استفاده می‌کنیم
-      if(window.menuManager) window.menuManager.showNotification(message, "error");
-
-      document.querySelector(".footer-nav").style.display = "flex";
-      if (window.menuManager) window.menuManager.showMenu("main-menu");
-      if (window.musicManager) window.musicManager.play("menu");
-    };
-
-    await new Promise((resolve, reject) => {
-      const checkConnection = () => {
-        if (this.networkManager.connected) resolve();
-        else if (
-          this.networkManager.socket &&
-          this.networkManager.socket.readyState === WebSocket.CLOSED
-        ) {
-          reject(new Error("اتصال به سرور برقرار نشد."));
-        } else {
-          setTimeout(checkConnection, 100);
-        }
-      };
-      checkConnection();
-    });
-
-    // <<-- تغییر اصلی اینجاست: userData._id را به عنوان اولین پارامتر ارسال می‌کنیم
-    this.networkManager.sendLogin(
-      userData._id, 
-      userData.username,
-      this.selectedAirplane.image,
-      this.selectedAirplane.name,
-      "assets/images/bullets/lvl1.png",
-      "Standard Bullet",
-      window.innerWidth,
-      window.innerHeight,
-      this.selectedPotion ? this.selectedPotion._id : null,
-      this.selectedAirplane.tier,
-      this.selectedAirplane.style,
-      this.selectedWingman
-    );
-  } catch (error) {
-    console.error("Failed to start game:", error);
-    // به جای alert از یک نوتیفیکیشن بهتر استفاده می‌کنیم
-    if(window.menuManager) window.menuManager.showNotification("خطا در شروع بازی: " + error.message, "error");
-
-    this.hideWaitingMessage();
-    document.querySelector(".footer-nav").style.display = "flex";
-    if (window.menuManager) window.menuManager.showMenu("main-menu");
-    if (window.musicManager) window.musicManager.play("menu");
-  }
-}
-
   async startGame(gameData) {
     try {
       this.userData = JSON.parse(localStorage.getItem("userData"));
       if (!this.userData) throw new Error("User data not found.");
-
       this.hideWaitingMessage();
-
       const appContainer = document.querySelector(".app-container");
       if (appContainer) appContainer.classList.add("hidden-for-game");
-
       document.querySelector(".footer-nav").style.display = "none";
       if (window.menuManager) window.menuManager.showMenu(null);
       document.getElementById("game-container").classList.remove("hidden");
-
       if (window.musicManager) {
         window.musicManager.play("war");
       }
-
       this.scenes.war = new WarScene(
         CONFIG,
         this.networkManager,
@@ -387,9 +312,8 @@ async initiateGameConnection() {
         this.userData,
         gameData.health,
         gameData.opponentHealth,
-        this.selectedWingman // <<<< ارسال همراه انتخاب شده به صحنه جنگ
+        this.selectedWingman
       );
-
       await this.switchScene("war");
       if (this.currentScene && this.currentScene.setOpponent) {
         this.currentScene.setOpponent(gameData.opponent);
@@ -398,27 +322,6 @@ async initiateGameConnection() {
       console.error("Failed to start game:", error);
       alert("Failed to start game: " + error.message);
       document.querySelector(".footer-nav").style.display = "flex";
-    }
-  }
-
-  cancelSearch() {
-    this.hideWaitingMessage();
-    if (
-      this.networkManager &&
-      this.networkManager.socket &&
-      this.networkManager.socket.readyState === WebSocket.OPEN
-    ) {
-      this.networkManager.socket.close();
-    }
-
-    const appContainer = document.querySelector(".app-container");
-    if (appContainer) appContainer.classList.remove("hidden-for-game");
-
-    document.querySelector(".footer-nav").style.display = "flex";
-    if (window.menuManager) window.menuManager.showMenu("main-menu");
-
-    if (window.musicManager) {
-      window.musicManager.play("menu");
     }
   }
 
@@ -437,21 +340,6 @@ async initiateGameConnection() {
     this.userDataInterval = setInterval(fetchAndSaveUserData, 15000);
   }
 
-  hideScreen(id) {
-    const element = document.getElementById(id);
-    if (element) element.classList.add("hidden");
-  }
-
-  showScreen(id) {
-    const element = document.getElementById(id);
-    if (element) {
-      element.classList.remove("hidden");
-    }
-    if (window.menuManager && (id === "main-menu" || id === "login-screen")) {
-      window.menuManager.showMenu(id);
-    }
-  }
-
   async switchScene(sceneName) {
     if (this.currentScene && this.currentScene.cleanup) {
       await this.currentScene.cleanup();
@@ -465,4 +353,5 @@ async initiateGameConnection() {
 
 document.addEventListener("DOMContentLoaded", () => {
   window.gameManager = new GameManager();
+  window.gameManager.init();
 });

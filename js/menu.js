@@ -2,7 +2,7 @@ const BASEURL = "https://airclash.top";
 
 class MenuManager {
   constructor() {
-    this.currentMenu = null; // شروع بدون منوی فعال
+    this.currentMenu = null;
     this.userData = null;
     this.allPotions = [];
     this.leaderboardTimer = null;
@@ -10,115 +10,135 @@ class MenuManager {
   }
 
   async init() {
-    await this.loadMasterData();
     this.bindEvents();
     this.loadUserData();
     this.startDataSync();
-    // نمایش منوی اصلی در ابتدای بارگذاری
-    this.showMenu("main-menu");
+    // ما منتظر می‌مانیم تا GameManager به ما بگوید منو را نمایش دهیم
   }
 
-  // --- تابع اصلی برای نمایش منو با انیمیشن ---
   showMenu(menuId) {
     if (this.currentMenu === menuId) return;
-
-    // مخفی کردن منوی فعلی
     if (this.currentMenu) {
       const currentMenuEl = document.getElementById(this.currentMenu);
       if (currentMenuEl) {
         currentMenuEl.classList.remove("active");
       }
     }
-
-    // نمایش منوی جدید
     const nextMenuEl = document.getElementById(menuId);
     if (nextMenuEl) {
-      nextMenuEl.classList.remove("hidden"); // برای اجرای انیمیشن، ابتدا از حالت display:none خارج می‌کنیم
-      // یک تأخیر بسیار کوتاه برای اینکه مرورگر فرصت پردازش داشته باشد
+      nextMenuEl.classList.remove("hidden");
       setTimeout(() => {
         nextMenuEl.classList.add("active");
       }, 10);
     }
-
     this.currentMenu = menuId;
-
-    // کنترل انیمیشن هواپیما بر اساس منوی فعال
     if (menuId === "main-menu") {
       window.gameManager.startMainMenuAnimation();
     } else {
       window.gameManager.stopMainMenuAnimation();
     }
-
+    if (menuId === "free-coins-menu") {
+      this.updateFreeCoinsStatus();
+    }
     this.updateActiveNav(menuId);
   }
 
-  // --- تابع کمکی برای مدیریت کلاس active در نویگیشن ---
+updateFreeCoinsStatus() {
+    if (!this.userData || !this.userData.completedOffers) return;
+    document.querySelectorAll('.free-item[data-channel-id]').forEach(item => {
+      const channelId = item.dataset.channelId;
+      const rewardBtn = item.querySelector('.reward-btn');
+      const joinBtn = item.querySelector('.join-btn');
+      if (this.userData.completedOffers.includes(channelId)) {
+        if (rewardBtn) {
+          rewardBtn.textContent = 'دریافت شد';
+          rewardBtn.classList.add('claimed');
+          rewardBtn.disabled = true;
+        }
+        if (joinBtn) joinBtn.disabled = true;
+        item.style.opacity = '0.7';
+      }
+    });
+  }
   updateActiveNav(activeMenuId) {
     const menuToNavButtonMap = {
-      "main-menu": "main-menu-btn",
-      "shop-menu": "shop-btn",
-      "selection-menu": "selection-btn",
-      "leaderboard-menu": "leaderboard-btn",
-      "free-coins-menu": "free-coins-btn",
-      "upgrade-menu": "selection-btn", // ارتقا بخشی از تجهیزات است
+      "main-menu": "main-menu-btn", "shop-menu": "shop-btn",
+      "selection-menu": "selection-btn", "leaderboard-menu": "leaderboard-btn",
+      "free-coins-menu": "free-coins-btn", "upgrade-menu": "selection-btn",
     };
-
     const activeBtnId = menuToNavButtonMap[activeMenuId];
-    document.querySelectorAll(".nav-btn").forEach((btn) => {
-      btn.classList.remove("active");
-    });
-
+    document.querySelectorAll(".nav-btn").forEach((btn) => btn.classList.remove("active"));
     if (activeBtnId) {
       const activeBtn = document.getElementById(activeBtnId);
       if (activeBtn) activeBtn.classList.add("active");
     }
   }
 
-  // --- اتصال رویدادها ---
   bindEvents() {
-    document
-      .getElementById("play-btn")
-      .addEventListener("click", () =>
-        window.gameManager.initiateGameConnection()
-      );
-
-    // نویگیشن پایین صفحه
-    document
-      .getElementById("main-menu-btn")
-      .addEventListener("click", () => this.showMenu("main-menu"));
-    document
-      .getElementById("shop-btn")
-      .addEventListener("click", () => this.showShopMenu());
-    document
-      .getElementById("selection-btn")
-      .addEventListener("click", () => this.showSelectionMenu());
-    document
-      .getElementById("leaderboard-btn")
-      .addEventListener("click", () => this.showLeaderboard());
-    document
-      .getElementById("free-coins-btn")
-      .addEventListener("click", () => this.showMenu("free-coins-menu"));
-
+    document.getElementById("play-btn").addEventListener("click", () => window.gameManager.initiateGameConnection());
+    document.getElementById("main-menu-btn").addEventListener("click", () => this.showMenu("main-menu"));
+    document.getElementById("shop-btn").addEventListener("click", () => this.showShopMenu());
+    document.getElementById("selection-btn").addEventListener("click", () => this.showSelectionMenu());
+    document.getElementById("leaderboard-btn").addEventListener("click", () => this.showLeaderboard());
+    document.getElementById("free-coins-btn").addEventListener("click", () => this.showMenu("free-coins-menu"));
     const goToUpgradeBtn = document.getElementById("go-to-upgrade-btn");
     if (goToUpgradeBtn) {
       goToUpgradeBtn.addEventListener("click", () => this.showUpgradeMenu());
     }
+    
+    // --- بخش اصلاح شده برای تب‌های لیدربورد ---
+    const leaderboardTabsContainer = document.querySelector("#leaderboard-menu .leaderboard-tabs");
+    if (leaderboardTabsContainer) {
+      leaderboardTabsContainer.addEventListener("click", (e) => {
+        const clickedTab = e.target.closest(".tab-btn");
+        if (clickedTab && !clickedTab.classList.contains('active')) {
+            this.switchLeaderboardTab(clickedTab);
+        }
+      });
+    }
 
-    const leaderboardTabsContainer = document.querySelector(
-      "#leaderboard-menu .leaderboard-tabs"
-    );
     const inviteButton = document.getElementById("invite-btn");
     if (inviteButton) {
       inviteButton.addEventListener("click", () => this.shareReferralLink());
     }
-    if (leaderboardTabsContainer) {
-      leaderboardTabsContainer.addEventListener("click", (e) => {
-        const clickedTab = e.target.closest(".tab-btn");
-        if (clickedTab) this.switchLeaderboardTab(clickedTab);
-      });
-    }
-  }
 
+    document.querySelectorAll('.free-item[data-channel-id]').forEach(item => {
+      const channelId = item.dataset.channelId;
+      const joinBtn = item.querySelector('.join-btn');
+      const rewardBtn = item.querySelector('.reward-btn');
+
+      if (joinBtn) {
+        joinBtn.addEventListener('click', () => {
+          if (window.Telegram && window.Telegram.WebApp) {
+            window.Telegram.WebApp.openTelegramLink(`https://t.me/${channelId.replace('@', '')}`);
+          }
+        });
+      }
+
+      if (rewardBtn) {
+        rewardBtn.addEventListener('click', async () => {
+          try {
+            rewardBtn.disabled = true;
+            rewardBtn.textContent = 'در حال بررسی...';
+            const result = await this.apiRequest("/api/check-membership", {
+              method: "POST",
+              body: JSON.stringify({ channelId }),
+            });
+            this.showNotification(result.message, "success");
+            this.userData.coins = result.coins;
+            if (!this.userData.completedOffers) this.userData.completedOffers = [];
+            this.userData.completedOffers.push(channelId);
+            this.updateUI();
+          } catch (error) {
+            const errorData = await error.response.json();
+            this.showNotification(errorData.error || "بررسی ناموفق بود.", "error");
+            rewardBtn.disabled = false;
+            rewardBtn.textContent = 'بررسی';
+          }
+        });
+      }
+    });
+  }
   shareReferralLink() {
     if (!this.userData || !this.userData.tgid) {
       this.showNotification("ابتدا باید وارد شوید!", "error");
@@ -128,7 +148,7 @@ class MenuManager {
     // ساخت لینک دعوت
     // آدرس دامنه خود را جایگزین 'https://your-domain.com' کنید
     const referrerTgid = this.userData.tgid;
-    const botUsername = "YOUR_BOT_USERNAME"; // نام کاربری ربات تلگرام خود را اینجا قرار دهید
+    const botUsername = "gifmakertest1bot"; // نام کاربری ربات تلگرام خود را اینجا قرار دهید
     const url = `https://t.me/${botUsername}/app?startapp=${referrerTgid}`;
 
     const text = "به بازی جنگنده‌های هوایی بپیوند و کلی جایزه بگیر!";
@@ -392,10 +412,8 @@ class MenuManager {
     }
   }
 
-  async switchLeaderboardTab(clickedTab) {
-    document
-      .querySelectorAll(".leaderboard-tabs .tab-btn")
-      .forEach((tab) => tab.classList.remove("active"));
+async switchLeaderboardTab(clickedTab) {
+    document.querySelectorAll(".leaderboard-tabs .tab-btn").forEach((tab) => tab.classList.remove("active"));
     clickedTab.classList.add("active");
     await this.loadLeaderboard(clickedTab.dataset.type);
   }
@@ -552,14 +570,14 @@ class MenuManager {
     }
   }
 
-  updateUI() {
+updateUI() {
     if (!this.userData) return;
     const statsHTML = `<span id="user-coins">⛁ ${this.userData.coins}</span><span id="user-stars">★ ${this.userData.stars}</span>`;
     document.querySelectorAll(".user-stats-display").forEach((display) => {
       display.innerHTML = statsHTML;
     });
+    this.updateFreeCoinsStatus();
   }
-
   startDataSync() {
     setInterval(() => this.loadUserData(), 5000);
   }
